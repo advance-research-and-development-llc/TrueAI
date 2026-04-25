@@ -24,7 +24,7 @@ import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
 import { useAutoPerformanceOptimization } from '@/hooks/use-auto-performance'
 import { useIndexedDBCache } from '@/hooks/use-indexeddb-cache'
 import { useDebounce } from '@/lib/mobile-performance'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play, ArrowsClockwise, CurrencyDollar } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -40,7 +40,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
 import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession, Workflow, CostEntry, Budget } from '@/lib/types'
 import { AgentLearningEngine } from '@/lib/agent-learning'
 
 const AgentCard = lazy(() => import('@/components/agent/AgentCard'))
@@ -69,6 +69,9 @@ const CacheManager = lazy(() => import('@/components/notifications/CacheManager'
 const OfflineQueuePanel = lazy(() => import('@/components/notifications/OfflineQueuePanel'))
 const IndexedDBCacheManager = lazy(() => import('@/components/cache/IndexedDBCacheManager').then(m => ({ default: m.IndexedDBCacheManager })))
 const IndexedDBStatus = lazy(() => import('@/components/cache/IndexedDBStatus').then(m => ({ default: m.IndexedDBStatus })))
+const WorkflowBuilder = lazy(() => import('@/components/workflow/WorkflowBuilder').then(m => ({ default: m.WorkflowBuilder })))
+const WorkflowTemplates = lazy(() => import('@/components/workflow/WorkflowTemplates').then(m => ({ default: m.WorkflowTemplates })))
+const CostTracking = lazy(() => import('@/components/cost/CostTracking').then(m => ({ default: m.CostTracking })))
 
 const LoadingFallback = memo(() => (
   <motion.div 
@@ -149,6 +152,9 @@ function App() {
   const [agentLearningMetrics, setAgentLearningMetrics] = useKV<Record<string, AgentLearningMetrics>>('agent-learning-metrics', {})
   const [agentVersions, setAgentVersions] = useKV<AgentVersion[]>('agent-versions', [])
   const [learningSessions, setLearningSessions] = useKV<LearningSession[]>('learning-sessions', [])
+  const [workflows, setWorkflows] = useKV<Workflow[]>('workflows', [])
+  const [costEntries, setCostEntries] = useKV<CostEntry[]>('cost-entries', [])
+  const [budgets, setBudgets] = useKV<Budget[]>('budgets', [])
   
   const [appSettings, setAppSettings] = useKV<AppSettings>('app-settings', {
     autoSave: true,
@@ -250,7 +256,7 @@ function App() {
     [agentRuns, activeAgentRunId]
   )
 
-  const tabOrder = useMemo(() => ['chat', 'agents', 'models', 'analytics', 'builder'], [])
+  const tabOrder = useMemo(() => ['chat', 'agents', 'workflows', 'models', 'analytics', 'builder'], [])
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handleTabChange = useCallback((newTab: string) => {
@@ -1008,6 +1014,111 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     return baseProps
   }, [performanceOptimization.shouldReduceMotion, performanceOptimization.isLowEnd])
 
+  const saveWorkflow = useCallback((workflow: Workflow) => {
+    setWorkflows(prev => {
+      const existing = (prev || []).find(w => w.id === workflow.id)
+      if (existing) {
+        return (prev || []).map(w => w.id === workflow.id ? workflow : w)
+      }
+      return [workflow, ...(prev || [])]
+    })
+    analytics.track('workflow_saved', 'workflow', 'save_workflow', {
+      label: workflow.name,
+      metadata: { nodes: workflow.nodes.length, edges: workflow.edges.length }
+    })
+  }, [setWorkflows])
+
+  const deleteWorkflow = useCallback((id: string) => {
+    setWorkflows(prev => (prev || []).filter(w => w.id !== id))
+    toast.success('Workflow deleted')
+    analytics.track('workflow_deleted', 'workflow', 'delete_workflow')
+  }, [setWorkflows])
+
+  const executeWorkflow = useCallback(async (id: string) => {
+    const workflow = workflows?.find(w => w.id === id)
+    if (!workflow) {
+      toast.error('Workflow not found')
+      return
+    }
+
+    toast.info(`Executing workflow: ${workflow.name}`)
+    analytics.track('workflow_executed', 'workflow', 'execute_workflow', {
+      label: workflow.name,
+      metadata: { workflowId: id }
+    })
+  }, [workflows])
+
+  const useWorkflowTemplate = useCallback((template: WorkflowTemplate) => {
+    const newWorkflow: Workflow = {
+      ...template.workflow,
+      id: `workflow-${Date.now()}`,
+      name: `${template.name} (Copy)`,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    setWorkflows(prev => [newWorkflow, ...(prev || [])])
+    toast.success(`Template "${template.name}" added as workflow`)
+    analytics.track('template_used', 'workflow', 'use_template', {
+      label: template.name
+    })
+  }, [setWorkflows])
+
+  const trackCost = useCallback((tokensIn: number, tokensOut: number, model: string, resource: 'conversation' | 'agent' | 'workflow', resourceId: string, resourceName: string) => {
+    const MODEL_COSTS: Record<string, { input: number; output: number }> = {
+      'gpt-4o': { input: 0.01 / 1000, output: 0.03 / 1000 },
+      'gpt-4o-mini': { input: 0.0015 / 1000, output: 0.006 / 1000 },
+      'gpt-4-turbo': { input: 0.01 / 1000, output: 0.03 / 1000 },
+      'gpt-3.5-turbo': { input: 0.0005 / 1000, output: 0.0015 / 1000 },
+    }
+
+    const costs = MODEL_COSTS[model] || MODEL_COSTS['gpt-4o-mini']
+    const cost = (tokensIn * costs.input) + (tokensOut * costs.output)
+
+    const entry: CostEntry = {
+      id: `cost-${Date.now()}`,
+      timestamp: Date.now(),
+      model,
+      tokensIn,
+      tokensOut,
+      cost,
+      resource,
+      resourceId,
+      resourceName
+    }
+
+    setCostEntries(prev => [entry, ...(prev || [])])
+
+    setBudgets(prev => (prev || []).map(budget => {
+      if (budget.enabled) {
+        const newSpent = budget.spent + cost
+        if (newSpent >= budget.amount * (budget.alertThreshold / 100) && budget.spent < budget.amount * (budget.alertThreshold / 100)) {
+          toast.warning(`Budget "${budget.name}" is ${budget.alertThreshold}% spent!`)
+        }
+        return { ...budget, spent: newSpent }
+      }
+      return budget
+    }))
+  }, [setCostEntries, setBudgets])
+
+  const createBudget = useCallback((budgetData: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => {
+    const budget: Budget = {
+      ...budgetData,
+      id: `budget-${Date.now()}`,
+      createdAt: Date.now(),
+      spent: 0
+    }
+    setBudgets(prev => [budget, ...(prev || [])])
+    toast.success('Budget created')
+    analytics.track('budget_created', 'cost', 'create_budget', {
+      label: budget.name
+    })
+  }, [setBudgets])
+
+  const deleteBudget = useCallback((id: string) => {
+    setBudgets(prev => (prev || []).filter(b => b.id !== id))
+    toast.success('Budget deleted')
+  }, [setBudgets])
+
   const editingModel = models?.find(m => m.id === editingModelId)
 
   return (
@@ -1134,7 +1245,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.3 }}
           >
-            <TabsList className="hidden lg:grid w-full max-w-3xl mx-auto grid-cols-5 mb-6 bg-card/50 backdrop-blur-sm border border-border/50 p-1.5 shadow-lg shadow-primary/5">
+            <TabsList className="hidden lg:grid w-full max-w-4xl mx-auto grid-cols-6 mb-6 bg-card/50 backdrop-blur-sm border border-border/50 p-1.5 shadow-lg shadow-primary/5">
               <TabsTrigger value="chat" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:shadow-md transition-all duration-200">
                 <ChatCircle weight="fill" size={20} />
                 <span className="hidden sm:inline">Chat</span>
@@ -1142,6 +1253,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               <TabsTrigger value="agents" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:shadow-md transition-all duration-200">
                 <Robot weight="fill" size={20} />
                 <span className="hidden sm:inline">Agents</span>
+              </TabsTrigger>
+              <TabsTrigger value="workflows" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:shadow-md transition-all duration-200">
+                <ArrowsClockwise weight="fill" size={20} />
+                <span className="hidden sm:inline">Workflows</span>
               </TabsTrigger>
               <TabsTrigger value="models" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:shadow-md transition-all duration-200">
                 <Lightning weight="fill" size={20} />
@@ -1852,6 +1967,56 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </Suspense>
               </div>
             </div>
+            </TabErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="workflows" className="space-y-4">
+            <TabErrorBoundary tabName="Workflows">
+            <Tabs defaultValue="builder" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="builder" className="gap-2">
+                  <ArrowsClockwise weight="fill" size={18} />
+                  Builder
+                </TabsTrigger>
+                <TabsTrigger value="templates" className="gap-2">
+                  <Flask weight="fill" size={18} />
+                  Templates
+                </TabsTrigger>
+                <TabsTrigger value="cost" className="gap-2">
+                  <CurrencyDollar weight="fill" size={18} />
+                  Cost Tracking
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="builder">
+                <Suspense fallback={<LoadingFallback />}>
+                  <WorkflowBuilder
+                    workflows={workflows || []}
+                    agents={agents || []}
+                    onSaveWorkflow={saveWorkflow}
+                    onDeleteWorkflow={deleteWorkflow}
+                    onExecuteWorkflow={executeWorkflow}
+                  />
+                </Suspense>
+              </TabsContent>
+
+              <TabsContent value="templates">
+                <Suspense fallback={<LoadingFallback />}>
+                  <WorkflowTemplates onUseTemplate={useWorkflowTemplate} />
+                </Suspense>
+              </TabsContent>
+
+              <TabsContent value="cost">
+                <Suspense fallback={<LoadingFallback />}>
+                  <CostTracking
+                    costEntries={costEntries || []}
+                    budgets={budgets || []}
+                    onCreateBudget={createBudget}
+                    onDeleteBudget={deleteBudget}
+                  />
+                </Suspense>
+              </TabsContent>
+            </Tabs>
             </TabErrorBoundary>
           </TabsContent>
 

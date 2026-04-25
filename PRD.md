@@ -19,7 +19,28 @@ A browser-based AI assistant platform that enables local model integration, auto
 - **Progression**: Select conversation → Configure model/system prompt → Type message → Stream response token-by-token → Save to history
 - **Success criteria**: Messages persist across sessions, streaming displays smoothly, conversations load instantly
 
-### 2. Autonomous Agent System with 14 Advanced Tools and Templates
+### 2. Visual Workflow Builder
+- **Functionality**: Drag-and-drop interface for creating complex multi-agent workflows with visual node connections, execution paths, and conditional logic
+- **Purpose**: Enable users to orchestrate multiple agents, tools, and decision points in sophisticated workflows without coding
+- **Trigger**: User navigates to Workflows tab and clicks "New Workflow" or loads existing workflow
+- **Progression**: Create workflow → Drag nodes (agent, tool, decision, parallel, merge) to canvas → Connect nodes with edges → Configure each node (select agent, tool, condition) → Save workflow → Execute workflow → View step-by-step execution
+- **Success criteria**: Workflows save and load correctly, nodes connect properly, execution follows defined paths, visual feedback shows current step, all node types work (agent, tool, decision, parallel, start, end), supports complex branching logic
+
+### 3. Workflow Templates Library
+- **Functionality**: Pre-built workflow templates for common use cases with one-click deployment across 6 categories (Data Processing, Content Creation, Research, Development, Communication, Business)
+- **Purpose**: Accelerate workflow creation by providing battle-tested patterns for common automation scenarios
+- **Trigger**: User navigates to Workflows → Templates tab
+- **Progression**: Browse templates → Filter by category → Preview template details → Click "Use Template" → Template copied as new editable workflow → Customize parameters → Execute
+- **Success criteria**: 6+ templates available across all categories, templates deploy successfully, parameters are customizable, templates execute without errors, includes: Content Research & Writing, Data ETL Pipeline, Code Review Automation, Market Research Report, Email Campaign Automation, Customer Support Triage
+
+### 4. Cost Tracking & Budget Management
+- **Functionality**: Real-time tracking of API costs with token usage breakdown, budget limits, spending alerts, and detailed analytics by model and resource
+- **Purpose**: Give users complete visibility and control over AI spending with proactive budget management
+- **Trigger**: Automatic tracking on every API call, user views Workflows → Cost Tracking tab
+- **Progression**: System tracks each API call → Calculates cost based on model pricing → Aggregates by model, resource, time period → User sets budgets with alert thresholds → System sends warnings when approaching limits → User exports cost reports
+- **Success criteria**: Accurate cost calculation for all models, real-time budget tracking, alerts trigger at correct thresholds, costs broken down by model/resource/time, supports daily/weekly/monthly budgets, export functionality works, cost trends visualized
+
+### 5. Autonomous Agent System with 14 Advanced Tools and Templates
 - **Functionality**: Create AI agents with specific tools from 14 available capabilities and goals that execute multi-step workflows, with pre-configured templates, scheduling, collaborative workflows, and performance monitoring
 - **Purpose**: Automate complex tasks requiring planning, tool use, and decision-making across computation, data, communication, analysis, and generation categories
 - **Trigger**: User creates agent from scratch, uses template, or configures existing agent with advanced settings
