@@ -26,7 +26,8 @@ import {
   Pause,
   Play,
   Sparkle,
-  Brain
+  Brain,
+  Stack
 } from '@phosphor-icons/react'
 import { useAnalytics } from '@/lib/analytics'
 import { MetricCard } from './MetricCard'
@@ -38,6 +39,7 @@ import { ModelUsageChart } from './ModelUsageChart'
 import { AutoOptimizationPanel } from './AutoOptimizationPanel'
 import { LearningDashboard } from './LearningDashboard'
 import { PerformanceScanPanel } from './PerformanceScanPanel'
+import { BulkOptimizationPanel } from './BulkOptimizationPanel'
 import { thresholdManager, type ThresholdConfig } from '@/lib/confidence-thresholds'
 import type { AnalyticsMetrics, AnalyticsFilter, ModelConfig, PerformanceProfile } from '@/lib/types'
 import { toast } from 'sonner'
@@ -352,7 +354,7 @@ export function AnalyticsDashboard({
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full max-w-5xl grid-cols-7 gap-2">
+        <TabsList className="grid w-full max-w-6xl grid-cols-8 gap-2">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="scanner" className="gap-1">
             <Lightning weight="fill" size={16} />
@@ -361,6 +363,10 @@ export function AnalyticsDashboard({
           <TabsTrigger value="optimization" className="gap-1">
             <Sparkle weight="fill" size={16} />
             <span className="hidden md:inline">Optimize</span>
+          </TabsTrigger>
+          <TabsTrigger value="bulk" className="gap-1">
+            <Stack weight="fill" size={16} />
+            <span className="hidden md:inline">Bulk</span>
           </TabsTrigger>
           <TabsTrigger value="learning" className="gap-1">
             <Brain weight="fill" size={16} />
@@ -444,6 +450,18 @@ export function AnalyticsDashboard({
             onCreateProfile={onCreateProfile || (() => {})}
             thresholdConfig={thresholdConfig}
             onThresholdConfigChange={setThresholdConfig}
+          />
+        </TabsContent>
+
+        <TabsContent value="bulk" className="space-y-4">
+          <BulkOptimizationPanel
+            models={models}
+            onApplyBundle={async (bundle, updatedModels) => {
+              if (onModelUpdate) {
+                onModelUpdate(updatedModels)
+              }
+              toast.success(`Applied ${bundle.name} optimization bundle`)
+            }}
           />
         </TabsContent>
 
