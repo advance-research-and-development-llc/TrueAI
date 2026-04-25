@@ -104,10 +104,10 @@ function App() {
     [conversations, activeConversationId]
   )
   
-  const conversationMessages = useMemo(() => 
-    messages?.filter(m => m.conversationId === activeConversationId) || [], 
-    [messages, activeConversationId]
-  )
+  const conversationMessages = useMemo(() => {
+    if (!messages || !activeConversationId) return []
+    return messages.filter(m => m.conversationId === activeConversationId)
+  }, [messages, activeConversationId])
   
   const activeAgentRun = useMemo(() => 
     agentRuns?.find(r => r.id === activeAgentRunId), 
@@ -190,7 +190,7 @@ function App() {
   }, [newConversationForm, setConversations])
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!activeConversationId) return
+    if (!activeConversationId || !content.trim()) return
 
     const startTime = Date.now()
     const userMessage: Message = {
@@ -210,12 +210,17 @@ function App() {
 
     try {
       const conversation = conversations?.find(c => c.id === activeConversationId)
-      const contextMessages = conversationMessages?.map(m => ({
+      if (!conversation) {
+        throw new Error('Conversation not found')
+      }
+      
+      const currentMessages = messages?.filter(m => m.conversationId === activeConversationId) || []
+      const contextMessages = currentMessages.map(m => ({
         role: m.role,
         content: m.content
       }))
       
-      if (conversation?.systemPrompt) {
+      if (conversation.systemPrompt) {
         contextMessages.unshift({ role: 'system', content: conversation.systemPrompt })
       }
       
@@ -264,7 +269,7 @@ assistant:`
     } finally {
       setIsStreaming(false)
     }
-  }, [activeConversationId, conversations, conversationMessages, setMessages, setConversations])
+  }, [activeConversationId, conversations, messages, setMessages, setConversations])
 
   const createAgent = useCallback(() => {
     const now = Date.now()
@@ -290,8 +295,11 @@ assistant:`
   }, [newAgentForm, setAgents])
 
   const runAgent = useCallback(async (agentId: string) => {
-    const agent = agents.find(a => a.id === agentId)
-    if (!agent) return
+    const agent = agents?.find(a => a.id === agentId)
+    if (!agent) {
+      toast.error('Agent not found')
+      return
+    }
 
     const startTime = Date.now()
     
@@ -612,7 +620,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
   const applyPerformanceProfile = (profile: PerformanceProfile) => {
     if (editingModelId) {
-      const model = models.find(m => m.id === editingModelId)
+      const model = models?.find(m => m.id === editingModelId)
       if (model) {
         saveModelConfig({
           ...model,
@@ -639,7 +647,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
   const autoTuneModel = (taskType: TaskType) => {
     if (editingModelId) {
-      const model = models.find(m => m.id === editingModelId)
+      const model = models?.find(m => m.id === editingModelId)
       if (model) {
         const optimalParams = defaultProfilesByTaskType[taskType]
         
@@ -653,7 +661,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
-  const editingModel = models.find(m => m.id === editingModelId)
+  const editingModel = models?.find(m => m.id === editingModelId)
 
   return (
     <TooltipProvider>
@@ -767,7 +775,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         size="md"
                       />
                     )}
-                    {conversations.map(conv => (
+                    {conversations?.map(conv => (
                       <div key={conv.id}>
                         <Button
                           variant={activeConversationId === conv.id ? 'secondary' : 'ghost'}
@@ -855,7 +863,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
               <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-                {agents.length === 0 && (
+                {(!agents || agents.length === 0) && (
                   <Card className="p-6 sm:p-12">
                     <EmptyState
                       illustration={emptyStateAgents}
@@ -872,14 +880,14 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     />
                   </Card>
                 )}
-                {agents.map(agent => (
+                {agents?.map(agent => (
                   <Suspense key={agent.id} fallback={<LoadingFallback />}>
                     <AgentCard
                       agent={agent}
                       onRun={runAgent}
                       onDelete={deleteAgent}
                       onView={(id) => {
-                        const run = agentRuns.find(r => r.agentId === id)
+                        const run = agentRuns?.find(r => r.agentId === id)
                         if (run) setActiveAgentRunId(run.id)
                       }}
                     />
@@ -892,7 +900,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 <ScrollArea className="h-[300px] sm:h-[600px]">
                   {activeAgentRun ? (
                     <div className="space-y-2">
-                      {activeAgentRun.steps.map((step, index) => (
+                      {activeAgentRun.steps?.map((step, index) => (
                         <Suspense key={step.id} fallback={<LoadingFallback />}>
                           <AgentStepView step={step} index={index} />
                         </Suspense>
@@ -988,15 +996,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-lg sm:text-xl font-semibold">Model Configuration</h2>
                   <div className="flex items-center gap-2">
-                    {!editingModel && isMobile && models.length > 0 && (
-                      <QuickActionsMenu
-                        model={models[0]}
-                        onUpdate={(updatedModel) => {
-                          setModels(prev => 
-                            (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
-                          )
-                        }}
-                      />
+                    {!editingModel && isMobile && models && models.length > 0 && (
+                      <Suspense fallback={null}>
+                        <QuickActionsMenu
+                          model={models[0]}
+                          onUpdate={(updatedModel) => {
+                            setModels(prev => 
+                              (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
+                            )
+                          }}
+                        />
+                      </Suspense>
                     )}
                     {editingModel && (
                       <Button variant="ghost" size="sm" onClick={() => setEditingModelId(null)} className="h-8 sm:h-9">
@@ -1016,7 +1026,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   </Suspense>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {models.map(model => (
+                    {models?.map(model => (
                       <Card key={model.id} className="p-4 sm:p-6">
                         <div className="space-y-3 sm:space-y-4">
                           <div>
@@ -1175,7 +1185,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   profiles={performanceProfiles}
                   onApplyOptimization={(insight) => {
                     if (insight.suggestedAction?.type === 'adjust_parameters' && insight.suggestedAction.details.modelId) {
-                      const model = models.find(m => m.id === insight.suggestedAction!.details.modelId)
+                      const model = models?.find(m => m.id === insight.suggestedAction!.details.modelId)
                       if (model) {
                         const updatedModel = {
                           ...model,
@@ -1192,7 +1202,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     }
                   }}
                   onApplyAutoTune={(recommendation, modelId) => {
-                    const model = models.find(m => m.id === modelId)
+                    const model = models?.find(m => m.id === modelId)
                     if (model) {
                       const updatedModel = {
                         ...model,
@@ -1358,7 +1368,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map(model => (
+                  {models?.map(model => (
                     <SelectItem key={model.id} value={model.id}>
                       {model.name}
                     </SelectItem>
