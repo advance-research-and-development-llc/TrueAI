@@ -30,7 +30,13 @@ import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
 import { useAutoPerformanceOptimization } from '@/hooks/use-auto-performance'
 import { useIndexedDBCache } from '@/hooks/use-indexeddb-cache'
 import { useDebounce } from '@/lib/mobile-performance'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play, ArrowsClockwise, CurrencyDollar, MagnifyingGlass, BookBookmark, DownloadSimple, PushPin } from '@phosphor-icons/react'
+import { useDynamicUI } from '@/hooks/use-dynamic-ui'
+import { useContextualUI } from '@/hooks/use-contextual-ui'
+import { DynamicUICustomizer } from '@/components/ui/dynamic-ui-customizer'
+import { DynamicUIDashboard } from '@/components/ui/dynamic-ui-dashboard'
+import { ContextualSuggestionsPanel } from '@/components/ui/contextual-suggestions'
+import { SmartContainer, DynamicCard, DynamicBackground } from '@/components/ui/smart-layout'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play, ArrowsClockwise, CurrencyDollar, MagnifyingGlass, BookBookmark, DownloadSimple, PushPin, Palette } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -165,6 +171,8 @@ const TabErrorBoundary = ({ children, tabName }: { children: React.ReactNode; ta
 function App() {
   const isMobile = useIsMobile()
   const performanceOptimization = useAutoPerformanceOptimization()
+  const dynamicUI = useDynamicUI()
+  const contextualUI = useContextualUI()
   const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
   const [messages, setMessages] = useKV<Message[]>('messages', [])
   const [agents, setAgents] = useKV<Agent[]>('agents', [])
@@ -266,6 +274,7 @@ function App() {
   const [tabLoadingStates, setTabLoadingStates] = useState<Record<string, boolean>>({})
   const [isTabSwitching, setIsTabSwitching] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [uiCustomizerOpen, setUiCustomizerOpen] = useState(false)
   
   const [conversationSettingsOpen, setConversationSettingsOpen] = useState(false)
   const [chatSearchOpen, setChatSearchOpen] = useState(false)
@@ -309,6 +318,9 @@ function App() {
     if (isTabSwitching) return
     
     setIsTabSwitching(true)
+    contextualUI.trackFeatureUsage(newTab)
+    contextualUI.trackTimeOfDay(newTab)
+    dynamicUI.trackTabUsage(newTab)
     
     startTransition(() => {
       setActiveTab(newTab)
@@ -317,7 +329,7 @@ function App() {
         setIsTabSwitching(false)
       }, 150)
     })
-  }, [isTabSwitching])
+  }, [isTabSwitching, contextualUI, dynamicUI])
 
   const navigateToTab = useCallback((direction: 'left' | 'right') => {
     if (isTabSwitching) return
@@ -1272,15 +1284,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
-        <motion.div
-          className="absolute inset-0 opacity-[0.02] pointer-events-none"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
-            backgroundSize: '40px 40px'
-          }}
-        />
-        
+      <DynamicBackground className="min-h-screen text-foreground relative overflow-hidden">
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -1330,6 +1334,30 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 transition={{ delay: 0.2, duration: 0.3 }}
               >
                 <IndexedDBStatus />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 sm:h-10 sm:w-10 relative group"
+                        onClick={() => setUiCustomizerOpen(true)}
+                      >
+                        <Palette size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
+                        <motion.div
+                          className="absolute inset-0 rounded-lg bg-accent/10"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          whileHover={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.2 }}
+                        />
+                      </Button>
+                    </motion.div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Customize UI</p>
+                  </TooltipContent>
+                </Tooltip>
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -2195,6 +2223,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   <CacheManager />
                 </LazyErrorBoundary>
               </div>
+
+              <Separator className="my-6" />
+
+              <div>
+                <h3 className="text-xl font-semibold mb-4">Dynamic UI Analytics</h3>
+                <LazyErrorBoundary componentName="Dynamic UI Dashboard">
+                  <Suspense fallback={<LoadingFallback message="Loading UI analytics..." />}>
+                    <DynamicUIDashboard />
+                  </Suspense>
+                </LazyErrorBoundary>
+              </div>
             </div>
             </TabErrorBoundary>
           </TabsContent>
@@ -2537,10 +2576,23 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       <OfflineIndicator />
       <ServiceWorkerUpdate />
       <InstallPrompt />
+      <ContextualSuggestionsPanel />
       
       {performanceOptimization.isOptimized && appSettings?.debugMode && (
         <PerformanceMonitor />
       )}
+      
+      <Dialog open={uiCustomizerOpen} onOpenChange={setUiCustomizerOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dynamic UI Customization</DialogTitle>
+            <DialogDescription>
+              Personalize your interface with adaptive layouts, themes, and styling options
+            </DialogDescription>
+          </DialogHeader>
+          <DynamicUICustomizer />
+        </DialogContent>
+      </Dialog>
       
       <SettingsMenu
         open={settingsOpen}
@@ -2602,7 +2654,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         }}
         onSettingsChange={setAppSettings}
       />
-    </div>
+    </DynamicBackground>
     </TooltipProvider>
   )
 }
