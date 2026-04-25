@@ -899,7 +899,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       ))}
                     </div>
                   ) : (
-                  ) : (
+                    <EmptyState
                       illustration={emptyStateWorkflow}
                       title="No execution history"
                       description="Run an agent to see detailed execution steps"
