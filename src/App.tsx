@@ -18,6 +18,7 @@ import { InstallPrompt } from '@/components/notifications/InstallPrompt'
 import { SettingsMenu } from '@/components/settings/SettingsMenu'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { ConversationItem } from '@/components/chat/ConversationItem'
+import { IndexedDBStatus } from '@/components/cache/IndexedDBStatus'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
@@ -68,7 +69,6 @@ const LocalIDE = lazy(() => import('@/components/builder/LocalIDE'))
 const CacheManager = lazy(() => import('@/components/notifications/CacheManager'))
 const OfflineQueuePanel = lazy(() => import('@/components/notifications/OfflineQueuePanel'))
 const IndexedDBCacheManager = lazy(() => import('@/components/cache/IndexedDBCacheManager').then(m => ({ default: m.IndexedDBCacheManager })))
-const IndexedDBStatus = lazy(() => import('@/components/cache/IndexedDBStatus').then(m => ({ default: m.IndexedDBStatus })))
 const WorkflowBuilder = lazy(() => import('@/components/workflow/WorkflowBuilder').then(m => ({ default: m.WorkflowBuilder })))
 const WorkflowTemplates = lazy(() => import('@/components/workflow/WorkflowTemplates').then(m => ({ default: m.WorkflowTemplates })))
 const CostTracking = lazy(() => import('@/components/cost/CostTracking').then(m => ({ default: m.CostTracking })))
@@ -1180,9 +1180,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.3 }}
               >
-                <Suspense fallback={null}>
-                  <IndexedDBStatus />
-                </Suspense>
+                <IndexedDBStatus />
                 
                 <OfflineQueueIndicator />
                 
