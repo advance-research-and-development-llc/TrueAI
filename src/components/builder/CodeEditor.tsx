@@ -39,35 +39,30 @@ export function CodeEditor({ code, language, readOnly = true, className = '', on
       if (existingTheme) {
         existingTheme.remove()
       }
-
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.setAttribute('data-prism-theme', theme)
       
       try {
-        let themeModule
         switch (theme) {
           case 'okaidia':
-            themeModule = await import('prismjs/themes/prism-okaidia.css')
+            await import('prismjs/themes/prism-okaidia.css')
             break
           case 'twilight':
-            themeModule = await import('prismjs/themes/prism-twilight.css')
+            await import('prismjs/themes/prism-twilight.css')
             break
           case 'coy':
-            themeModule = await import('prismjs/themes/prism-coy.css')
+            await import('prismjs/themes/prism-coy.css')
             break
           case 'solarized':
-            themeModule = await import('prismjs/themes/prism-solarizedlight.css')
+            await import('prismjs/themes/prism-solarizedlight.css')
             break
           case 'funky':
-            themeModule = await import('prismjs/themes/prism-funky.css')
+            await import('prismjs/themes/prism-funky.css')
             break
           case 'dark':
-            themeModule = await import('prismjs/themes/prism-dark.css')
+            await import('prismjs/themes/prism-dark.css')
             break
           case 'tomorrow':
           default:
-            themeModule = await import('prismjs/themes/prism-tomorrow.css')
+            await import('prismjs/themes/prism-tomorrow.css')
             break
         }
       } catch (error) {
