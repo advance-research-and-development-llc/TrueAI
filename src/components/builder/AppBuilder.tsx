@@ -140,12 +140,22 @@ export function AppBuilder({ models }: AppBuilderProps) {
   const [newProjectDialog, setNewProjectDialog] = useState(false)
   const [frameworkInfoDialog, setFrameworkInfoDialog] = useState(false)
   const [templatePreviewDialog, setTemplatePreviewDialog] = useState(false)
+  const [editProjectDialog, setEditProjectDialog] = useState(false)
+  const [editCodeDialog, setEditCodeDialog] = useState(false)
+  const [refinePromptDialog, setRefinePromptDialog] = useState(false)
   const [selectedTemplateForPreview, setSelectedTemplateForPreview] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [previewKey, setPreviewKey] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [editingFileContent, setEditingFileContent] = useState('')
+  const [refinePrompt, setRefinePrompt] = useState('')
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const templateIframeRef = useRef<HTMLIFrameElement>(null)
+  
+  const [editProjectForm, setEditProjectForm] = useState({
+    name: '',
+    description: ''
+  })
   
   const [newProjectForm, setNewProjectForm] = useState({
     name: '',
@@ -664,6 +674,132 @@ Return ONLY valid JSON in this exact format:
     analytics.track('app_project_downloaded', 'builder', 'download_project', {
       label: project.name,
       metadata: { projectId }
+    })
+  }
+
+  const openEditProjectDialog = () => {
+    if (!activeProject) return
+    
+    setEditProjectForm({
+      name: activeProject.name,
+      description: activeProject.description || ''
+    })
+    setEditProjectDialog(true)
+  }
+
+  const saveProjectDetails = () => {
+    if (!activeProjectId) return
+
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              name: editProjectForm.name || p.name,
+              description: editProjectForm.description,
+              updatedAt: Date.now()
+            }
+          : p
+      )
+    )
+
+    setEditProjectDialog(false)
+    toast.success('Project details updated')
+
+    analytics.track('app_project_edited', 'builder', 'edit_project_details', {
+      label: editProjectForm.name,
+      metadata: { projectId: activeProjectId }
+    })
+  }
+
+  const openEditCodeDialog = () => {
+    if (!activeFile) return
+    setEditingFileContent(activeFile.content)
+    setEditCodeDialog(true)
+  }
+
+  const saveFileEdit = () => {
+    if (!activeProjectId || !selectedFile) return
+
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              files: p.files.map(f =>
+                f.path === selectedFile
+                  ? { ...f, content: editingFileContent, size: editingFileContent.length }
+                  : f
+              ),
+              updatedAt: Date.now()
+            }
+          : p
+      )
+    )
+
+    updateLivePreview(activeProjectId)
+    setEditCodeDialog(false)
+    toast.success('File updated successfully')
+
+    analytics.track('app_code_edited', 'builder', 'edit_code', {
+      metadata: { projectId: activeProjectId, fileName: selectedFile }
+    })
+  }
+
+  const openRefinePromptDialog = () => {
+    if (!activeProject) return
+    setRefinePrompt('')
+    setRefinePromptDialog(true)
+  }
+
+  const refineProject = async () => {
+    if (!activeProject || !refinePrompt.trim()) return
+
+    const projectId = activeProject.id
+    const refinementPrompt = `Original prompt: "${activeProject.prompt}"
+
+Refinement request: "${refinePrompt}"
+
+Based on the original prompt and the refinement request, modify the existing ${activeProject.framework} application to incorporate the requested changes. Keep the existing structure and only change what's necessary.`
+
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === projectId
+          ? { ...p, status: 'creating', prompt: refinementPrompt }
+          : p
+      )
+    )
+
+    setRefinePromptDialog(false)
+    toast.info('Refining your app...')
+
+    analytics.track('app_refinement_started', 'builder', 'refine_project', {
+      label: activeProject.name,
+      metadata: { projectId, refinementLength: refinePrompt.length }
+    })
+
+    await generateAppCode(projectId, refinementPrompt, activeProject.framework)
+  }
+
+  const duplicateProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId)
+    if (!project) return
+
+    const newProject: AppProject = {
+      ...project,
+      id: `app-${Date.now()}`,
+      name: `${project.name} (Copy)`,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+
+    setProjects(prev => [newProject, ...(prev || [])])
+    setActiveProjectId(newProject.id)
+    toast.success('Project duplicated')
+
+    analytics.track('app_project_duplicated', 'builder', 'duplicate_project', {
+      label: newProject.name,
+      metadata: { originalProjectId: projectId, newProjectId: newProject.id }
     })
   }
 
@@ -3458,9 +3594,33 @@ Return ONLY valid JSON in this exact format:
                   </div>
                   <p className="text-sm text-muted-foreground">{activeProject.description || 'No description'}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openEditProjectDialog}
+                  >
+                    <FileCode size={16} className="mr-1" />
+                    Edit Details
+                  </Button>
                   {activeProject.status === 'ready' && (
                     <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openRefinePromptDialog}
+                      >
+                        <Sparkle size={16} className="mr-1" />
+                        Refine
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => duplicateProject(activeProject.id)}
+                      >
+                        <Cube size={16} className="mr-1" />
+                        Duplicate
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -3558,18 +3718,31 @@ Return ONLY valid JSON in this exact format:
 
                   {activeProject.files.length > 0 && (
                     <>
-                      <div className="flex gap-2 border-b border-border pb-2">
-                        {activeProject.files.map(file => (
+                      <div className="flex gap-2 border-b border-border pb-2 items-center">
+                        <div className="flex gap-2 flex-1 overflow-x-auto">
+                          {activeProject.files.map(file => (
+                            <Button
+                              key={file.path}
+                              variant={selectedFile === file.path ? 'default' : 'ghost'}
+                              size="sm"
+                              onClick={() => setSelectedFile(file.path)}
+                            >
+                              <FileCode size={16} className="mr-1" />
+                              {file.path}
+                            </Button>
+                          ))}
+                        </div>
+                        {activeFile && activeProject.status === 'ready' && (
                           <Button
-                            key={file.path}
-                            variant={selectedFile === file.path ? 'default' : 'ghost'}
+                            variant="outline"
                             size="sm"
-                            onClick={() => setSelectedFile(file.path)}
+                            onClick={openEditCodeDialog}
+                            className="shrink-0"
                           >
-                            <FileCode size={16} className="mr-1" />
-                            {file.path}
+                            <Code size={16} className="mr-1" />
+                            Edit Code
                           </Button>
-                        ))}
+                        )}
                       </div>
                       
                       {activeFile && (
@@ -3958,6 +4131,143 @@ Return ONLY valid JSON in this exact format:
                 Use This Template
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editProjectDialog} onOpenChange={setEditProjectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project Details</DialogTitle>
+            <DialogDescription>
+              Update your project's name and description
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-project-name">Project Name</Label>
+              <Input
+                id="edit-project-name"
+                value={editProjectForm.name}
+                onChange={(e) => setEditProjectForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="My Awesome App"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-project-description">Description</Label>
+              <Textarea
+                id="edit-project-description"
+                value={editProjectForm.description}
+                onChange={(e) => setEditProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Brief description of your app"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProjectDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveProjectDetails}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editCodeDialog} onOpenChange={setEditCodeDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCode size={20} />
+              Edit {selectedFile}
+            </DialogTitle>
+            <DialogDescription>
+              Make changes to your code. The preview will update when you save.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 space-y-2">
+            <Textarea
+              value={editingFileContent}
+              onChange={(e) => setEditingFileContent(e.target.value)}
+              className="font-mono text-xs h-full min-h-[400px] resize-none"
+              placeholder="Enter your code here..."
+            />
+            <p className="text-xs text-muted-foreground">
+              {editingFileContent.length} characters
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCodeDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveFileEdit}>
+              <Code size={16} className="mr-2" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refinePromptDialog} onOpenChange={setRefinePromptDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkle size={20} className="text-accent" />
+              Refine Your App
+            </DialogTitle>
+            <DialogDescription>
+              Describe what you'd like to change or improve in your app. The AI will modify the existing code to incorporate your feedback.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {activeProject && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-1">Current Project</p>
+                <p className="text-xs text-muted-foreground">{activeProject.name}</p>
+                {activeProject.description && (
+                  <p className="text-xs text-muted-foreground mt-1">{activeProject.description}</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="refine-prompt">What would you like to change?</Label>
+              <Textarea
+                id="refine-prompt"
+                value={refinePrompt}
+                onChange={(e) => setRefinePrompt(e.target.value)}
+                placeholder="Examples:
+- Change the color scheme to blue and purple
+- Add a dark mode toggle
+- Make the buttons larger and more prominent
+- Add animation to the cards
+- Simplify the navigation menu"
+                rows={8}
+              />
+              <p className="text-xs text-muted-foreground">
+                Be specific about what you want to change. The AI will keep everything else the same.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefinePromptDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={refineProject}
+              disabled={!refinePrompt.trim()}
+            >
+              <Sparkle size={16} className="mr-2" />
+              Refine App
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
