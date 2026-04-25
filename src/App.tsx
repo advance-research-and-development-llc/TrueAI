@@ -2651,7 +2651,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         }}
         onSettingsChange={setAppSettings}
       />
-      />
+      </DynamicBackground>
     </TooltipProvider>
   )
 }
