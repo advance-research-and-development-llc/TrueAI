@@ -10,7 +10,7 @@ interface ErrorFallbackProps {
 
 export function ErrorFallback({ error, resetErrorBoundary, componentName = 'Component' }: ErrorFallbackProps) {
   return (
-    <Card className="p-6 sm:p-8 m-4">
+    <Card className="p-6 sm:p-8 m-4 border-2 border-destructive/20">
       <div className="text-center max-w-md mx-auto">
         <Warning size={48} className="mx-auto mb-4 text-destructive" weight="fill" />
         <h3 className="text-lg font-semibold mb-2">{componentName} Error</h3>
@@ -20,8 +20,14 @@ export function ErrorFallback({ error, resetErrorBoundary, componentName = 'Comp
         {error && (
           <details className="text-left mb-4 p-3 bg-muted rounded-lg">
             <summary className="text-xs font-medium cursor-pointer mb-2">Error Details</summary>
-            <pre className="text-xs overflow-auto whitespace-pre-wrap break-words">
+            <pre className="text-xs overflow-auto whitespace-pre-wrap break-words max-h-32">
               {error.message}
+              {error.stack && (
+                <>
+                  {'\n\nStack Trace:\n'}
+                  {error.stack.split('\n').slice(0, 5).join('\n')}
+                </>
+              )}
             </pre>
           </details>
         )}
