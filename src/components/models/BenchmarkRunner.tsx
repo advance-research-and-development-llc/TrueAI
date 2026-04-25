@@ -583,3 +583,5 @@ export function BenchmarkRunner({ models, onBenchmarkComplete }: BenchmarkRunner
     </div>
   )
 }
+
+export default BenchmarkRunner

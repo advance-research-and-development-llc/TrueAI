@@ -343,3 +343,5 @@ export function QuantizationTools({
     </div>
   )
 }
+
+export default QuantizationTools

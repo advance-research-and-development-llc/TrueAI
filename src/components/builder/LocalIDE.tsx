@@ -1524,3 +1524,5 @@ render(<App />, document.getElementById('app'));`,
     </div>
   )
 }
+
+export default LocalIDE

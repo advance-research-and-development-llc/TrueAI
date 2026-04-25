@@ -722,3 +722,5 @@ export function BundleAutomationPanel({
     </TooltipProvider>
   )
 }
+
+export default BundleAutomationPanel

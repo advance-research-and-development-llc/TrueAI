@@ -343,3 +343,5 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
     </Card>
   )
 }
+
+export default HuggingFaceModelBrowser

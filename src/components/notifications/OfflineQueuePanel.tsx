@@ -226,3 +226,5 @@ export function OfflineQueuePanel() {
     </Card>
   )
 }
+
+export default OfflineQueuePanel

@@ -715,3 +715,5 @@ export function LearningRateBenchmark({ models, onModelUpdate, recentBenchmarks 
     </div>
   )
 }
+
+export default LearningRateBenchmark

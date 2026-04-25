@@ -191,3 +191,5 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
     </Card>
   )
 }
+
+export default ModelConfigPanel

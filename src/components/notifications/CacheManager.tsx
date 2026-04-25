@@ -150,3 +150,5 @@ export function CacheManager() {
     </Card>
   )
 }
+
+export default CacheManager

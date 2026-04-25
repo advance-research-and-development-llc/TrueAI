@@ -102,3 +102,5 @@ export function AgentStepView({ step, index }: AgentStepViewProps) {
     </motion.div>
   )
 }
+
+export default AgentStepView

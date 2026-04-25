@@ -219,3 +219,5 @@ export function AgentCard({ agent, onRun, onDelete, onView }: AgentCardProps) {
     </TooltipProvider>
   )
 }
+
+export default AgentCard

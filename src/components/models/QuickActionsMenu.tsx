@@ -352,3 +352,5 @@ export function QuickActionsMenu({ model, onUpdate }: QuickActionsMenuProps) {
     </Sheet>
   )
 }
+
+export default QuickActionsMenu

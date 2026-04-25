@@ -728,3 +728,5 @@ export function HarnessCreator({
     </div>
   )
 }
+
+export default HarnessCreator

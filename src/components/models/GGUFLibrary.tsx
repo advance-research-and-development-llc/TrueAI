@@ -508,3 +508,5 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
     </div>
   )
 }
+
+export default GGUFLibrary

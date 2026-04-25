@@ -700,3 +700,5 @@ export function AnalyticsDashboard({
     </div>
   )
 }
+
+export default AnalyticsDashboard

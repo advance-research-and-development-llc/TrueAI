@@ -392,3 +392,5 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
     </div>
   )
 }
+
+export default HardwareOptimizer
