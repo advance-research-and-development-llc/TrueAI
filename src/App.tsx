@@ -782,34 +782,42 @@ Describe what input you would give to the ${tool} tool (one sentence).`
             </div>
           </TabsContent>
 
-          <TabsContent value="models" className="space-y-4">
+          <TabsContent value="models" className="space-y-3 sm:space-y-4">
             <Tabs defaultValue="browse" className="w-full">
-              <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-6 mb-6">
-                <TabsTrigger value="browse" className="gap-2">
-                  <Download size={18} />
-                  Browse
-                </TabsTrigger>
-                <TabsTrigger value="library" className="gap-2">
-                  <HardDrives size={18} />
-                  Library
-                </TabsTrigger>
-                <TabsTrigger value="config" className="gap-2">
-                  <Lightning size={18} />
-                  Config
-                </TabsTrigger>
-                <TabsTrigger value="finetuning" className="gap-2">
-                  <Flask size={18} />
-                  Fine-Tuning
-                </TabsTrigger>
-                <TabsTrigger value="quantization" className="gap-2">
-                  <Cube size={18} />
-                  Quantization
-                </TabsTrigger>
-                <TabsTrigger value="harness" className="gap-2">
-                  <Wrench size={18} />
-                  Harness
-                </TabsTrigger>
-              </TabsList>
+              <ScrollArea className="w-full pb-2">
+                <TabsList className="inline-flex w-full sm:w-auto min-w-full sm:min-w-0 justify-start sm:justify-center mb-4 sm:mb-6 h-auto p-1">
+                  <TabsTrigger value="browse" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Browse</span>
+                    <span className="sm:hidden">Browse</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="library" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <HardDrives size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Library</span>
+                    <span className="sm:hidden">Library</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="config" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <Lightning size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Config</span>
+                    <span className="sm:hidden">Config</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="finetuning" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <Flask size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Fine-Tune</span>
+                    <span className="sm:hidden">Tune</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="quantization" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <Cube size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Quant</span>
+                    <span className="sm:hidden">Quant</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="harness" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <Wrench size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Harness</span>
+                    <span className="sm:hidden">Tools</span>
+                  </TabsTrigger>
+                </TabsList>
+              </ScrollArea>
 
               <TabsContent value="browse">
                 <HuggingFaceModelBrowser onDownload={handleHuggingFaceDownload} />
@@ -823,8 +831,15 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 />
               </TabsContent>
 
-              <TabsContent value="config" className="space-y-4">
-                <h2 className="text-xl font-semibold">Model Configuration</h2>
+              <TabsContent value="config" className="space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-xl font-semibold">Model Configuration</h2>
+                  {editingModel && (
+                    <Button variant="ghost" size="sm" onClick={() => setEditingModelId(null)} className="h-8 sm:h-9">
+                      Back
+                    </Button>
+                  )}
+                </div>
                 
                 {editingModel ? (
                   <ModelConfigPanel
@@ -833,16 +848,16 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     onClose={() => setEditingModelId(null)}
                   />
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {models.map(model => (
-                      <Card key={model.id} className="p-6">
-                        <div className="space-y-4">
+                      <Card key={model.id} className="p-4 sm:p-6">
+                        <div className="space-y-3 sm:space-y-4">
                           <div>
-                            <h3 className="text-lg font-semibold">{model.name}</h3>
-                            <p className="text-sm text-muted-foreground capitalize">Provider: {model.provider}</p>
+                            <h3 className="text-base sm:text-lg font-semibold truncate">{model.name}</h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground capitalize mt-1">Provider: {model.provider}</p>
                           </div>
                           <Separator />
-                          <div className="space-y-1 text-sm">
+                          <div className="space-y-1 text-xs sm:text-sm">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Temperature:</span>
                               <span className="font-mono">{model.temperature}</span>
@@ -858,7 +873,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                           </div>
                           <Button
                             variant="outline"
-                            className="w-full"
+                            className="w-full h-9 text-sm"
                             onClick={() => setEditingModelId(model.id)}
                           >
                             Configure

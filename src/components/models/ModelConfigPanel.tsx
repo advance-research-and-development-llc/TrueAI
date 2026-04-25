@@ -23,29 +23,30 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
   }
 
   return (
-    <Card className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">{model.name}</h3>
-          <Badge variant="secondary" className="mt-1 capitalize">
+    <Card className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold truncate">{model.name}</h3>
+          <Badge variant="secondary" className="mt-1 capitalize text-xs">
             {model.provider}
           </Badge>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X size={20} />
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+          <X size={18} className="sm:w-5 sm:h-5" />
         </Button>
       </div>
 
       <Separator />
 
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="temperature">Temperature</Label>
-            <span className="text-sm text-muted-foreground font-mono">
-              {localModel.temperature.toFixed(2)}
-            </span>
-          </div>
+      <ScrollArea className="max-h-[500px] sm:max-h-none pr-2">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="temperature" className="text-sm">Temperature</Label>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono">
+                {localModel.temperature.toFixed(2)}
+              </span>
+            </div>
           <Slider
             id="temperature"
             min={0}
@@ -62,13 +63,13 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="maxTokens">Max Tokens</Label>
-            <span className="text-sm text-muted-foreground font-mono">
-              {localModel.maxTokens}
-            </span>
-          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="maxTokens" className="text-sm">Max Tokens</Label>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono">
+                {localModel.maxTokens}
+              </span>
+            </div>
           <Slider
             id="maxTokens"
             min={100}
@@ -85,13 +86,13 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="topP">Top P</Label>
-            <span className="text-sm text-muted-foreground font-mono">
-              {localModel.topP.toFixed(2)}
-            </span>
-          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="topP" className="text-sm">Top P</Label>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono">
+                {localModel.topP.toFixed(2)}
+              </span>
+            </div>
           <Slider
             id="topP"
             min={0}
@@ -108,13 +109,13 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="frequencyPenalty">Frequency Penalty</Label>
-            <span className="text-sm text-muted-foreground font-mono">
-              {localModel.frequencyPenalty.toFixed(2)}
-            </span>
-          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="frequencyPenalty" className="text-sm">Frequency Penalty</Label>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono">
+                {localModel.frequencyPenalty.toFixed(2)}
+              </span>
+            </div>
           <Slider
             id="frequencyPenalty"
             min={-2}
@@ -131,13 +132,13 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="presencePenalty">Presence Penalty</Label>
-            <span className="text-sm text-muted-foreground font-mono">
-              {localModel.presencePenalty.toFixed(2)}
-            </span>
-          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="presencePenalty" className="text-sm">Presence Penalty</Label>
+              <span className="text-xs sm:text-sm text-muted-foreground font-mono">
+                {localModel.presencePenalty.toFixed(2)}
+              </span>
+            </div>
           <Slider
             id="presencePenalty"
             min={-2}
@@ -154,34 +155,37 @@ export function ModelConfigPanel({ model, onSave, onClose }: ModelConfigPanelPro
           </p>
         </div>
 
-        {model.provider === 'custom' && (
-          <div className="space-y-2">
-            <Label htmlFor="endpoint">API Endpoint</Label>
-            <Input
-              id="endpoint"
-              type="url"
-              value={localModel.endpoint || ''}
-              onChange={(e) =>
-                setLocalModel({ ...localModel, endpoint: e.target.value })
-              }
-              placeholder="https://api.example.com/v1/chat"
-            />
-            <p className="text-xs text-muted-foreground">
-              Custom API endpoint for this model.
-            </p>
-          </div>
-        )}
-      </div>
+          {model.provider === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="endpoint" className="text-sm">API Endpoint</Label>
+              <Input
+                id="endpoint"
+                type="url"
+                value={localModel.endpoint || ''}
+                onChange={(e) =>
+                  setLocalModel({ ...localModel, endpoint: e.target.value })
+                }
+                placeholder="https://api.example.com/v1/chat"
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Custom API endpoint for this model.
+              </p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
 
       <Separator />
 
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onClose}>
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+        <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button onClick={handleSave}>
-          <FloppyDisk size={20} className="mr-2" />
-          Save Configuration
+        <Button onClick={handleSave} className="w-full sm:w-auto">
+          <FloppyDisk size={18} className="sm:mr-2" />
+          <span className="hidden sm:inline ml-2">Save Configuration</span>
+          <span className="sm:hidden ml-2">Save</span>
         </Button>
       </div>
     </Card>

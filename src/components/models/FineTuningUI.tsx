@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Flask, Upload, Play, Trash, FileText, Plus } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { emptyStateFineTuning } from '@/assets'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { FineTuningDataset, FineTuningSample, FineTuningJob, ModelConfig } from '@/lib/types'
 
 interface FineTuningUIProps {
@@ -35,6 +36,7 @@ export function FineTuningUI({
   onDeleteDataset,
   onDeleteJob
 }: FineTuningUIProps) {
+  const isMobile = useIsMobile()
   const [newDatasetDialog, setNewDatasetDialog] = useState(false)
   const [newJobDialog, setNewJobDialog] = useState(false)
   const [addSampleDialog, setAddSampleDialog] = useState(false)
@@ -138,55 +140,56 @@ export function FineTuningUI({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Flask weight="fill" size={24} className="text-white" />
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+            <Flask weight="fill" size={isMobile ? 20 : 24} className="text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold">Model Fine-Tuning</h2>
-            <p className="text-sm text-muted-foreground">Train models on custom datasets</p>
+            <h2 className="text-lg sm:text-2xl font-bold">Model Fine-Tuning</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">Train models on custom datasets</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Training Datasets</h3>
-            <Button onClick={() => setNewDatasetDialog(true)} size="sm">
-              <Plus weight="bold" size={18} className="mr-2" />
-              New Dataset
+            <h3 className="text-base sm:text-lg font-semibold">Training Datasets</h3>
+            <Button onClick={() => setNewDatasetDialog(true)} size="sm" className="h-9">
+              <Plus weight="bold" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">New Dataset</span>
+              <span className="sm:hidden ml-2">New</span>
             </Button>
           </div>
 
-          <ScrollArea className="h-[500px]">
-            <div className="space-y-3">
+          <ScrollArea className="h-[350px] sm:h-[500px]">
+            <div className="space-y-2 sm:space-y-3 pr-2">
               {datasets.length === 0 && (
                 <EmptyState
                   illustration={emptyStateFineTuning}
                   title="No datasets yet"
                   description="Create a training dataset to start fine-tuning models"
-                  size="md"
+                  size="sm"
                 />
               )}
               {datasets.map(dataset => (
                 <Card
                   key={dataset.id}
-                  className={`p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`p-3 sm:p-4 cursor-pointer transition-all hover:shadow-md ${
                     selectedDatasetId === dataset.id ? 'ring-2 ring-accent' : ''
                   }`}
                   onClick={() => setSelectedDatasetId(dataset.id)}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <FileText weight="fill" size={18} className="text-primary" />
-                        <h4 className="font-semibold truncate">{dataset.name}</h4>
+                        <FileText weight="fill" size={16} className="text-primary shrink-0" />
+                        <h4 className="font-semibold text-sm sm:text-base truncate">{dataset.name}</h4>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">{dataset.description}</p>
-                      <div className="flex items-center gap-2">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">{dataset.description}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="text-xs">
                           {dataset.format.toUpperCase()}
                         </Badge>
@@ -203,8 +206,9 @@ export function FineTuningUI({
                         onDeleteDataset(dataset.id)
                         toast.success('Dataset deleted')
                       }}
+                      className="h-8 w-8 shrink-0"
                     >
-                      <Trash size={18} />
+                      <Trash size={16} />
                     </Button>
                   </div>
                 </Card>
@@ -213,44 +217,46 @@ export function FineTuningUI({
           </ScrollArea>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Fine-Tuning Jobs</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Fine-Tuning Jobs</h3>
             <Button
               onClick={() => setNewJobDialog(true)}
               size="sm"
               disabled={datasets.length === 0}
+              className="h-9"
             >
-              <Play weight="fill" size={18} className="mr-2" />
-              Start Training
+              <Play weight="fill" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Start Training</span>
+              <span className="sm:hidden ml-2">Train</span>
             </Button>
           </div>
 
-          <ScrollArea className="h-[500px]">
-            <div className="space-y-3">
+          <ScrollArea className="h-[350px] sm:h-[500px]">
+            <div className="space-y-2 sm:space-y-3 pr-2">
               {jobs.length === 0 && (
                 <EmptyState
                   illustration={emptyStateFineTuning}
                   title="No training jobs yet"
                   description="Start fine-tuning a model on your custom dataset"
-                  size="md"
+                  size="sm"
                 />
               )}
               {jobs.map(job => {
                 const model = models.find(m => m.id === job.modelId)
                 const dataset = datasets.find(d => d.id === job.datasetId)
                 return (
-                  <Card key={job.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
+                  <Card key={job.id} className="p-3 sm:p-4">
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold mb-1">{model?.name || 'Unknown Model'}</h4>
-                          <p className="text-sm text-muted-foreground">
+                          <h4 className="font-semibold text-sm sm:text-base mb-1 truncate">{model?.name || 'Unknown Model'}</h4>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             Dataset: {dataset?.name || 'Unknown'}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(job.status)}>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={`${getStatusColor(job.status)} text-xs`}>
                             {job.status}
                           </Badge>
                           <Button
@@ -260,21 +266,22 @@ export function FineTuningUI({
                               onDeleteJob(job.id)
                               toast.success('Job deleted')
                             }}
+                            className="h-8 w-8"
                           >
-                            <Trash size={18} />
+                            <Trash size={16} />
                           </Button>
                         </div>
                       </div>
 
                       {job.status === 'running' && (
                         <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-xs sm:text-sm">
                             <span>Progress</span>
                             <span className="font-mono">{job.progress}%</span>
                           </div>
-                          <Progress value={job.progress} className="h-2" />
+                          <Progress value={job.progress} className="h-1.5 sm:h-2" />
                           {job.metrics && (
-                            <div className="flex gap-4 text-xs text-muted-foreground">
+                            <div className="flex gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap">
                               <span>Epoch: {job.metrics.epoch}/{job.epochs}</span>
                               <span>Step: {job.metrics.step}</span>
                             </div>
@@ -293,24 +300,24 @@ export function FineTuningUI({
                           <span className="text-muted-foreground">Batch Size:</span>{' '}
                           <span className="font-mono">{job.batchSize}</span>
                         </div>
-                        <div>
+                        <div className="col-span-2 sm:col-span-1">
                           <span className="text-muted-foreground">Learning Rate:</span>{' '}
                           <span className="font-mono">{job.learningRate}</span>
                         </div>
-                        <div>
+                        <div className="col-span-2 sm:col-span-1">
                           <span className="text-muted-foreground">Started:</span>{' '}
-                          <span>{new Date(job.startedAt || 0).toLocaleTimeString()}</span>
+                          <span className="truncate">{new Date(job.startedAt || 0).toLocaleTimeString()}</span>
                         </div>
                       </div>
 
                       {job.status === 'completed' && job.resultModelId && (
-                        <Badge variant="outline" className="w-full justify-center">
+                        <Badge variant="outline" className="w-full justify-center text-xs truncate">
                           Result Model: {job.resultModelId}
                         </Badge>
                       )}
 
                       {job.status === 'failed' && job.error && (
-                        <div className="text-xs text-destructive p-2 bg-destructive/10 rounded">
+                        <div className="text-xs text-destructive p-2 bg-destructive/10 rounded line-clamp-2">
                           {job.error}
                         </div>
                       )}
