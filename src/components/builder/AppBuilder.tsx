@@ -3749,12 +3749,7 @@ Based on the original prompt and the refinement request, modify the existing ${a
                       {activeFile && (
                         <div className="flex-1 border border-border rounded-lg overflow-hidden">
                           <CodeEditor 
-                            code={activeFile.content} rounded font-mono font-semibold uppercase">
-                            language={activeFile.language}
-                            readOnly={true}
-                            className="h-full"
-                          />
-                        </div>
+                            code={activeFile.content}
                             language={activeFile.language}
                             readOnly={true}
                             className="h-full"
