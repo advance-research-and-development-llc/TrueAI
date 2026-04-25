@@ -509,3 +509,59 @@ export interface TaskTypeMetrics {
   mostUsedProfile?: string
   successRate: number
 }
+
+export interface AppSettings {
+  autoSave: boolean
+  confirmDelete: boolean
+  keyboardShortcuts: boolean
+  language: 'en' | 'es' | 'fr' | 'de' | 'ja' | 'zh'
+  timezone: string
+  dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'relative'
+  maxHistory: number
+  preloadModels: boolean
+  theme: 'light' | 'dark' | 'system'
+  fontSize: number
+  density: 'compact' | 'comfortable' | 'spacious'
+  showTimestamps: boolean
+  showAvatars: boolean
+  compactSidebar: boolean
+  enableAnimations: boolean
+  animationSpeed: number
+  reduceMotion: boolean
+  streamingEnabled: boolean
+  codeHighlighting: boolean
+  markdownEnabled: boolean
+  defaultTemperature: number
+  defaultMaxTokens: number
+  autoRunAgents: boolean
+  showAgentThinking: boolean
+  agentTimeout: number
+  useConversationContext: boolean
+  contextWindowSize: number
+  notificationsEnabled: boolean
+  notificationSound: boolean
+  notifyAgentComplete: boolean
+  notifyModelLoaded: boolean
+  notifyErrors: boolean
+  notifyUpdates: boolean
+  showToast: boolean
+  toastSuccess: boolean
+  toastInfo: boolean
+  analyticsEnabled: boolean
+  crashReportsEnabled: boolean
+  telemetryEnabled: boolean
+  localStorageEnabled: boolean
+  encryptData: boolean
+  clearDataOnExit: boolean
+  requireAuth: boolean
+  autoLockEnabled: boolean
+  secureMode: boolean
+  debugMode: boolean
+  devTools: boolean
+  experimentalFeatures: boolean
+  apiEndpoint: string
+  requestTimeout: number
+  retryAttempts: number
+  cacheEnabled: boolean
+  offlineMode: boolean
+}

@@ -15,10 +15,11 @@ import { OfflineIndicator } from '@/components/notifications/OfflineIndicator'
 import { OfflineQueueIndicator } from '@/components/notifications/OfflineQueueIndicator'
 import { ServiceWorkerUpdate } from '@/components/notifications/ServiceWorkerUpdate'
 import { InstallPrompt } from '@/components/notifications/InstallPrompt'
+import { SettingsMenu } from '@/components/settings/SettingsMenu'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -34,7 +35,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
 import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings } from '@/lib/types'
 
 const AgentCard = lazy(() => import('@/components/agent/AgentCard'))
 const AgentStepView = lazy(() => import('@/components/agent/AgentStepView'))
@@ -123,6 +124,62 @@ function App() {
   const [ggufModels, setGgufModels] = useKV<GGUFModel[]>('gguf-models', [])
   const [performanceProfiles, setPerformanceProfiles] = useKV<PerformanceProfile[]>('performance-profiles', [])
   
+  const [appSettings, setAppSettings] = useKV<AppSettings>('app-settings', {
+    autoSave: true,
+    confirmDelete: true,
+    keyboardShortcuts: true,
+    language: 'en',
+    timezone: 'UTC',
+    dateFormat: 'MM/DD/YYYY',
+    maxHistory: 50,
+    preloadModels: true,
+    theme: 'dark',
+    fontSize: 15,
+    density: 'comfortable',
+    showTimestamps: true,
+    showAvatars: true,
+    compactSidebar: false,
+    enableAnimations: true,
+    animationSpeed: 1,
+    reduceMotion: false,
+    streamingEnabled: true,
+    codeHighlighting: true,
+    markdownEnabled: true,
+    defaultTemperature: 0.7,
+    defaultMaxTokens: 2000,
+    autoRunAgents: false,
+    showAgentThinking: true,
+    agentTimeout: 120000,
+    useConversationContext: true,
+    contextWindowSize: 20,
+    notificationsEnabled: true,
+    notificationSound: true,
+    notifyAgentComplete: true,
+    notifyModelLoaded: false,
+    notifyErrors: true,
+    notifyUpdates: true,
+    showToast: true,
+    toastSuccess: true,
+    toastInfo: true,
+    analyticsEnabled: true,
+    crashReportsEnabled: true,
+    telemetryEnabled: true,
+    localStorageEnabled: true,
+    encryptData: false,
+    clearDataOnExit: false,
+    requireAuth: false,
+    autoLockEnabled: false,
+    secureMode: false,
+    debugMode: false,
+    devTools: false,
+    experimentalFeatures: false,
+    apiEndpoint: 'default',
+    requestTimeout: 30000,
+    retryAttempts: 3,
+    cacheEnabled: true,
+    offlineMode: false,
+  })
+  
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [activeAgentRunId, setActiveAgentRunId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -133,6 +190,7 @@ function App() {
   const [isSwipeIndicatorVisible, setIsSwipeIndicatorVisible] = useState(false)
   const [tabLoadingStates, setTabLoadingStates] = useState<Record<string, boolean>>({})
   const [isTabSwitching, setIsTabSwitching] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const [newAgentForm, setNewAgentForm] = useState({
     name: '',
@@ -787,6 +845,30 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 transition={{ delay: 0.2, duration: 0.3 }}
               >
                 <OfflineQueueIndicator />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 sm:h-10 sm:w-10 relative group"
+                        onClick={() => setSettingsOpen(true)}
+                      >
+                        <Gear size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
+                        <motion.div
+                          className="absolute inset-0 rounded-lg bg-accent/10"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          whileHover={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.2 }}
+                        />
+                      </Button>
+                    </motion.div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Settings</p>
+                  </TooltipContent>
+                </Tooltip>
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1617,6 +1699,67 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       <OfflineIndicator />
       <ServiceWorkerUpdate />
       <InstallPrompt />
+      
+      <SettingsMenu
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={appSettings || {
+          autoSave: true,
+          confirmDelete: true,
+          keyboardShortcuts: true,
+          language: 'en',
+          timezone: 'UTC',
+          dateFormat: 'MM/DD/YYYY',
+          maxHistory: 50,
+          preloadModels: true,
+          theme: 'dark',
+          fontSize: 15,
+          density: 'comfortable',
+          showTimestamps: true,
+          showAvatars: true,
+          compactSidebar: false,
+          enableAnimations: true,
+          animationSpeed: 1,
+          reduceMotion: false,
+          streamingEnabled: true,
+          codeHighlighting: true,
+          markdownEnabled: true,
+          defaultTemperature: 0.7,
+          defaultMaxTokens: 2000,
+          autoRunAgents: false,
+          showAgentThinking: true,
+          agentTimeout: 120000,
+          useConversationContext: true,
+          contextWindowSize: 20,
+          notificationsEnabled: true,
+          notificationSound: true,
+          notifyAgentComplete: true,
+          notifyModelLoaded: false,
+          notifyErrors: true,
+          notifyUpdates: true,
+          showToast: true,
+          toastSuccess: true,
+          toastInfo: true,
+          analyticsEnabled: true,
+          crashReportsEnabled: true,
+          telemetryEnabled: true,
+          localStorageEnabled: true,
+          encryptData: false,
+          clearDataOnExit: false,
+          requireAuth: false,
+          autoLockEnabled: false,
+          secureMode: false,
+          debugMode: false,
+          devTools: false,
+          experimentalFeatures: false,
+          apiEndpoint: 'default',
+          requestTimeout: 30000,
+          retryAttempts: 3,
+          cacheEnabled: true,
+          offlineMode: false,
+        }}
+        onSettingsChange={setAppSettings}
+      />
     </div>
     </TooltipProvider>
   )
