@@ -215,9 +215,9 @@ assistant:`
         model: conversation?.model
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages(prev => [...(prev || []), assistantMessage])
       
-      setConversations(prev => prev.map(c => 
+      setConversations(prev => (prev || []).map(c => 
         c.id === activeConversationId 
           ? { ...c, updatedAt: Date.now() }
           : c
@@ -255,7 +255,7 @@ assistant:`
       status: 'idle'
     }
 
-    setAgents(prev => [newAgent, ...prev])
+    setAgents(prev => [newAgent, ...(prev || [])])
     setNewAgentDialog(false)
     setNewAgentForm({ name: '', goal: '', model: 'gpt-4o-mini', tools: [] })
     toast.success('Agent created')
@@ -272,7 +272,7 @@ assistant:`
 
     const startTime = Date.now()
     
-    setAgents(prev => prev.map(a => 
+    setAgents(prev => (prev || []).map(a => 
       a.id === agentId ? { ...a, status: 'running' as const } : a
     ))
 
@@ -285,7 +285,7 @@ assistant:`
       steps: []
     }
 
-    setAgentRuns(prev => [newRun, ...prev])
+    setAgentRuns(prev => [newRun, ...(prev || [])])
     setActiveAgentRunId(runId)
 
     analytics.track('agent_run_started', 'agent', 'run_agent', {
@@ -311,7 +311,7 @@ Create a brief plan (2-3 sentences) for how you would accomplish this goal using
         timestamp: Date.now()
       })
 
-      setAgentRuns(prev => prev.map(r => 
+      setAgentRuns(prev => (prev || []).map(r => 
         r.id === runId ? { ...r, steps } : r
       ))
 
@@ -347,7 +347,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           timestamp: Date.now()
         })
 
-        setAgentRuns(prev => prev.map(r => 
+        setAgentRuns(prev => (prev || []).map(r => 
           r.id === runId ? { ...r, steps: [...steps] } : r
         ))
 
@@ -365,7 +365,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         timestamp: Date.now()
       })
 
-      setAgentRuns(prev => prev.map(r => 
+      setAgentRuns(prev => (prev || []).map(r => 
         r.id === runId ? { 
           ...r, 
           steps,
@@ -375,7 +375,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         } : r
       ))
 
-      setAgents(prev => prev.map(a => 
+      setAgents(prev => (prev || []).map(a => 
         a.id === agentId ? { ...a, status: 'completed' as const } : a
       ))
 
@@ -388,7 +388,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         metadata: { agentId, stepsCount: steps.length }
       })
     } catch (error) {
-      setAgentRuns(prev => prev.map(r => 
+      setAgentRuns(prev => (prev || []).map(r => 
         r.id === runId ? { 
           ...r, 
           status: 'error',
@@ -397,7 +397,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         } : r
       ))
 
-      setAgents(prev => prev.map(a => 
+      setAgents(prev => (prev || []).map(a => 
         a.id === agentId ? { ...a, status: 'error' as const } : a
       ))
 
@@ -414,8 +414,8 @@ Describe what input you would give to the ${tool} tool (one sentence).`
   }
 
   const deleteAgent = (agentId: string) => {
-    setAgents(prev => prev.filter(a => a.id !== agentId))
-    setAgentRuns(prev => prev.filter(r => r.agentId !== agentId))
+    setAgents(prev => (prev || []).filter(a => a.id !== agentId))
+    setAgentRuns(prev => (prev || []).filter(r => r.agentId !== agentId))
     toast.success('Agent deleted')
     
     analytics.track('agent_deleted', 'agent', 'delete_agent', {
@@ -424,8 +424,8 @@ Describe what input you would give to the ${tool} tool (one sentence).`
   }
 
   const deleteConversation = (convId: string) => {
-    setConversations(prev => prev.filter(c => c.id !== convId))
-    setMessages(prev => prev.filter(m => m.conversationId !== convId))
+    setConversations(prev => (prev || []).filter(c => c.id !== convId))
+    setMessages(prev => (prev || []).filter(m => m.conversationId !== convId))
     if (activeConversationId === convId) {
       setActiveConversationId(null)
     }
@@ -443,7 +443,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
   const saveModelConfig = (updatedModel: ModelConfig) => {
     setModels(prev => 
-      prev.map(m => m.id === updatedModel.id ? updatedModel : m)
+      (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
     )
     setEditingModelId(null)
     toast.success('Model configuration saved')
@@ -597,7 +597,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         })
         
         setPerformanceProfiles(prev => 
-          prev.map(p => 
+          (prev || []).map(p => 
             p.id === profile.id 
               ? { ...p, usageCount: p.usageCount + 1, lastUsed: Date.now() }
               : p
@@ -960,7 +960,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         model={models[0]}
                         onUpdate={(updatedModel) => {
                           setModels(prev => 
-                            prev.map(m => m.id === updatedModel.id ? updatedModel : m)
+                            (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
                           )
                         }}
                       />
@@ -1009,7 +1009,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                                 model={model}
                                 onUpdate={(updatedModel) => {
                                   setModels(prev => 
-                                    prev.map(m => m.id === updatedModel.id ? updatedModel : m)
+                                    (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
                                   )
                                 }}
                               />
@@ -1108,7 +1108,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       models={models}
                       onModelUpdate={(updatedModel) => {
                         setModels(prev => 
-                          prev.map(m => m.id === updatedModel.id ? updatedModel : m)
+                          (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
                         )
                       }}
                     />
@@ -1130,7 +1130,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       ...model,
                       ...insight.suggestedAction.details.parameters
                     }
-                    setModels(prev => prev.map(m => m.id === model.id ? updatedModel : m))
+                    setModels(prev => (prev || []).map(m => m.id === model.id ? updatedModel : m))
                     toast.success('Optimization applied successfully')
                     analytics.track('optimization_applied', 'analytics', 'apply_insight', {
                       metadata: { insightId: insight.id, insightType: insight.type }
@@ -1147,7 +1147,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     ...model,
                     ...recommendation.recommendedParams
                   }
-                  setModels(prev => prev.map(m => m.id === modelId ? updatedModel : m))
+                  setModels(prev => (prev || []).map(m => m.id === modelId ? updatedModel : m))
                   toast.success(`Model auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
                   analytics.track('auto_tune_applied', 'analytics', 'apply_auto_tune', {
                     metadata: { 
