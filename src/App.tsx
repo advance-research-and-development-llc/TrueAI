@@ -27,6 +27,7 @@ import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
 import { HardwareOptimizer } from '@/components/models/HardwareOptimizer'
 import { QuickActionsMenu } from '@/components/models/QuickActionsMenu'
 import { PerformanceProfileManager } from '@/components/models/PerformanceProfileManager'
+import { BenchmarkRunner } from '@/components/models/BenchmarkRunner'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -880,6 +881,11 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     <span className="hidden sm:inline">Harness</span>
                     <span className="sm:hidden">Tools</span>
                   </TabsTrigger>
+                  <TabsTrigger value="benchmark" className="gap-1.5 sm:gap-2 flex-1 sm:flex-initial text-xs sm:text-sm px-2 sm:px-4 py-2">
+                    <ChartBar size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="hidden sm:inline">Benchmark</span>
+                    <span className="sm:hidden">Bench</span>
+                  </TabsTrigger>
                 </TabsList>
               </ScrollArea>
 
@@ -1009,6 +1015,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   onCreateHarness={createHarness}
                   onDeleteHarness={deleteHarness}
                   onExportHarness={exportHarness}
+                />
+              </TabsContent>
+
+              <TabsContent value="benchmark">
+                <BenchmarkRunner 
+                  models={models}
                 />
               </TabsContent>
             </Tabs>
