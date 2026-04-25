@@ -2639,7 +2639,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           encryptData: false,
           clearDataOnExit: false,
           requireAuth: false,
-          autoLockEnabled: false,
           secureMode: false,
           debugMode: false,
           devTools: false,
@@ -2652,7 +2651,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         }}
         onSettingsChange={setAppSettings}
       />
-    </DynamicBackground>
+      />
     </TooltipProvider>
   )
 }
