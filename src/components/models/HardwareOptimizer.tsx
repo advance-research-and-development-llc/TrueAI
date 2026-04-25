@@ -8,11 +8,14 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Cpu, DeviceMobile, Lightning, CheckCircle, Info, ArrowsClockwise } from '@phosphor-icons/react'
+import { Cpu, DeviceMobile, Lightning, CheckCircle, Info, ArrowsClockwise, ChartBar } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { HardwareSpecs, OptimizedSettings } from '@/lib/hardware-scanner'
 import { scanHardware, generateOptimizedSettings, formatHardwareInfo } from '@/lib/hardware-scanner'
+import type { BenchmarkResult, BenchmarkComparison as BenchmarkComparisonType } from '@/lib/benchmark'
+import { runBenchmark, compareBenchmarks } from '@/lib/benchmark'
+import { BenchmarkComparison } from './BenchmarkComparison'
 
 interface HardwareOptimizerProps {
   onSettingsApplied?: (settings: OptimizedSettings) => void
@@ -24,6 +27,10 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
   const [isScanning, setIsScanning] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [autoOptimize, setAutoOptimize] = useKV<boolean>('auto-optimize', true)
+  
+  const [isBenchmarking, setIsBenchmarking] = useState(false)
+  const [benchmarkComparison, setBenchmarkComparison] = useKV<BenchmarkComparisonType | null>('benchmark-comparison', null)
+  const [showBenchmark, setShowBenchmark] = useState(false)
 
   useEffect(() => {
     if (!hardwareSpecs && autoOptimize) {
@@ -61,6 +68,56 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
     if (optimizedSettings && onSettingsApplied) {
       onSettingsApplied(optimizedSettings)
       toast.success('Optimized settings applied')
+    }
+  }
+
+  const runPerformanceBenchmark = async () => {
+    if (!optimizedSettings) {
+      toast.error('Please scan hardware first')
+      return
+    }
+
+    setIsBenchmarking(true)
+    toast.info('Running performance benchmark...')
+
+    try {
+      const beforeSettings = {
+        maxTokens: 2000,
+        enableAnimations: true,
+        enableBackgroundEffects: true,
+        streamingChunkSize: 50
+      }
+
+      toast.info('Testing default settings...')
+      const beforeBenchmark = await runBenchmark(beforeSettings)
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      toast.info('Testing optimized settings...')
+      const afterBenchmark = await runBenchmark({
+        maxTokens: optimizedSettings.maxTokens,
+        enableAnimations: optimizedSettings.enableAnimations,
+        enableBackgroundEffects: optimizedSettings.enableBackgroundEffects,
+        streamingChunkSize: optimizedSettings.streamingChunkSize
+      })
+
+      const comparison = compareBenchmarks(beforeBenchmark, afterBenchmark)
+      setBenchmarkComparison(comparison)
+      setShowBenchmark(true)
+
+      const improvement = comparison.improvements.overallScore
+      if (improvement > 10) {
+        toast.success(`Benchmark complete! ${improvement}% overall improvement detected`)
+      } else if (improvement > 0) {
+        toast.success(`Benchmark complete! Minor ${improvement}% improvement detected`)
+      } else {
+        toast.success('Benchmark complete! Settings are already optimal')
+      }
+    } catch (error) {
+      toast.error('Benchmark failed')
+      console.error(error)
+    } finally {
+      setIsBenchmarking(false)
     }
   }
 
@@ -268,6 +325,15 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
                     >
                       {showDetails ? 'Hide' : 'Show'} Details
                     </Button>
+                    <Button 
+                      variant="outline"
+                      size="sm" 
+                      onClick={runPerformanceBenchmark}
+                      disabled={isBenchmarking || !optimizedSettings}
+                    >
+                      <ChartBar size={18} className={`mr-2 ${isBenchmarking ? 'animate-pulse' : ''}`} />
+                      {isBenchmarking ? 'Benchmarking...' : 'Run Benchmark'}
+                    </Button>
                     <Button size="sm" onClick={applySettings}>
                       <CheckCircle size={18} className="mr-2" weight="fill" />
                       Apply Settings
@@ -313,6 +379,16 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
           )}
         </div>
       </Card>
+
+      {benchmarkComparison && showBenchmark && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+        >
+          <BenchmarkComparison comparison={benchmarkComparison} />
+        </motion.div>
+      )}
     </div>
   )
 }
