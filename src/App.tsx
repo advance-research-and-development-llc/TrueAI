@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'
@@ -17,6 +17,7 @@ import { QuantizationTools } from '@/components/models/QuantizationTools'
 import { HarnessCreator } from '@/components/harness/HarnessCreator'
 import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
 import { GGUFLibrary } from '@/components/models/GGUFLibrary'
+import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -528,7 +529,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
       <main className="container mx-auto px-6 py-6">
         <Tabs defaultValue="chat" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-6">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="chat" className="gap-2">
               <ChatCircle weight="fill" size={20} />
               Chat
@@ -540,6 +541,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
             <TabsTrigger value="models" className="gap-2">
               <Lightning weight="fill" size={20} />
               Models
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <ChartBar weight="fill" size={20} />
+              Analytics
             </TabsTrigger>
           </TabsList>
 
@@ -818,6 +823,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 />
               </TabsContent>
             </Tabs>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </main>
