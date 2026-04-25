@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -23,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel } from '@/lib/types'
 
 function App() {
@@ -495,9 +497,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 <ScrollArea className="h-[600px]">
                   <div className="space-y-2">
                     {conversations.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        No conversations yet
-                      </p>
+                      <EmptyState
+                        illustration={emptyStateChat}
+                        title="No conversations yet"
+                        description="Create a new chat to get started with AI assistance"
+                        size="md"
+                      />
                     )}
                     {conversations.map(conv => (
                       <div key={conv.id}>
@@ -584,9 +589,18 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               <div className="lg:col-span-2 space-y-4">
                 {agents.length === 0 && (
                   <Card className="p-12">
-                    <p className="text-center text-muted-foreground">
-                      No agents created yet
-                    </p>
+                    <EmptyState
+                      illustration={emptyStateAgents}
+                      title="No agents created yet"
+                      description="Create an autonomous AI agent to automate tasks and execute multi-step workflows"
+                      size="lg"
+                      action={
+                        <Button onClick={() => setNewAgentDialog(true)}>
+                          <Plus weight="bold" size={20} className="mr-2" />
+                          Create Your First Agent
+                        </Button>
+                      }
+                    />
                   </Card>
                 )}
                 {agents.map(agent => (
@@ -613,9 +627,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      Run an agent to see execution steps
-                    </p>
+                    <EmptyState
+                      illustration={emptyStateWorkflow}
+                      title="No execution history"
+                      description="Run an agent to see detailed execution steps"
+                      size="sm"
+                    />
                   )}
                 </ScrollArea>
               </Card>
