@@ -14,7 +14,7 @@ import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicato
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'
