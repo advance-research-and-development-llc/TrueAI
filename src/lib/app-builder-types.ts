@@ -1,8 +1,11 @@
+export type Framework = 'vanilla' | 'react' | 'vue' | 'svelte'
+
 export interface AppProject {
   id: string
   name: string
   description: string
   prompt: string
+  framework: Framework
   createdAt: number
   updatedAt: number
   status: 'creating' | 'ready' | 'building' | 'testing' | 'error'
@@ -16,7 +19,7 @@ export interface AppProject {
 export interface AppFile {
   path: string
   content: string
-  language: 'typescript' | 'javascript' | 'html' | 'css' | 'json'
+  language: 'typescript' | 'javascript' | 'html' | 'css' | 'json' | 'jsx' | 'tsx' | 'vue' | 'svelte'
   size: number
 }
 
@@ -45,4 +48,20 @@ export interface AppTemplate {
   category: 'productivity' | 'game' | 'utility' | 'social' | 'creative' | 'data'
   preview: string
   basePrompt: string
+  frameworks: Framework[]
+}
+
+export interface FrameworkConfig {
+  id: Framework
+  name: string
+  description: string
+  icon: string
+  color: string
+  fileStructure: {
+    path: string
+    language: AppFile['language']
+    required: boolean
+  }[]
+  buildInstructions: string[]
+  features: string[]
 }

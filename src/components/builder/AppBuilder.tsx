@@ -12,11 +12,12 @@ import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Code, Play, FlaskConical, Package, FileCode, Eye, Download, Trash, Sparkle, CheckCircle, XCircle, Clock } from '@phosphor-icons/react'
+import { Code, Play, FlaskConical, Package, FileCode, Eye, Download, Trash, Sparkle, CheckCircle, XCircle, Clock, Cube, Lightning } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { analytics } from '@/lib/analytics'
-import type { AppProject, AppFile, TestResult, BuildStep, AppTemplate } from '@/lib/app-builder-types'
+import { FRAMEWORK_CONFIGS, getFrameworkConfig, getFrameworkPromptInstructions } from '@/lib/framework-configs'
+import type { AppProject, AppFile, TestResult, BuildStep, AppTemplate, Framework } from '@/lib/app-builder-types'
 
 const APP_TEMPLATES: AppTemplate[] = [
   {
@@ -25,7 +26,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Simple task manager with persistence',
     category: 'productivity',
     preview: '✓',
-    basePrompt: 'Create a todo list app with add, complete, and delete functionality'
+    basePrompt: 'Create a todo list app with add, complete, and delete functionality',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   },
   {
     id: 'calculator',
@@ -33,7 +35,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Basic calculator with scientific functions',
     category: 'utility',
     preview: '🔢',
-    basePrompt: 'Create a calculator app with basic arithmetic and scientific functions'
+    basePrompt: 'Create a calculator app with basic arithmetic and scientific functions',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   },
   {
     id: 'timer',
@@ -41,7 +44,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Timer and stopwatch with lap tracking',
     category: 'utility',
     preview: '⏱️',
-    basePrompt: 'Create a timer and stopwatch app with lap tracking and countdown functionality'
+    basePrompt: 'Create a timer and stopwatch app with lap tracking and countdown functionality',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   },
   {
     id: 'notes',
@@ -49,7 +53,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Rich text note taking with markdown',
     category: 'productivity',
     preview: '📝',
-    basePrompt: 'Create a notes app with markdown support and categorization'
+    basePrompt: 'Create a notes app with markdown support and categorization',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   },
   {
     id: 'snake',
@@ -57,7 +62,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Classic snake game',
     category: 'game',
     preview: '🐍',
-    basePrompt: 'Create a snake game with score tracking and increasing difficulty'
+    basePrompt: 'Create a snake game with score tracking and increasing difficulty',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   },
   {
     id: 'weather',
@@ -65,7 +71,8 @@ const APP_TEMPLATES: AppTemplate[] = [
     description: 'Weather information display',
     category: 'utility',
     preview: '🌤️',
-    basePrompt: 'Create a weather dashboard showing temperature, conditions, and forecast'
+    basePrompt: 'Create a weather dashboard showing temperature, conditions, and forecast',
+    frameworks: ['vanilla', 'react', 'vue', 'svelte']
   }
 ]
 
@@ -77,13 +84,15 @@ export function AppBuilder({ models }: AppBuilderProps) {
   const [projects, setProjects] = useKV<AppProject[]>('app-builder-projects', [])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [newProjectDialog, setNewProjectDialog] = useState(false)
+  const [frameworkInfoDialog, setFrameworkInfoDialog] = useState(false)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   
   const [newProjectForm, setNewProjectForm] = useState({
     name: '',
     description: '',
     prompt: '',
-    template: ''
+    template: '',
+    framework: 'react' as Framework
   })
 
   const activeProject = projects.find(p => p.id === activeProjectId)
@@ -97,12 +106,14 @@ export function AppBuilder({ models }: AppBuilderProps) {
 
     const template = APP_TEMPLATES.find(t => t.id === newProjectForm.template)
     const finalPrompt = newProjectForm.prompt || template?.basePrompt || ''
+    const framework = newProjectForm.framework
 
     const newProject: AppProject = {
       id: `app-${Date.now()}`,
       name: newProjectForm.name || 'Untitled App',
       description: newProjectForm.description,
       prompt: finalPrompt,
+      framework,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       status: 'creating',
@@ -112,27 +123,39 @@ export function AppBuilder({ models }: AppBuilderProps) {
     setProjects(prev => [newProject, ...(prev || [])])
     setActiveProjectId(newProject.id)
     setNewProjectDialog(false)
-    setNewProjectForm({ name: '', description: '', prompt: '', template: '' })
+    setNewProjectForm({ name: '', description: '', prompt: '', template: '', framework: 'react' })
 
     analytics.track('app_project_created', 'builder', 'create_project', {
       label: newProject.name,
-      metadata: { hasTemplate: !!template, promptLength: finalPrompt.length }
+      metadata: { framework, hasTemplate: !!template, promptLength: finalPrompt.length }
     })
 
-    await generateAppCode(newProject.id, finalPrompt)
+    await generateAppCode(newProject.id, finalPrompt, framework)
   }
 
-  const generateAppCode = async (projectId: string, prompt: string) => {
+  const generateAppCode = async (projectId: string, prompt: string, framework: Framework) => {
     try {
-      toast.info('Generating app structure...')
+      toast.info(`Generating ${framework} app structure...`)
       
-      const codeGenPrompt = spark.llmPrompt`You are an expert web developer. Create a complete, working single-page web application based on this description:
+      const frameworkConfig = getFrameworkConfig(framework)
+      const frameworkInstructions = getFrameworkPromptInstructions(framework)
+      
+      if (!frameworkConfig) {
+        throw new Error('Invalid framework')
+      }
+
+      let codeGenPrompt = ''
+
+      if (framework === 'vanilla') {
+        codeGenPrompt = spark.llmPrompt`You are an expert web developer. Create a complete, working single-page web application based on this description:
 
 "${prompt}"
 
+${frameworkInstructions}
+
 Generate ONLY the code files needed, with the following structure:
 1. index.html - Complete HTML structure with inline styles and script
-2. app.js - All JavaScript/TypeScript logic
+2. app.js - All JavaScript logic
 3. styles.css - All styling
 
 Requirements:
@@ -152,6 +175,106 @@ Return ONLY valid JSON in this exact format:
     {"path": "styles.css", "content": "...", "language": "css"}
   ]
 }`
+      } else if (framework === 'react') {
+        codeGenPrompt = spark.llmPrompt`You are an expert React developer. Create a complete, working React application based on this description:
+
+"${prompt}"
+
+${frameworkInstructions}
+
+Generate the following files:
+1. index.html - HTML entry point with root div
+2. main.tsx - React root rendering setup
+3. App.tsx - Main App component
+4. styles.css - Global styles
+5. Additional component files as needed
+
+Requirements:
+- Use React 19 with TypeScript
+- Use functional components with hooks
+- Include proper TypeScript types and interfaces
+- Make it responsive and accessible
+- Include error boundaries
+- Use modern React patterns (hooks, context if needed)
+- Create reusable components
+- No external UI libraries (build components from scratch)
+
+Return ONLY valid JSON in this exact format:
+{
+  "files": [
+    {"path": "index.html", "content": "...", "language": "html"},
+    {"path": "main.tsx", "content": "...", "language": "tsx"},
+    {"path": "App.tsx", "content": "...", "language": "tsx"},
+    {"path": "styles.css", "content": "...", "language": "css"}
+  ]
+}`
+      } else if (framework === 'vue') {
+        codeGenPrompt = spark.llmPrompt`You are an expert Vue developer. Create a complete, working Vue 3 application based on this description:
+
+"${prompt}"
+
+${frameworkInstructions}
+
+Generate the following files:
+1. index.html - HTML entry point with app div
+2. main.ts - Vue app initialization
+3. App.vue - Main App component
+4. styles.css - Global styles
+5. Additional component files as needed
+
+Requirements:
+- Use Vue 3 with Composition API and TypeScript
+- Use <script setup lang="ts"> syntax
+- Include proper TypeScript types and interfaces
+- Make it responsive and accessible
+- Use reactive refs and computed properties
+- Create reusable components with props
+- Use scoped styles in components
+- No external UI libraries (build components from scratch)
+
+Return ONLY valid JSON in this exact format:
+{
+  "files": [
+    {"path": "index.html", "content": "...", "language": "html"},
+    {"path": "main.ts", "content": "...", "language": "typescript"},
+    {"path": "App.vue", "content": "...", "language": "vue"},
+    {"path": "styles.css", "content": "...", "language": "css"}
+  ]
+}`
+      } else if (framework === 'svelte') {
+        codeGenPrompt = spark.llmPrompt`You are an expert Svelte developer. Create a complete, working Svelte application based on this description:
+
+"${prompt}"
+
+${frameworkInstructions}
+
+Generate the following files:
+1. index.html - HTML entry point with target div
+2. main.ts - Svelte app initialization
+3. App.svelte - Main App component
+4. app.css - Global styles
+5. Additional component files as needed
+
+Requirements:
+- Use Svelte with TypeScript
+- Use <script lang="ts"> syntax
+- Include proper TypeScript types and interfaces
+- Make it responsive and accessible
+- Use reactive statements with $:
+- Create reusable components with props
+- Use scoped styles by default
+- No external UI libraries (build components from scratch)
+
+Return ONLY valid JSON in this exact format:
+{
+  "files": [
+    {"path": "index.html", "content": "...", "language": "html"},
+    {"path": "main.ts", "content": "...", "language": "typescript"},
+    {"path": "App.svelte", "content": "...", "language": "svelte"},
+    {"path": "app.css", "content": "...", "language": "css"}
+  ]
+}`
+      }
 
       const response = await spark.llm(codeGenPrompt, 'gpt-4o', true)
       const result = JSON.parse(response)
@@ -184,10 +307,10 @@ Return ONLY valid JSON in this exact format:
         setSelectedFile(files[0].path)
       }
 
-      toast.success('App generated successfully!')
+      toast.success(`${framework} app generated successfully!`)
       
       analytics.track('app_code_generated', 'builder', 'generate_code', {
-        metadata: { projectId, filesCount: files.length, totalSize: files.reduce((sum, f) => sum + f.size, 0) }
+        metadata: { projectId, framework, filesCount: files.length, totalSize: files.reduce((sum, f) => sum + f.size, 0) }
       })
 
     } catch (error) {
@@ -209,7 +332,7 @@ Return ONLY valid JSON in this exact format:
       toast.error('Failed to generate app code')
       
       analytics.track('error_occurred', 'builder', 'generate_code_failed', {
-        metadata: { projectId, error: String(error) }
+        metadata: { projectId, framework, error: String(error) }
       })
     }
   }
@@ -217,6 +340,15 @@ Return ONLY valid JSON in this exact format:
   const buildProject = async (projectId: string) => {
     const project = projects.find(p => p.id === projectId)
     if (!project) return
+
+    const frameworkConfig = getFrameworkConfig(project.framework)
+    const buildSteps = frameworkConfig?.buildInstructions || [
+      'Validating HTML structure...',
+      'Checking JavaScript syntax...',
+      'Optimizing CSS...',
+      'Bundling assets...',
+      'Build completed successfully!'
+    ]
 
     setProjects(prev => 
       prev.map(p => 
@@ -228,18 +360,10 @@ Return ONLY valid JSON in this exact format:
 
     analytics.track('app_build_started', 'builder', 'build_project', {
       label: project.name,
-      metadata: { projectId, filesCount: project.files.length }
+      metadata: { projectId, framework: project.framework, filesCount: project.files.length }
     })
 
     await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const buildSteps = [
-      'Validating HTML structure...',
-      'Checking JavaScript syntax...',
-      'Optimizing CSS...',
-      'Bundling assets...',
-      'Build completed successfully!'
-    ]
 
     for (const step of buildSteps) {
       await new Promise(resolve => setTimeout(resolve, 400))
@@ -277,7 +401,7 @@ Return ONLY valid JSON in this exact format:
     
     analytics.track('app_build_completed', 'builder', 'build_complete', {
       label: project.name,
-      metadata: { projectId }
+      metadata: { projectId, framework: project.framework }
     })
   }
 
@@ -415,7 +539,7 @@ Return ONLY valid JSON in this exact format:
     )
 
     toast.info('Regenerating app...')
-    await generateAppCode(projectId, project.prompt)
+    await generateAppCode(projectId, project.prompt, project.framework)
   }
 
   const getStatusColor = (status: AppProject['status']) => {
@@ -447,10 +571,16 @@ Return ONLY valid JSON in this exact format:
           <h2 className="text-xl font-semibold">App Builder</h2>
           <p className="text-sm text-muted-foreground">Create complete web apps from natural language</p>
         </div>
-        <Button onClick={() => setNewProjectDialog(true)} size="sm">
-          <Code weight="bold" size={20} className="mr-2" />
-          New App
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setFrameworkInfoDialog(true)} size="sm">
+            <Lightning weight="bold" size={20} className="mr-2" />
+            Frameworks
+          </Button>
+          <Button onClick={() => setNewProjectDialog(true)} size="sm">
+            <Code weight="bold" size={20} className="mr-2" />
+            New App
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -484,13 +614,19 @@ Return ONLY valid JSON in this exact format:
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="truncate font-medium text-sm">{project.name}</p>
+                        <span className="text-xs opacity-70">{getFrameworkConfig(project.framework)?.icon}</span>
                       </div>
-                      <Badge className={`text-xs ${getStatusColor(project.status)}`}>
-                        <span className="flex items-center gap-1">
-                          {getStatusIcon(project.status)}
-                          {project.status}
-                        </span>
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge className={`text-xs ${getStatusColor(project.status)}`}>
+                          <span className="flex items-center gap-1">
+                            {getStatusIcon(project.status)}
+                            {project.status}
+                          </span>
+                        </Badge>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {project.framework}
+                        </Badge>
+                      </div>
                     </div>
                   </Button>
                 </motion.div>
@@ -503,11 +639,16 @@ Return ONLY valid JSON in this exact format:
           {activeProject ? (
             <>
               <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">{activeProject.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-semibold">{activeProject.name}</h3>
+                    <Badge variant="outline" className="capitalize">
+                      {getFrameworkConfig(activeProject.framework)?.icon} {activeProject.framework}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">{activeProject.description || 'No description'}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {activeProject.status === 'ready' && (
                     <>
                       <Button
@@ -739,6 +880,42 @@ Return ONLY valid JSON in this exact format:
             </div>
 
             <div className="space-y-2">
+              <Label>Framework</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Choose the framework for your app. Each has unique strengths and development patterns.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {FRAMEWORK_CONFIGS.map(framework => {
+                  const isSelected = newProjectForm.framework === framework.id
+                  return (
+                    <Button
+                      key={framework.id}
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="h-auto py-4 flex flex-col items-start gap-1.5 relative overflow-hidden"
+                      onClick={() => setNewProjectForm(prev => ({ ...prev, framework: framework.id }))}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="framework-selection"
+                          className="absolute inset-0 bg-primary"
+                          initial={false}
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        />
+                      )}
+                      <div className={`relative z-10 w-full ${isSelected ? 'text-primary-foreground' : ''}`}>
+                        <div className="flex items-center gap-2 w-full mb-1">
+                          <span className="text-xl">{framework.icon}</span>
+                          <span className="font-semibold">{framework.name}</span>
+                        </div>
+                        <p className="text-xs text-left opacity-80 leading-snug">{framework.description}</p>
+                      </div>
+                    </Button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="app-template">Quick Start Template (optional)</Label>
               <Select
                 value={newProjectForm.template}
@@ -787,6 +964,58 @@ Return ONLY valid JSON in this exact format:
               Generate App
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={frameworkInfoDialog} onOpenChange={setFrameworkInfoDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Framework Comparison</DialogTitle>
+            <DialogDescription>
+              Compare different frameworks to choose the best one for your project
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {FRAMEWORK_CONFIGS.map(framework => (
+              <Card key={framework.id} className="p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="text-3xl">{framework.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold">{framework.name}</h3>
+                    <p className="text-sm text-muted-foreground">{framework.description}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-xs font-medium mb-2 text-muted-foreground uppercase">Key Features</h4>
+                    <div className="space-y-1.5">
+                      {framework.features.slice(0, 4).map((feature, index) => (
+                        <div key={index} className="flex items-start gap-2 text-xs">
+                          <CheckCircle weight="fill" size={14} className="text-accent mt-0.5 shrink-0" />
+                          <span className="text-muted-foreground">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setNewProjectForm(prev => ({ ...prev, framework: framework.id }))
+                      setFrameworkInfoDialog(false)
+                      setNewProjectDialog(true)
+                    }}
+                  >
+                    <Code size={16} className="mr-2" />
+                    Create {framework.name} App
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
