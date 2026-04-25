@@ -3327,73 +3327,71 @@ Return ONLY valid JSON in this exact format:
         </div>
       </div>
 
-      {projects.length === 0 && (
-        <Card className="p-6 mb-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-              <Sparkle weight="fill" size={20} className="text-accent" />
-              Quick Start Templates
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Browse sample apps by category or create your own from scratch
-            </p>
-          </div>
-          
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-            {categories.map(category => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(category.id)}
-                className="shrink-0"
-              >
-                <span className="mr-2">{category.icon}</span>
-                {category.name}
-              </Button>
-            ))}
-          </div>
-
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selectedCategory}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+      <Card className="p-6 mb-4">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+            <Sparkle weight="fill" size={20} className="text-accent" />
+            Quick Start Templates
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Browse sample apps by category or create your own from scratch
+          </p>
+        </div>
+        
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          {categories.map(category => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedCategory(category.id)}
+              className="shrink-0"
             >
-              {filteredTemplates.map(template => (
-                <motion.div
-                  key={template.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  layout
+              <span className="mr-2">{category.icon}</span>
+              {category.name}
+            </Button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedCategory}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+          >
+            {filteredTemplates.map(template => (
+              <motion.div
+                key={template.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                layout
+              >
+                <Card 
+                  className="p-4 cursor-pointer transition-all hover:shadow-md hover:border-primary/50 relative group"
+                  onClick={() => openTemplatePreview(template.id)}
                 >
-                  <Card 
-                    className="p-4 cursor-pointer transition-all hover:shadow-md hover:border-primary/50 relative group"
-                    onClick={() => openTemplatePreview(template.id)}
-                  >
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-primary text-primary-foreground rounded-full p-1">
-                        <Eye size={14} />
-                      </div>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-primary text-primary-foreground rounded-full p-1">
+                      <Eye size={14} />
                     </div>
-                    <div className="text-center">
-                      <div className="text-4xl mb-2">{template.preview}</div>
-                      <h4 className="font-semibold text-xs mb-1">{template.name}</h4>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
-                      <Badge variant="secondary" className="mt-2 text-xs capitalize">
-                        {template.category}
-                      </Badge>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-        </Card>
-      )}
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">{template.preview}</div>
+                    <h4 className="font-semibold text-xs mb-1">{template.name}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
+                    <Badge variant="secondary" className="mt-2 text-xs capitalize">
+                      {template.category}
+                    </Badge>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card className="lg:col-span-1 p-4">
