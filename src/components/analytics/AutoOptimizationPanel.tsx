@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { 
   Sparkle, 
@@ -21,12 +22,15 @@ import {
   ChartBar,
   Clock,
   Target,
-  Gear
+  Gear,
+  Eye,
+  ListChecks
 } from '@phosphor-icons/react'
 import { useAnalytics } from '@/lib/analytics'
 import { autoOptimizer, type OptimizationInsight } from '@/lib/auto-optimizer'
 import { thresholdManager, type ThresholdConfig } from '@/lib/confidence-thresholds'
 import { ConfidenceThresholdConfig } from './ConfidenceThresholdConfig'
+import { OptimizationRecommendationsViewer } from './OptimizationRecommendationsViewer'
 import type { ModelConfig, PerformanceProfile, AutoTuneRecommendation } from '@/lib/types'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -290,6 +294,32 @@ export function AutoOptimizationPanel({
   const otherInsights = insights.filter(i => i.severity !== 'critical' && i.severity !== 'high')
 
   return (
+    <Tabs defaultValue="viewer" className="w-full">
+      <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+        <TabsTrigger value="viewer" className="gap-2">
+          <Eye size={18} />
+          View & Apply
+        </TabsTrigger>
+        <TabsTrigger value="controls" className="gap-2">
+          <Gear size={18} />
+          Controls
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="viewer" className="space-y-6">
+        <OptimizationRecommendationsViewer
+          insights={insights}
+          autoTuneRecommendations={autoTuneRecommendations}
+          models={models}
+          appliedInsights={appliedInsights}
+          onApplyInsight={handleApplyInsight}
+          onApplyAutoTune={handleApplyAutoTune}
+          onApplyAll={handleApplyAll}
+          isAnalyzing={isAnalyzing}
+        />
+      </TabsContent>
+
+      <TabsContent value="controls" className="space-y-6">
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -298,8 +328,8 @@ export function AutoOptimizationPanel({
               <Brain weight="fill" size={24} className="text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Auto Optimization</h3>
-              <p className="text-sm text-muted-foreground">AI-powered performance insights</p>
+              <h3 className="text-lg font-semibold">Auto Optimization Controls</h3>
+              <p className="text-sm text-muted-foreground">Configure AI-powered performance insights</p>
             </div>
           </div>
 
@@ -498,6 +528,8 @@ export function AutoOptimizationPanel({
         </div>
       )}
     </div>
+      </TabsContent>
+    </Tabs>
   )
 }
 
