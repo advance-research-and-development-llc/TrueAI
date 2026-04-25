@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'
@@ -14,6 +14,7 @@ import { ModelConfigPanel } from '@/components/models/ModelConfigPanel'
 import { FineTuningUI } from '@/components/models/FineTuningUI'
 import { QuantizationTools } from '@/components/models/QuantizationTools'
 import { HarnessCreator } from '@/components/harness/HarnessCreator'
+import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel } from '@/lib/types'
 
 function App() {
   const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
@@ -382,6 +383,31 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     toast.success(`Downloading ${modelId}`)
   }
 
+  const handleHuggingFaceDownload = (model: HuggingFaceModel) => {
+    const newModel: ModelConfig = {
+      id: model.id.replace('/', '-'),
+      name: model.name,
+      provider: 'huggingface',
+      temperature: 0.7,
+      maxTokens: model.contextLength || 2000,
+      topP: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      contextLength: model.contextLength,
+      quantization: model.quantization,
+      size: model.size * 1000000000
+    }
+
+    setModels(prev => {
+      const currentModels = prev || []
+      const exists = currentModels.some(m => m.id === newModel.id)
+      if (exists) return currentModels
+      return [...currentModels, newModel]
+    })
+
+    toast.success(`${model.name} added to your models`)
+  }
+
   const createHarness = (harness: HarnessManifest) => {
     setHarnesses(prev => [harness, ...(prev || [])])
   }
@@ -582,8 +608,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           </TabsContent>
 
           <TabsContent value="models" className="space-y-4">
-            <Tabs defaultValue="config" className="w-full">
-              <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
+            <Tabs defaultValue="browse" className="w-full">
+              <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-6">
+                <TabsTrigger value="browse" className="gap-2">
+                  <Download size={18} />
+                  Browse
+                </TabsTrigger>
                 <TabsTrigger value="config" className="gap-2">
                   <Lightning size={18} />
                   Config
@@ -601,6 +631,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   Harness
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="browse">
+                <HuggingFaceModelBrowser onDownload={handleHuggingFaceDownload} />
+              </TabsContent>
 
               <TabsContent value="config" className="space-y-4">
                 <h2 className="text-xl font-semibold">Model Configuration</h2>

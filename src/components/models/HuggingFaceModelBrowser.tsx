@@ -1,68 +1,178 @@
-import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { useState, useEffect } from 'react'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Download, MagnifyingGlass, TrendUp } from '@phosphor-icons/react'
+import { Progress } from '@/components/ui/progress'
+import { Download, MagnifyingGlass, TrendUp, Spinner, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import type { HuggingFaceModel } from '@/lib/types'
 import { motion } from 'framer-motion'
+import { searchHuggingFaceModels, downloadModel, formatBytes, getPopularGGUFModels } from '@/lib/huggingface'
+import { toast } from 'sonner'
 
 interface HuggingFaceModelBrowserProps {
   onDownload: (model: HuggingFaceModel) => void
 }
 
-const MOCK_MODELS: HuggingFaceModel[] = [
-  {
-    id: 'TheBloke/Llama-2-7B-GGUF',
-    name: 'Llama-2-7B',
-    author: 'TheBloke',
-    downloads: 125000,
-    likes: 450,
-    size: 3.8,
-    quantization: 'Q4_K_M',
-    contextLength: 4096,
-    tags: ['llama', 'text-generation', 'gguf'],
-    description: 'Llama 2 7B model quantized to GGUF format',
-    downloadUrl: 'https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf'
-  },
-  {
-    id: 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
-    name: 'Mistral-7B-Instruct',
-    author: 'TheBloke',
-    downloads: 89000,
-    likes: 380,
-    size: 4.1,
-    quantization: 'Q5_K_M',
-    contextLength: 8192,
-    tags: ['mistral', 'instruct', 'gguf'],
-    description: 'Mistral 7B Instruct v0.2 quantized to GGUF',
-    downloadUrl: 'https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q5_K_M.gguf'
-  },
-  {
-    id: 'TheBloke/Phi-3-mini-4k-instruct-GGUF',
-    name: 'Phi-3-Mini-4K',
-    author: 'TheBloke',
-    downloads: 67000,
-    likes: 290,
-    size: 2.3,
-    quantization: 'Q4_K_M',
-    contextLength: 4096,
-    tags: ['phi', 'instruct', 'gguf'],
-    description: 'Microsoft Phi-3 Mini 4K instruct model',
-    downloadUrl: 'https://huggingface.co/TheBloke/Phi-3-mini-4k-instruct-GGUF/resolve/main/phi-3-mini-4k-instruct.Q4_K_M.gguf'
-  }
-]
+interface DownloadProgress {
+  modelId: string
+  progress: number
+  downloaded: number
+  total: number
+  status: 'downloading' | 'completed' | 'error'
+  error?: string
+}
 
 export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [models] = useState<HuggingFaceModel[]>(MOCK_MODELS)
+  const [models, setModels] = useState<HuggingFaceModel[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [downloads, setDownloads] = useState<Map<string, DownloadProgress>>(new Map())
+  const [hasSearched, setHasSearched] = useState(false)
 
   const filteredModels = models.filter(model =>
     model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     model.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
     model.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   )
+
+  useEffect(() => {
+    const popularModels = getPopularGGUFModels()
+    if (popularModels.length > 0 && !hasSearched) {
+      performSearch(popularModels[0])
+    }
+  }, [])
+
+  const performSearch = async (query?: string) => {
+    const searchTerm = query || searchQuery
+    if (!searchTerm.trim()) {
+      toast.error('Please enter a search term')
+      return
+    }
+
+    setIsSearching(true)
+    setSearchError(null)
+    setHasSearched(true)
+
+    try {
+      const results = await searchHuggingFaceModels(searchTerm, 20)
+      setModels(results)
+      
+      if (results.length === 0) {
+        toast.info('No GGUF models found. Try a different search term.')
+      } else {
+        toast.success(`Found ${results.length} models`)
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to search models'
+      setSearchError(errorMessage)
+      toast.error(errorMessage)
+      console.error('Search error:', error)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleDownloadModel = async (model: HuggingFaceModel) => {
+    if (downloads.has(model.id)) {
+      toast.info('Download already in progress')
+      return
+    }
+
+    setDownloads(prev => new Map(prev).set(model.id, {
+      modelId: model.id,
+      progress: 0,
+      downloaded: 0,
+      total: 0,
+      status: 'downloading'
+    }))
+
+    try {
+      toast.info(`Starting download: ${model.name}`)
+      
+      const blob = await downloadModel(
+        model.downloadUrl,
+        (progress, downloaded, total) => {
+          setDownloads(prev => {
+            const newMap = new Map(prev)
+            newMap.set(model.id, {
+              modelId: model.id,
+              progress,
+              downloaded,
+              total,
+              status: 'downloading'
+            })
+            return newMap
+          })
+        }
+      )
+
+      setDownloads(prev => {
+        const newMap = new Map(prev)
+        newMap.set(model.id, {
+          modelId: model.id,
+          progress: 100,
+          downloaded: blob.size,
+          total: blob.size,
+          status: 'completed'
+        })
+        return newMap
+      })
+
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = model.downloadUrl.split('/').pop() || `${model.name}.gguf`
+      link.click()
+      URL.revokeObjectURL(url)
+
+      toast.success(`Downloaded: ${model.name}`)
+      onDownload(model)
+
+      setTimeout(() => {
+        setDownloads(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(model.id)
+          return newMap
+        })
+      }, 3000)
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Download failed'
+      
+      setDownloads(prev => {
+        const newMap = new Map(prev)
+        newMap.set(model.id, {
+          modelId: model.id,
+          progress: 0,
+          downloaded: 0,
+          total: 0,
+          status: 'error',
+          error: errorMessage
+        })
+        return newMap
+      })
+
+      toast.error(`Download failed: ${errorMessage}`)
+      console.error('Download error:', error)
+
+      setTimeout(() => {
+        setDownloads(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(model.id)
+          return newMap
+        })
+      }, 5000)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      performSearch()
+    }
+  }
 
   return (
     <Card className="p-6">
@@ -72,78 +182,158 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
       </CardHeader>
 
       <div className="space-y-4">
-        <div className="relative">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-          <Input
-            id="hf-search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search models by name, author, or tag..."
-            className="pl-10"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+            <Input
+              id="hf-search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Search models (e.g., Llama, Mistral, Phi-3)..."
+              className="pl-10"
+              disabled={isSearching}
+            />
+          </div>
+          <Button onClick={() => performSearch()} disabled={isSearching || !searchQuery.trim()}>
+            {isSearching ? (
+              <><Spinner className="animate-spin" size={20} /> Searching...</>
+            ) : (
+              <>Search</>
+            )}
+          </Button>
         </div>
+
+        {searchError && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+            <WarningCircle size={20} className="text-destructive mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-destructive">{searchError}</p>
+          </div>
+        )}
 
         <ScrollArea className="h-[500px] pr-4">
           <div className="space-y-3">
-            {filteredModels.length === 0 && (
-              <p className="text-center text-muted-foreground py-12">
-                No models found
-              </p>
+            {isSearching && models.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Spinner className="animate-spin mb-4" size={32} />
+                <p className="text-muted-foreground">Searching HuggingFace for GGUF models...</p>
+              </div>
+            )}
+
+            {!isSearching && models.length === 0 && hasSearched && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-muted-foreground mb-2">No models found</p>
+                <p className="text-sm text-muted-foreground">Try searching for popular models like Llama, Mistral, or Phi-3</p>
+              </div>
+            )}
+
+            {!hasSearched && models.length === 0 && !isSearching && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-muted-foreground mb-4">Enter a search term to find GGUF models</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {getPopularGGUFModels().slice(0, 4).map(modelName => (
+                    <Button
+                      key={modelName}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery(modelName.split('/')[1].replace('-GGUF', ''))
+                        performSearch(modelName)
+                      }}
+                    >
+                      {modelName.split('/')[1].replace('-GGUF', '')}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             )}
             
-            {filteredModels.map((model, index) => (
-              <motion.div
-                key={model.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="p-4 hover:border-accent/50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start gap-2">
-                        <h4 className="font-semibold text-base">{model.name}</h4>
-                        <Badge variant="secondary" className="text-xs">
-                          {model.quantization}
-                        </Badge>
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground">
-                        by {model.author}
-                      </p>
-                      
-                      {model.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {model.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-1">
-                        {model.tags.slice(0, 3).map(tag => (
-                          <Badge key={tag} variant="outline" className="text-xs">
-                            {tag}
+            {filteredModels.map((model, index) => {
+              const downloadProgress = downloads.get(model.id)
+              const isDownloading = downloadProgress?.status === 'downloading'
+              const isCompleted = downloadProgress?.status === 'completed'
+              const hasError = downloadProgress?.status === 'error'
+
+              return (
+                <motion.div
+                  key={model.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card className="p-4 hover:border-accent/50 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <h4 className="font-semibold text-base">{model.name}</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            {model.quantization}
                           </Badge>
-                        ))}
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground">
+                          by {model.author}
+                        </p>
+                        
+                        {model.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {model.description}
+                          </p>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {model.tags.slice(0, 3).map(tag => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
+                          <span>Size: {model.size.toFixed(1)}GB</span>
+                          <span>Context: {model.contextLength}</span>
+                          <span className="flex items-center gap-1">
+                            <TrendUp size={14} />
+                            {(model.downloads / 1000).toFixed(0)}k downloads
+                          </span>
+                        </div>
+
+                        {downloadProgress && (
+                          <div className="space-y-1">
+                            <Progress value={downloadProgress.progress} className="h-2" />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>
+                                {isDownloading && 'Downloading...'}
+                                {isCompleted && 'Download complete!'}
+                                {hasError && `Error: ${downloadProgress.error}`}
+                              </span>
+                              {downloadProgress.total > 0 && (
+                                <span>
+                                  {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                        <span>Size: {model.size.toFixed(1)}GB</span>
-                        <span>Context: {model.contextLength}</span>
-                        <span className="flex items-center gap-1">
-                          <TrendUp size={14} />
-                          {(model.downloads / 1000).toFixed(0)}k downloads
-                        </span>
-                      </div>
+                      <Button 
+                        onClick={() => handleDownloadModel(model)} 
+                        size="sm"
+                        disabled={isDownloading || isCompleted}
+                        variant={isCompleted ? 'secondary' : hasError ? 'destructive' : 'default'}
+                      >
+                        {isDownloading && <Spinner className="animate-spin mr-2" size={16} />}
+                        {isCompleted && <CheckCircle weight="fill" size={16} className="mr-2" />}
+                        {hasError && <WarningCircle weight="fill" size={16} className="mr-2" />}
+                        {!isDownloading && !isCompleted && !hasError && <Download weight="bold" size={16} className="mr-2" />}
+                        {isDownloading ? 'Downloading' : isCompleted ? 'Downloaded' : hasError ? 'Failed' : 'Download'}
+                      </Button>
                     </div>
-                    
-                    <Button onClick={() => onDownload(model)} size="sm">
-                      <Download weight="bold" size={16} className="mr-2" />
-                      Download
-                    </Button>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+                  </Card>
+                </motion.div>
+              )
+            })}
           </div>
         </ScrollArea>
       </div>
