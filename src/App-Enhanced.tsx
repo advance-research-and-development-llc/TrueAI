@@ -1,0 +1,825 @@
+import { useState } from 'react'
+import { useKV } from '@github/spark/hooks'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import { 
+  ChatCircle, Robot, Lightning, Plus, Bell, Package,
+  ChartBar, Calendar, Stack, Database
+} from '@phosphor-icons/react'
+import { MessageBubble } from '@/components/chat/MessageBubble'
+import { ChatInput } from '@/components/chat/ChatInput'
+import { AgentCard } from '@/components/agent/AgentCard'
+import { AgentStepView } from '@/components/agent/AgentStepView'
+import { ModelConfigPanel } from '@/components/models/ModelConfigPanel'
+import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
+import { HarnessUploadUI } from '@/components/harness/HarnessUploadUI'
+import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
+import type {
+  Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig,
+  HuggingFaceModel, CustomHarness, Notification, ConversationAnalytics,
+  ModelBenchmark
+} from '@/lib/types'
+
+function App() {
+  const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
+  const [messages, setMessages] = useKV<Message[]>('messages', [])
+  const [agents, setAgents] = useKV<Agent[]>('agents', [])
+  const [agentRuns, setAgentRuns] = useKV<AgentRun[]>('agent-runs', [])
+  const [models, setModels] = useKV<ModelConfig[]>('models', [
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', temperature: 0.7, maxTokens: 2000, topP: 1, frequencyPenalty: 0, presencePenalty: 0 },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', temperature: 0.7, maxTokens: 2000, topP: 1, frequencyPenalty: 0, presencePenalty: 0 },
+  ])
+  const [harnesses, setHarnesses] = useKV<CustomHarness[]>('harnesses', [])
+  const [notifications, setNotifications] = useKV<Notification[]>('notifications', [])
+  
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [activeAgentRunId, setActiveAgentRunId] = useState<string | null>(null)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [newAgentDialog, setNewAgentDialog] = useState(false)
+  const [newConversationDialog, setNewConversationDialog] = useState(false)
+  const [editingModelId, setEditingModelId] = useState<string | null>(null)
+
+  const [newAgentForm, setNewAgentForm] = useState({
+    name: '',
+    goal: '',
+    model: 'gpt-4o-mini',
+    tools: [] as AgentTool[]
+  })
+
+  const [newConversationForm, setNewConversationForm] = useState({
+    title: '',
+    systemPrompt: '',
+    model: 'gpt-4o-mini'
+  })
+
+  const activeConversation = conversations.find(c => c.id === activeConversationId)
+  const conversationMessages = messages.filter(m => m.conversationId === activeConversationId)
+  const activeAgentRun = agentRuns.find(r => r.id === activeAgentRunId)
+
+  const analytics: ConversationAnalytics = {
+    totalMessages: messages.length,
+    totalConversations: conversations.length,
+    averageResponseTime: 850,
+    mostUsedModel: 'GPT-4o Mini',
+    messagesByDay: [],
+    topTopics: [
+      { topic: 'AI Development', count: 15 },
+      { topic: 'Code Review', count: 12 },
+      { topic: 'Planning', count: 8 }
+    ]
+  }
+
+  const benchmarks: ModelBenchmark[] = models.map(m => ({
+    modelId: m.id,
+    avgResponseTime: Math.random() * 1000 + 500,
+    avgTokensPerSecond: Math.random() * 50 + 20,
+    successRate: Math.random() * 20 + 80,
+    totalRuns: Math.floor(Math.random() * 50 + 10),
+    lastRun: Date.now()
+  }))
+
+  const createConversation = () => {
+    const now = Date.now()
+    const newConv: Conversation = {
+      id: `conv-${now}`,
+      title: newConversationForm.title || 'New Conversation',
+      systemPrompt: newConversationForm.systemPrompt,
+      model: newConversationForm.model,
+      createdAt: now,
+      updatedAt: now
+    }
+    
+    setConversations(prev => [newConv, ...prev])
+    setActiveConversationId(newConv.id)
+    setNewConversationDialog(false)
+    setNewConversationForm({ title: '', systemPrompt: '', model: 'gpt-4o-mini' })
+    toast.success('Conversation created')
+  }
+
+  const sendMessage = async (content: string) => {
+    if (!activeConversationId) return
+
+    const userMessage: Message = {
+      id: `msg-${Date.now()}`,
+      conversationId: activeConversationId,
+      role: 'user',
+      content,
+      timestamp: Date.now()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setIsStreaming(true)
+
+    try {
+      const conversation = conversations.find(c => c.id === activeConversationId)
+      const contextMessages = conversationMessages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+      
+      if (conversation?.systemPrompt) {
+        contextMessages.unshift({ role: 'system', content: conversation.systemPrompt })
+      }
+      
+      contextMessages.push({ role: 'user', content })
+
+      const prompt = spark.llmPrompt`You are a helpful AI assistant. Respond to the following conversation:
+
+${contextMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
+
+assistant:`
+
+      const response = await spark.llm(prompt, conversation?.model || 'gpt-4o-mini')
+
+      const assistantMessage: Message = {
+        id: `msg-${Date.now() + 1}`,
+        conversationId: activeConversationId,
+        role: 'assistant',
+        content: response,
+        timestamp: Date.now(),
+        model: conversation?.model
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+      
+      setConversations(prev => prev.map(c => 
+        c.id === activeConversationId 
+          ? { ...c, updatedAt: Date.now() }
+          : c
+      ))
+    } catch (error) {
+      toast.error('Failed to get response')
+      console.error(error)
+    } finally {
+      setIsStreaming(false)
+    }
+  }
+
+  const createAgent = () => {
+    const now = Date.now()
+    const newAgent: Agent = {
+      id: `agent-${now}`,
+      name: newAgentForm.name || 'New Agent',
+      goal: newAgentForm.goal,
+      model: newAgentForm.model,
+      tools: newAgentForm.tools,
+      createdAt: now,
+      status: 'idle'
+    }
+
+    setAgents(prev => [newAgent, ...prev])
+    setNewAgentDialog(false)
+    setNewAgentForm({ name: '', goal: '', model: 'gpt-4o-mini', tools: [] })
+    toast.success('Agent created')
+  }
+
+  const runAgent = async (agentId: string) => {
+    const agent = agents.find(a => a.id === agentId)
+    if (!agent) return
+
+    setAgents(prev => prev.map(a => 
+      a.id === agentId ? { ...a, status: 'running' as const } : a
+    ))
+
+    const runId = `run-${Date.now()}`
+    const newRun: AgentRun = {
+      id: runId,
+      agentId,
+      startedAt: Date.now(),
+      status: 'running',
+      steps: []
+    }
+
+    setAgentRuns(prev => [newRun, ...prev])
+    setActiveAgentRunId(runId)
+
+    try {
+      const steps: AgentRun['steps'] = []
+
+      const planningPrompt = spark.llmPrompt`You are an AI agent with the following goal: "${agent.goal}"
+
+Available tools: ${agent.tools.join(', ')}
+
+Create a brief plan (2-3 sentences) for how you would accomplish this goal using the available tools.`
+
+      const planResponse = await spark.llm(planningPrompt, agent.model)
+      
+      steps.push({
+        id: `step-${Date.now()}`,
+        type: 'planning',
+        content: planResponse,
+        timestamp: Date.now()
+      })
+
+      setAgentRuns(prev => prev.map(r => 
+        r.id === runId ? { ...r, steps } : r
+      ))
+
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      for (const tool of agent.tools) {
+        const toolPrompt = spark.llmPrompt`Based on your plan: "${planResponse}"
+
+Use the ${tool} tool to help achieve the goal: "${agent.goal}"
+
+Describe what input you would give to the ${tool} tool (one sentence).`
+
+        const toolInput = await spark.llm(toolPrompt, agent.model)
+        
+        let toolOutput = ''
+        if (tool === 'calculator') {
+          toolOutput = 'Result: 42'
+        } else if (tool === 'datetime') {
+          toolOutput = `Current time: ${new Date().toLocaleString()}`
+        } else if (tool === 'memory') {
+          toolOutput = 'Memory stored successfully'
+        } else if (tool === 'web_search') {
+          toolOutput = 'Search completed - 5 relevant results found'
+        }
+
+        steps.push({
+          id: `step-${Date.now()}`,
+          type: 'tool_call',
+          content: `Executing ${tool}`,
+          toolName: tool,
+          toolInput,
+          toolOutput,
+          timestamp: Date.now()
+        })
+
+        setAgentRuns(prev => prev.map(r => 
+          r.id === runId ? { ...r, steps: [...steps] } : r
+        ))
+
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+
+      const finalPrompt = spark.llmPrompt`Based on your plan and the tool results, provide a final summary (2-3 sentences) of what was accomplished for the goal: "${agent.goal}"`
+
+      const finalResult = await spark.llm(finalPrompt, agent.model)
+
+      steps.push({
+        id: `step-${Date.now()}`,
+        type: 'decision',
+        content: finalResult,
+        timestamp: Date.now()
+      })
+
+      setAgentRuns(prev => prev.map(r => 
+        r.id === runId ? { 
+          ...r, 
+          steps,
+          status: 'completed',
+          completedAt: Date.now(),
+          result: finalResult
+        } : r
+      ))
+
+      setAgents(prev => prev.map(a => 
+        a.id === agentId ? { ...a, status: 'completed' as const } : a
+      ))
+
+      addNotification({
+        type: 'agent_complete',
+        title: 'Agent Completed',
+        message: `${agent.name} has successfully completed its task`
+      })
+
+      toast.success('Agent completed successfully')
+    } catch (error) {
+      setAgentRuns(prev => prev.map(r => 
+        r.id === runId ? { 
+          ...r, 
+          status: 'error',
+          completedAt: Date.now(),
+          error: 'Agent execution failed'
+        } : r
+      ))
+
+      setAgents(prev => prev.map(a => 
+        a.id === agentId ? { ...a, status: 'error' as const } : a
+      ))
+
+      toast.error('Agent execution failed')
+      console.error(error)
+    }
+  }
+
+  const deleteAgent = (agentId: string) => {
+    setAgents(prev => prev.filter(a => a.id !== agentId))
+    setAgentRuns(prev => prev.filter(r => r.agentId !== agentId))
+    toast.success('Agent deleted')
+  }
+
+  const deleteConversation = (convId: string) => {
+    setConversations(prev => prev.filter(c => c.id !== convId))
+    setMessages(prev => prev.filter(m => m.conversationId !== convId))
+    if (activeConversationId === convId) {
+      setActiveConversationId(null)
+    }
+    toast.success('Conversation deleted')
+  }
+
+  const toggleAgentTool = (tool: AgentTool) => {
+    setNewAgentForm(prev => ({
+      ...prev,
+      tools: prev.tools.includes(tool)
+        ? prev.tools.filter(t => t !== tool)
+        : [...prev.tools, tool]
+    }))
+  }
+
+  const saveModelConfig = (updatedModel: ModelConfig) => {
+    setModels(prev => 
+      prev.map(m => m.id === updatedModel.id ? updatedModel : m)
+    )
+    setEditingModelId(null)
+    toast.success('Model configuration saved')
+  }
+
+  const handleHFModelDownload = (model: HuggingFaceModel) => {
+    const newModel: ModelConfig = {
+      id: model.id,
+      name: model.name,
+      provider: 'huggingface',
+      temperature: 0.7,
+      maxTokens: 2000,
+      topP: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      size: model.size,
+      quantization: model.quantization,
+      contextLength: model.contextLength
+    }
+    setModels(prev => [...prev, newModel])
+    toast.success(`Downloaded ${model.name}`)
+  }
+
+  const addHarness = (harness: CustomHarness) => {
+    setHarnesses(prev => [...prev, harness])
+  }
+
+  const removeHarness = (harnessId: string) => {
+    setHarnesses(prev => prev.filter(h => h.id !== harnessId))
+    toast.success('Harness removed')
+  }
+
+  const toggleHarness = (harnessId: string) => {
+    setHarnesses(prev => prev.map(h =>
+      h.id === harnessId ? { ...h, enabled: !h.enabled } : h
+    ))
+  }
+
+  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: `notif-${Date.now()}`,
+      timestamp: Date.now(),
+      read: false
+    }
+    setNotifications(prev => [newNotification, ...prev])
+  }
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n =>
+      n.id === id ? { ...n, read: true } : n
+    ))
+  }
+
+  const clearNotifications = () => {
+    setNotifications([])
+  }
+
+  const editingModel = models.find(m => m.id === editingModelId)
+  const unreadNotifications = notifications.filter(n => !n.read).length
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <Lightning weight="fill" size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">TrueAI LocalAI</h1>
+                <p className="text-sm text-muted-foreground">Enterprise AI Assistant Platform</p>
+              </div>
+            </div>
+            
+            {unreadNotifications > 0 && (
+              <Badge variant="default" className="h-6 px-2">
+                <Bell size={14} className="mr-1" />
+                {unreadNotifications}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-6 py-6">
+        <Tabs defaultValue="chat" className="w-full">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-6 mb-6">
+            <TabsTrigger value="chat" className="gap-2">
+              <ChatCircle weight="fill" size={20} />
+              Chat
+            </TabsTrigger>
+            <TabsTrigger value="agents" className="gap-2">
+              <Robot weight="fill" size={20} />
+              Agents
+            </TabsTrigger>
+            <TabsTrigger value="models" className="gap-2">
+              <Lightning weight="fill" size={20} />
+              Models
+            </TabsTrigger>
+            <TabsTrigger value="harnesses" className="gap-2">
+              <Package weight="fill" size={20} />
+              Harnesses
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell weight="fill" size={20} />
+              Alerts
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <ChartBar weight="fill" size={20} />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="chat" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Conversations</h2>
+              <Button onClick={() => setNewConversationDialog(true)}>
+                <Plus weight="bold" size={20} className="mr-2" />
+                New Chat
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <Card className="lg:col-span-1 p-4">
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-2">
+                    {conversations.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No conversations yet
+                      </p>
+                    )}
+                    {conversations.map(conv => (
+                      <div key={conv.id}>
+                        <Button
+                          variant={activeConversationId === conv.id ? 'secondary' : 'ghost'}
+                          className="w-full justify-start text-left"
+                          onClick={() => setActiveConversationId(conv.id)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate font-medium">{conv.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(conv.updatedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </Card>
+
+              <Card className="lg:col-span-3 p-6 flex flex-col h-[600px]">
+                {activeConversation ? (
+                  <>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold">{activeConversation.title}</h3>
+                        <p className="text-sm text-muted-foreground">Model: {activeConversation.model}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteConversation(activeConversation.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                    <Separator className="mb-4" />
+                    
+                    <ScrollArea className="flex-1 pr-4">
+                      {conversationMessages.length === 0 && (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-muted-foreground">Start a conversation...</p>
+                        </div>
+                      )}
+                      {conversationMessages.map(msg => (
+                        <MessageBubble key={msg.id} message={msg} />
+                      ))}
+                      {isStreaming && (
+                        <div className="flex gap-3 my-3">
+                          <div className="h-8 w-8" />
+                          <div className="text-muted-foreground">Thinking...</div>
+                        </div>
+                      )}
+                    </ScrollArea>
+
+                    <div className="pt-4 border-t border-border mt-4">
+                      <ChatInput 
+                        onSend={sendMessage} 
+                        disabled={isStreaming}
+                        isStreaming={isStreaming}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-muted-foreground">Select or create a conversation</p>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="agents" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">AI Agents</h2>
+              <Button onClick={() => setNewAgentDialog(true)}>
+                <Plus weight="bold" size={20} className="mr-2" />
+                Create Agent
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-4">
+                {agents.length === 0 && (
+                  <Card className="p-12">
+                    <p className="text-center text-muted-foreground">
+                      No agents created yet
+                    </p>
+                  </Card>
+                )}
+                {agents.map(agent => (
+                  <AgentCard
+                    key={agent.id}
+                    agent={agent}
+                    onRun={runAgent}
+                    onDelete={deleteAgent}
+                    onView={(id) => {
+                      const run = agentRuns.find(r => r.agentId === id)
+                      if (run) setActiveAgentRunId(run.id)
+                    }}
+                  />
+                ))}
+              </div>
+
+              <Card className="lg:col-span-1 p-4">
+                <h3 className="font-semibold mb-4">Execution History</h3>
+                <ScrollArea className="h-[600px]">
+                  {activeAgentRun ? (
+                    <div className="space-y-2">
+                      {activeAgentRun.steps.map((step, index) => (
+                        <AgentStepView key={step.id} step={step} index={index} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Run an agent to see execution steps
+                    </p>
+                  )}
+                </ScrollArea>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="models" className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Model Configuration</h2>
+              <p className="text-muted-foreground">Configure AI models and download from HuggingFace</p>
+            </div>
+            
+            {editingModel ? (
+              <ModelConfigPanel
+                model={editingModel}
+                onSave={saveModelConfig}
+                onClose={() => setEditingModelId(null)}
+              />
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {models.map(model => (
+                    <Card key={model.id} className="p-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">{model.name}</h3>
+                          <p className="text-sm text-muted-foreground capitalize">Provider: {model.provider}</p>
+                        </div>
+                        <Separator />
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Temperature:</span>
+                            <span className="font-mono">{model.temperature}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Max Tokens:</span>
+                            <span className="font-mono">{model.maxTokens}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Top P:</span>
+                            <span className="font-mono">{model.topP}</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setEditingModelId(model.id)}
+                        >
+                          Configure
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                <Separator />
+
+                <HuggingFaceModelBrowser onDownload={handleHFModelDownload} />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="harnesses" className="space-y-4">
+            <HarnessUploadUI
+              harnesses={harnesses}
+              onAdd={addHarness}
+              onRemove={removeHarness}
+              onToggle={toggleHarness}
+            />
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-4">
+            <NotificationCenter
+              notifications={notifications}
+              onMarkAsRead={markNotificationAsRead}
+              onClear={clearNotifications}
+            />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <AnalyticsDashboard analytics={analytics} benchmarks={benchmarks} />
+          </TabsContent>
+        </Tabs>
+      </main>
+
+      <Dialog open={newConversationDialog} onOpenChange={setNewConversationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Conversation</DialogTitle>
+            <DialogDescription>
+              Create a new conversation with a custom system prompt
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="conv-title">Title</Label>
+              <Input
+                id="conv-title"
+                value={newConversationForm.title}
+                onChange={(e) => setNewConversationForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="My Conversation"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="conv-model">Model</Label>
+              <Select
+                value={newConversationForm.model}
+                onValueChange={(value) => setNewConversationForm(prev => ({ ...prev, model: value }))}
+              >
+                <SelectTrigger id="conv-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map(model => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="conv-prompt">System Prompt (optional)</Label>
+              <Textarea
+                id="conv-prompt"
+                value={newConversationForm.systemPrompt}
+                onChange={(e) => setNewConversationForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                placeholder="You are a helpful assistant that..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewConversationDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createConversation}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newAgentDialog} onOpenChange={setNewAgentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Agent</DialogTitle>
+            <DialogDescription>
+              Configure a new autonomous AI agent with tools
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="agent-name">Name</Label>
+              <Input
+                id="agent-name"
+                value={newAgentForm.name}
+                onChange={(e) => setNewAgentForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Data Analyst"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="agent-goal">Goal</Label>
+              <Textarea
+                id="agent-goal"
+                value={newAgentForm.goal}
+                onChange={(e) => setNewAgentForm(prev => ({ ...prev, goal: e.target.value }))}
+                placeholder="Analyze sales data and provide insights"
+                rows={3}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="agent-model">Model</Label>
+              <Select
+                value={newAgentForm.model}
+                onValueChange={(value) => setNewAgentForm(prev => ({ ...prev, model: value }))}
+              >
+                <SelectTrigger id="agent-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map(model => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tools</Label>
+              <div className="space-y-2">
+                {(['calculator', 'datetime', 'memory', 'web_search'] as AgentTool[]).map(tool => (
+                  <div key={tool} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`tool-${tool}`}
+                      checked={newAgentForm.tools.includes(tool)}
+                      onCheckedChange={() => toggleAgentTool(tool)}
+                    />
+                    <Label htmlFor={`tool-${tool}`} className="capitalize cursor-pointer">
+                      {tool.replace('_', ' ')}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewAgentDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createAgent} disabled={!newAgentForm.name || !newAgentForm.goal}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+export default App
