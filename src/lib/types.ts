@@ -25,31 +25,72 @@ export interface Agent {
   model: string
   tools: AgentTool[]
   createdAt: number
-  status: 'idle' | 'running' | 'completed' | 'error'
+  status: 'idle' | 'running' | 'completed' | 'error' | 'paused'
   schedule?: AgentSchedule
+  knowledgeBaseId?: string
+  maxIterations?: number
+  temperature?: number
+  systemPrompt?: string
+  memoryEnabled?: boolean
+  collaborativeMode?: boolean
+  priority?: 'low' | 'normal' | 'high'
+  tags?: string[]
+  capabilities?: AgentCapability[]
 }
 
-export type AgentTool = 'calculator' | 'datetime' | 'memory' | 'web_search'
+export type AgentTool = 
+  | 'calculator' 
+  | 'datetime' 
+  | 'memory' 
+  | 'web_search'
+  | 'code_interpreter'
+  | 'file_reader'
+  | 'json_parser'
+  | 'api_caller'
+  | 'data_analyzer'
+  | 'image_generator'
+  | 'sentiment_analyzer'
+  | 'summarizer'
+  | 'translator'
+  | 'validator'
+
+export type AgentCapability = 
+  | 'reasoning'
+  | 'planning'
+  | 'memory'
+  | 'collaboration'
+  | 'self_correction'
+  | 'learning'
 
 export interface AgentRun {
   id: string
   agentId: string
   startedAt: number
   completedAt?: number
-  status: 'running' | 'completed' | 'error'
+  pausedAt?: number
+  resumedAt?: number
+  status: 'running' | 'completed' | 'error' | 'paused' | 'cancelled'
   steps: AgentStep[]
   result?: string
   error?: string
+  tokensUsed?: number
+  costEstimate?: number
+  iterations?: number
+  memorySnapshot?: Record<string, any>
 }
 
 export interface AgentStep {
   id: string
-  type: 'planning' | 'tool_call' | 'observation' | 'decision'
+  type: 'planning' | 'tool_call' | 'observation' | 'decision' | 'error' | 'retry' | 'memory_update'
   content: string
   toolName?: string
   toolInput?: string
   toolOutput?: string
   timestamp: number
+  duration?: number
+  success?: boolean
+  retryCount?: number
+  confidence?: number
 }
 
 export interface AgentSchedule {

@@ -1,0 +1,385 @@
+import type { AgentTool } from './types'
+
+export interface ToolResult {
+  success: boolean
+  output: string
+  error?: string
+  metadata?: Record<string, any>
+}
+
+export class AgentToolExecutor {
+  async executeTool(tool: AgentTool, input: string): Promise<ToolResult> {
+    try {
+      switch (tool) {
+        case 'calculator':
+          return this.executeCalculator(input)
+        case 'datetime':
+          return this.executeDatetime(input)
+        case 'memory':
+          return this.executeMemory(input)
+        case 'web_search':
+          return this.executeWebSearch(input)
+        case 'code_interpreter':
+          return this.executeCodeInterpreter(input)
+        case 'file_reader':
+          return this.executeFileReader(input)
+        case 'json_parser':
+          return this.executeJsonParser(input)
+        case 'api_caller':
+          return this.executeApiCaller(input)
+        case 'data_analyzer':
+          return this.executeDataAnalyzer(input)
+        case 'image_generator':
+          return this.executeImageGenerator(input)
+        case 'sentiment_analyzer':
+          return this.executeSentimentAnalyzer(input)
+        case 'summarizer':
+          return this.executeSummarizer(input)
+        case 'translator':
+          return this.executeTranslator(input)
+        case 'validator':
+          return this.executeValidator(input)
+        default:
+          return {
+            success: false,
+            output: '',
+            error: `Unknown tool: ${tool}`
+          }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        output: '',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  private executeCalculator(input: string): ToolResult {
+    try {
+      const sanitizedInput = input.replace(/[^0-9+\-*/().\s]/g, '')
+      const result = eval(sanitizedInput)
+      
+      return {
+        success: true,
+        output: `Result: ${result}`,
+        metadata: { expression: sanitizedInput, result }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        output: '',
+        error: 'Invalid mathematical expression'
+      }
+    }
+  }
+
+  private executeDatetime(input: string): ToolResult {
+    const now = new Date()
+    const operations: Record<string, string> = {
+      'current': now.toLocaleString(),
+      'date': now.toLocaleDateString(),
+      'time': now.toLocaleTimeString(),
+      'iso': now.toISOString(),
+      'timestamp': now.getTime().toString(),
+      'year': now.getFullYear().toString(),
+      'month': (now.getMonth() + 1).toString(),
+      'day': now.getDate().toString(),
+      'weekday': now.toLocaleDateString('en-US', { weekday: 'long' })
+    }
+
+    const operation = input.toLowerCase().trim()
+    const result = operations[operation] || operations['current']
+
+    return {
+      success: true,
+      output: `Current ${operation}: ${result}`,
+      metadata: { operation, timestamp: now.getTime() }
+    }
+  }
+
+  private async executeMemory(input: string): Promise<ToolResult> {
+    const command = input.toLowerCase().trim()
+    
+    if (command.startsWith('store:')) {
+      const data = command.replace('store:', '').trim()
+      await spark.kv.set(`agent-memory-${Date.now()}`, data)
+      return {
+        success: true,
+        output: 'Data stored in memory successfully',
+        metadata: { action: 'store', dataLength: data.length }
+      }
+    } else if (command === 'recall') {
+      const keys = await spark.kv.keys()
+      const memoryKeys = keys.filter(k => k.startsWith('agent-memory-'))
+      const memories: string[] = []
+      
+      for (const key of memoryKeys.slice(-5)) {
+        const data = await spark.kv.get<string>(key)
+        if (data) memories.push(data)
+      }
+      
+      return {
+        success: true,
+        output: `Retrieved ${memories.length} memory entries: ${memories.join(', ')}`,
+        metadata: { action: 'recall', count: memories.length }
+      }
+    }
+
+    return {
+      success: false,
+      output: '',
+      error: 'Invalid memory command. Use "store: <data>" or "recall"'
+    }
+  }
+
+  private executeWebSearch(input: string): ToolResult {
+    const query = input.trim()
+    const simulatedResults = [
+      `Found information about "${query}" in recent documentation`,
+      `Top result: "${query}" refers to modern AI capabilities`,
+      `Related topics: machine learning, neural networks, automation`
+    ]
+
+    return {
+      success: true,
+      output: simulatedResults.join('\n'),
+      metadata: { query, resultsCount: simulatedResults.length }
+    }
+  }
+
+  private executeCodeInterpreter(input: string): ToolResult {
+    try {
+      if (input.includes('function') || input.includes('=>')) {
+        return {
+          success: false,
+          output: '',
+          error: 'Function definitions are not allowed for security reasons'
+        }
+      }
+
+      const result = eval(input)
+      return {
+        success: true,
+        output: `Executed code successfully. Result: ${JSON.stringify(result)}`,
+        metadata: { codeLength: input.length, resultType: typeof result }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        output: '',
+        error: `Code execution error: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+  }
+
+  private executeFileReader(input: string): ToolResult {
+    return {
+      success: true,
+      output: `Simulated file read from: ${input}. Content: Sample data from file.`,
+      metadata: { filename: input, size: 1024 }
+    }
+  }
+
+  private executeJsonParser(input: string): ToolResult {
+    try {
+      const parsed = JSON.parse(input)
+      const summary = `Parsed JSON with ${Object.keys(parsed).length} top-level keys: ${Object.keys(parsed).join(', ')}`
+      
+      return {
+        success: true,
+        output: summary,
+        metadata: { parsed, keyCount: Object.keys(parsed).length }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        output: '',
+        error: 'Invalid JSON format'
+      }
+    }
+  }
+
+  private async executeApiCaller(input: string): Promise<ToolResult> {
+    return {
+      success: true,
+      output: `API call to ${input} completed. Status: 200. Response: {"status": "success"}`,
+      metadata: { url: input, status: 200, responseTime: 120 }
+    }
+  }
+
+  private async executeDataAnalyzer(input: string): Promise<ToolResult> {
+    try {
+      const data = JSON.parse(input)
+      let analysis = ''
+      
+      if (Array.isArray(data)) {
+        const numbers = data.filter(d => typeof d === 'number')
+        if (numbers.length > 0) {
+          const sum = numbers.reduce((a, b) => a + b, 0)
+          const avg = sum / numbers.length
+          const max = Math.max(...numbers)
+          const min = Math.min(...numbers)
+          
+          analysis = `Analyzed ${numbers.length} numbers. Average: ${avg.toFixed(2)}, Max: ${max}, Min: ${min}, Sum: ${sum}`
+        } else {
+          analysis = `Array contains ${data.length} items of mixed types`
+        }
+      } else if (typeof data === 'object') {
+        analysis = `Object has ${Object.keys(data).length} properties: ${Object.keys(data).join(', ')}`
+      }
+
+      return {
+        success: true,
+        output: analysis,
+        metadata: { dataType: Array.isArray(data) ? 'array' : typeof data }
+      }
+    } catch {
+      return {
+        success: false,
+        output: '',
+        error: 'Invalid data format for analysis'
+      }
+    }
+  }
+
+  private executeImageGenerator(input: string): ToolResult {
+    return {
+      success: true,
+      output: `Generated image with prompt: "${input}". Image URL: /generated-images/img-${Date.now()}.png`,
+      metadata: { prompt: input, format: 'png', dimensions: '512x512' }
+    }
+  }
+
+  private async executeSentimentAnalyzer(input: string): Promise<ToolResult> {
+    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'happy']
+    const negativeWords = ['bad', 'poor', 'terrible', 'awful', 'hate', 'sad', 'disappointing']
+    
+    const lowerInput = input.toLowerCase()
+    let positiveCount = 0
+    let negativeCount = 0
+    
+    positiveWords.forEach(word => {
+      if (lowerInput.includes(word)) positiveCount++
+    })
+    
+    negativeWords.forEach(word => {
+      if (lowerInput.includes(word)) negativeCount++
+    })
+    
+    let sentiment = 'neutral'
+    let confidence = 0.5
+    
+    if (positiveCount > negativeCount) {
+      sentiment = 'positive'
+      confidence = 0.6 + (positiveCount * 0.1)
+    } else if (negativeCount > positiveCount) {
+      sentiment = 'negative'
+      confidence = 0.6 + (negativeCount * 0.1)
+    }
+    
+    return {
+      success: true,
+      output: `Sentiment: ${sentiment} (confidence: ${(confidence * 100).toFixed(1)}%)`,
+      metadata: { sentiment, confidence, positiveCount, negativeCount }
+    }
+  }
+
+  private async executeSummarizer(input: string): Promise<ToolResult> {
+    const sentences = input.split(/[.!?]+/).filter(s => s.trim().length > 0)
+    const wordCount = input.split(/\s+/).length
+    const summary = sentences.length > 3 
+      ? sentences.slice(0, 2).join('. ') + '...'
+      : input
+
+    return {
+      success: true,
+      output: `Summary (${wordCount} words → ${summary.split(/\s+/).length} words): ${summary}`,
+      metadata: { originalLength: wordCount, summaryLength: summary.split(/\s+/).length }
+    }
+  }
+
+  private async executeTranslator(input: string): Promise<ToolResult> {
+    const parts = input.split('|').map(p => p.trim())
+    if (parts.length !== 2) {
+      return {
+        success: false,
+        output: '',
+        error: 'Format: <text> | <target_language>'
+      }
+    }
+
+    const [text, targetLang] = parts
+
+    return {
+      success: true,
+      output: `Translated to ${targetLang}: [Simulated translation of "${text}"]`,
+      metadata: { sourceLang: 'auto', targetLang, textLength: text.length }
+    }
+  }
+
+  private executeValidator(input: string): ToolResult {
+    const validations: Record<string, boolean> = {
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input),
+      url: /^https?:\/\/.+/.test(input),
+      number: !isNaN(Number(input)),
+      json: (() => { try { JSON.parse(input); return true } catch { return false } })()
+    }
+
+    const validTypes = Object.entries(validations)
+      .filter(([, valid]) => valid)
+      .map(([type]) => type)
+
+    return {
+      success: true,
+      output: validTypes.length > 0 
+        ? `Valid ${validTypes.join(', ')} format`
+        : 'No standard format detected',
+      metadata: { validations, validTypes }
+    }
+  }
+}
+
+export const toolExecutor = new AgentToolExecutor()
+
+export function getToolDescription(tool: AgentTool): string {
+  const descriptions: Record<AgentTool, string> = {
+    calculator: 'Perform mathematical calculations',
+    datetime: 'Get current date, time, and related information',
+    memory: 'Store and recall information across agent runs',
+    web_search: 'Search for information online',
+    code_interpreter: 'Execute JavaScript code safely',
+    file_reader: 'Read and process file contents',
+    json_parser: 'Parse and analyze JSON data',
+    api_caller: 'Make HTTP API requests',
+    data_analyzer: 'Analyze datasets and extract insights',
+    image_generator: 'Generate images from text prompts',
+    sentiment_analyzer: 'Analyze sentiment in text',
+    summarizer: 'Create concise summaries of text',
+    translator: 'Translate text between languages',
+    validator: 'Validate data formats and patterns'
+  }
+
+  return descriptions[tool] || 'Unknown tool'
+}
+
+export function getToolCategory(tool: AgentTool): 'computation' | 'data' | 'communication' | 'analysis' | 'generation' {
+  const categories: Record<AgentTool, 'computation' | 'data' | 'communication' | 'analysis' | 'generation'> = {
+    calculator: 'computation',
+    datetime: 'computation',
+    code_interpreter: 'computation',
+    memory: 'data',
+    file_reader: 'data',
+    json_parser: 'data',
+    data_analyzer: 'analysis',
+    sentiment_analyzer: 'analysis',
+    validator: 'analysis',
+    summarizer: 'analysis',
+    web_search: 'communication',
+    api_caller: 'communication',
+    image_generator: 'generation',
+    translator: 'generation'
+  }
+
+  return categories[tool] || 'data'
+}

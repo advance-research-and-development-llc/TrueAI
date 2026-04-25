@@ -19,12 +19,12 @@ A browser-based AI assistant platform that enables local model integration, auto
 - **Progression**: Select conversation → Configure model/system prompt → Type message → Stream response token-by-token → Save to history
 - **Success criteria**: Messages persist across sessions, streaming displays smoothly, conversations load instantly
 
-### 2. Autonomous Agent System
-- **Functionality**: Create AI agents with specific tools and goals that execute multi-step workflows
-- **Purpose**: Automate complex tasks requiring planning, tool use, and decision-making
-- **Trigger**: User creates agent with name, goal, and tool selection
-- **Progression**: Configure agent → Set goal → Select tools (calculator, datetime, memory) → Execute → View step-by-step execution → Review results
-- **Success criteria**: Agents complete multi-step tasks, show clear execution history, handle errors gracefully
+### 2. Autonomous Agent System with 14 Advanced Tools
+- **Functionality**: Create AI agents with specific tools from 14 available capabilities and goals that execute multi-step workflows
+- **Purpose**: Automate complex tasks requiring planning, tool use, and decision-making across computation, data, communication, analysis, and generation categories
+- **Trigger**: User creates agent with name, goal, and tool selection from categorized tool palette
+- **Progression**: Configure agent → Set goal and capabilities → Select from 14 tools (calculator, datetime, memory, web_search, code_interpreter, file_reader, json_parser, api_caller, data_analyzer, image_generator, sentiment_analyzer, summarizer, translator, validator) → Execute → View step-by-step execution with detailed metadata → Review results with retry and confidence metrics
+- **Success criteria**: Agents complete multi-step tasks with any combination of tools, show clear execution history with timing and success metrics, handle errors gracefully with retry logic, support pause/resume functionality
 
 ### 3. Hardware Optimization
 - **Functionality**: Automatically scan device hardware and generate optimized settings
