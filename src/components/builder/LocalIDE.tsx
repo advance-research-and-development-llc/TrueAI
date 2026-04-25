@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -26,7 +27,9 @@ import {
   File,
   Sparkle,
   Code,
-  Lightning
+  Lightning,
+  CheckCircle,
+  Circle
 } from '@phosphor-icons/react'
 import { CodeEditor, type CodeTheme } from './CodeEditor'
 import { analytics } from '@/lib/analytics'
@@ -61,6 +64,7 @@ interface ConsoleMessage {
 export function LocalIDE() {
   const [projects, setProjects] = useKV<IDEProject[]>('ide-projects', [])
   const [editorTheme, setEditorTheme] = useKV<CodeTheme>('ide-editor-theme', 'tomorrow')
+  const [autoSaveEnabled, setAutoSaveEnabled] = useKV<boolean>('ide-auto-save-enabled', true)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
   const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>([])
@@ -69,9 +73,11 @@ export function LocalIDE() {
   const [previewKey, setPreviewKey] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
+  const [lastSaveTime, setLastSaveTime] = useState<number | null>(null)
   
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const editorContentRef = useRef<string>('')
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const [newProjectForm, setNewProjectForm] = useState({
     name: '',
@@ -501,7 +507,7 @@ render(<App />, document.getElementById('app'));`,
     })
   }
 
-  const saveFile = () => {
+  const saveFile = useCallback(() => {
     if (!activeProjectId || !activeFileId) return
 
     setIsSaving(true)
@@ -522,16 +528,37 @@ render(<App />, document.getElementById('app'));`,
       )
     )
 
+    setLastSaveTime(Date.now())
+
     setTimeout(() => {
       setIsSaving(false)
       addConsoleMessage('info', `File "${activeFile?.path}" saved`)
-      toast.success('File saved')
     }, 300)
 
     analytics.track('ide_file_saved', 'builder', 'save_ide_file', {
       metadata: { projectId: activeProjectId, fileId: activeFileId, fileName: activeFile?.path }
     })
-  }
+  }, [activeProjectId, activeFileId, setProjects, activeFile?.path])
+
+  const autoSaveFile = useCallback(() => {
+    if (!autoSaveEnabled || !activeProjectId || !activeFileId) return
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveFile()
+    }, 2000)
+  }, [autoSaveEnabled, activeProjectId, activeFileId, saveFile])
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const runProject = () => {
     if (!activeProject) return
@@ -664,6 +691,10 @@ render(<App />, document.getElementById('app'));`,
           : p
       )
     )
+
+    if (autoSaveEnabled) {
+      autoSaveFile()
+    }
   }
 
   useEffect(() => {
@@ -671,6 +702,16 @@ render(<App />, document.getElementById('app'));`,
       editorContentRef.current = activeFile.content
     }
   }, [activeFileId])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastSaveTime && activeFile?.saved) {
+        setLastSaveTime(prev => prev)
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [lastSaveTime, activeFile?.saved])
 
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.html')) return '🌐'
@@ -717,6 +758,16 @@ render(<App />, document.getElementById('app'));`,
     dark: 'Dark'
   }
 
+  const getRelativeTime = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000)
+    if (seconds < 10) return 'just now'
+    if (seconds < 60) return `${seconds}s ago`
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    return `${hours}h ago`
+  }
+
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex justify-between items-center">
@@ -725,6 +776,20 @@ render(<App />, document.getElementById('app'));`,
           <p className="text-sm text-muted-foreground">Build web apps with a full-featured code editor</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card">
+            <Label htmlFor="auto-save" className="text-xs cursor-pointer">Auto-save</Label>
+            <Switch
+              id="auto-save"
+              checked={autoSaveEnabled}
+              onCheckedChange={(checked) => {
+                setAutoSaveEnabled(checked)
+                toast.success(`Auto-save ${checked ? 'enabled' : 'disabled'}`)
+                analytics.track('ide_auto_save_toggled', 'builder', 'toggle_auto_save', {
+                  metadata: { enabled: checked }
+                })
+              }}
+            />
+          </div>
           <Select value={editorTheme} onValueChange={(value: CodeTheme) => handleThemeChange(value)}>
             <SelectTrigger className="w-[180px] h-9">
               <SelectValue placeholder="Select theme" />
@@ -899,7 +964,42 @@ render(<App />, document.getElementById('app'));`,
                   <div className="flex items-center gap-2">
                     <span>{getFileIcon(activeFile.path)}</span>
                     <span className="font-medium text-sm">{activeFile.path}</span>
-                    {!activeFile.saved && <span className="text-accent text-xs">(unsaved)</span>}
+                    <AnimatePresence mode="wait">
+                      {isSaving ? (
+                        <motion.div
+                          key="saving"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="flex items-center gap-1 text-xs text-accent"
+                        >
+                          <Circle size={12} className="animate-pulse" weight="fill" />
+                          <span>Saving...</span>
+                        </motion.div>
+                      ) : activeFile.saved ? (
+                        <motion.div
+                          key="saved"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="flex items-center gap-1 text-xs text-green-500"
+                        >
+                          <CheckCircle size={12} weight="fill" />
+                          <span>{lastSaveTime ? getRelativeTime(lastSaveTime) : 'Saved'}</span>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="unsaved"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="flex items-center gap-1 text-xs text-muted-foreground"
+                        >
+                          <Circle size={12} weight="fill" className="text-accent" />
+                          <span>Unsaved changes</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
