@@ -32,6 +32,7 @@ import { QuickActionsMenu } from '@/components/models/QuickActionsMenu'
 import { PerformanceProfileManager } from '@/components/models/PerformanceProfileManager'
 import { BenchmarkRunner } from '@/components/models/BenchmarkRunner'
 import { LearningRateBenchmark } from '@/components/models/LearningRateBenchmark'
+import { AppBuilder } from '@/components/builder/AppBuilder'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -89,7 +90,7 @@ function App() {
   const conversationMessages = messages?.filter(m => m.conversationId === activeConversationId) || []
   const activeAgentRun = agentRuns?.find(r => r.id === activeAgentRunId)
 
-  const tabOrder = ['chat', 'agents', 'models', 'analytics']
+  const tabOrder = ['chat', 'agents', 'models', 'analytics', 'builder']
   const contentRef = useRef<HTMLDivElement>(null)
 
   const navigateToTab = (direction: 'left' | 'right') => {
@@ -685,7 +686,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         onTouchEnd={swipeHandlers.onTouchEnd}
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="hidden lg:grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
+          <TabsList className="hidden lg:grid w-full max-w-3xl mx-auto grid-cols-5 mb-6">
             <TabsTrigger value="chat" className="gap-2">
               <ChatCircle weight="fill" size={20} />
               <span className="hidden sm:inline">Chat</span>
@@ -701,6 +702,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
             <TabsTrigger value="analytics" className="gap-2">
               <ChartBar weight="fill" size={20} />
               <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="builder" className="gap-2">
+              <Cube weight="fill" size={20} />
+              <span className="hidden sm:inline">Builder</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1158,6 +1163,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               }}
             />
           </TabsContent>
+
+          <TabsContent value="builder">
+            <AppBuilder models={models} />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -1327,6 +1336,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 icon: <Lightning weight="fill" size={24} />,
                 active: activeTab === 'models',
                 onClick: () => setActiveTab('models')
+              },
+              {
+                id: 'builder',
+                label: 'Builder',
+                icon: <Cube weight="fill" size={24} />,
+                active: activeTab === 'builder',
+                onClick: () => setActiveTab('builder')
               },
               {
                 id: 'analytics',
