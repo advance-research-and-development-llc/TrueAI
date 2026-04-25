@@ -45,7 +45,7 @@ export interface AppTemplate {
   id: string
   name: string
   description: string
-  category: 'productivity' | 'game' | 'utility' | 'social' | 'creative' | 'data'
+  category: 'productivity' | 'game' | 'utility' | 'social' | 'creative' | 'data' | 'portfolio' | 'dashboard' | 'ecommerce'
   preview: string
   basePrompt: string
   frameworks: Framework[]
