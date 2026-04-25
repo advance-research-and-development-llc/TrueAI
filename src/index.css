@@ -102,13 +102,37 @@ code, pre {
   html {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
   }
   
   button, a {
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    -webkit-tap-highlight-color: rgba(117, 190, 218, 0.3);
+    touch-action: manipulation;
   }
   
   input, textarea, select {
     font-size: 16px;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
   }
 }

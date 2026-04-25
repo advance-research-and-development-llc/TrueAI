@@ -525,17 +525,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50"
+          className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 safe-top"
         >
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <motion.div 
-                  className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center relative overflow-hidden"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center relative overflow-hidden shrink-0"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Lightning weight="fill" size={24} className="text-white relative z-10" />
+                  <Lightning weight="fill" size={isMobile ? 20 : 24} className="text-white relative z-10" />
                   <motion.div
                     className="absolute inset-0 bg-gradient-to-br from-accent to-primary"
                     initial={{ opacity: 0 }}
@@ -543,17 +543,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     transition={{ duration: 0.3 }}
                   />
                 </motion.div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight">TrueAI LocalAI</h1>
-                  <p className="text-sm text-muted-foreground">Enterprise AI Assistant Platform</p>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight truncate">TrueAI LocalAI</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block truncate">Enterprise AI Assistant Platform</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9">
-                      <Sparkle size={20} className="text-accent" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
+                      <Sparkle size={isMobile ? 18 : 20} className="text-accent" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -565,39 +565,42 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           </div>
         </motion.header>
 
-      <main className="container mx-auto px-4 md:px-6 py-4 md:py-6 pb-20 lg:pb-6">
+      <main className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-24 sm:pb-20 lg:pb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="hidden lg:grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="chat" className="gap-2">
               <ChatCircle weight="fill" size={20} />
-              Chat
+              <span className="hidden sm:inline">Chat</span>
             </TabsTrigger>
             <TabsTrigger value="agents" className="gap-2">
               <Robot weight="fill" size={20} />
-              Agents
+              <span className="hidden sm:inline">Agents</span>
             </TabsTrigger>
             <TabsTrigger value="models" className="gap-2">
               <Lightning weight="fill" size={20} />
-              Models
+              <span className="hidden sm:inline">Models</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <ChartBar weight="fill" size={20} />
-              Analytics
+              <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="chat" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Conversations</h2>
-              <Button onClick={() => setNewConversationDialog(true)}>
+          <TabsContent value="chat" className="space-y-3 sm:space-y-4">
+            <div className="flex justify-between items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold truncate">Conversations</h2>
+              <Button onClick={() => setNewConversationDialog(true)} size="sm" className="lg:hidden shrink-0">
+                <Plus weight="bold" size={20} />
+              </Button>
+              <Button onClick={() => setNewConversationDialog(true)} className="hidden lg:flex">
                 <Plus weight="bold" size={20} className="mr-2" />
                 New Chat
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <Card className="lg:col-span-1 p-4">
-                <ScrollArea className="h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4">
+              <Card className="lg:col-span-1 p-3 sm:p-4">
+                <ScrollArea className="h-[calc(100vh-280px)] sm:h-[600px]">
                   <div className="space-y-2">
                     {conversations.length === 0 && (
                       <EmptyState
@@ -611,12 +614,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       <div key={conv.id}>
                         <Button
                           variant={activeConversationId === conv.id ? 'secondary' : 'ghost'}
-                          className="w-full justify-start text-left"
+                          className="w-full justify-start text-left h-auto py-3 px-3 sm:px-4"
                           onClick={() => setActiveConversationId(conv.id)}
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="truncate font-medium">{conv.title}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="truncate font-medium text-sm sm:text-base">{conv.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
                               {new Date(conv.updatedAt).toLocaleDateString()}
                             </p>
                           </div>
@@ -627,42 +630,44 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </ScrollArea>
               </Card>
 
-              <Card className="lg:col-span-3 p-6 flex flex-col h-[600px]">
+              <Card className="lg:col-span-3 p-3 sm:p-6 flex flex-col h-[calc(100vh-280px)] sm:h-[600px]">
                 {activeConversation ? (
                   <>
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">{activeConversation.title}</h3>
-                        <p className="text-sm text-muted-foreground">Model: {activeConversation.model}</p>
+                    <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base sm:text-lg font-semibold truncate">{activeConversation.title}</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">Model: {activeConversation.model}</p>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="shrink-0 h-9 px-2 sm:px-3"
                         onClick={() => deleteConversation(activeConversation.id)}
                       >
-                        Delete
+                        <span className="hidden sm:inline">Delete</span>
+                        <span className="sm:hidden">✕</span>
                       </Button>
                     </div>
-                    <Separator className="mb-4" />
+                    <Separator className="mb-3 sm:mb-4" />
                     
-                    <ScrollArea className="flex-1 pr-4">
+                    <ScrollArea className="flex-1 pr-2 sm:pr-4">
                       {conversationMessages.length === 0 && (
                         <div className="flex items-center justify-center h-full">
-                          <p className="text-muted-foreground">Start a conversation...</p>
+                          <p className="text-muted-foreground text-sm sm:text-base">Start a conversation...</p>
                         </div>
                       )}
                       {conversationMessages.map(msg => (
                         <MessageBubble key={msg.id} message={msg} />
                       ))}
                       {isStreaming && (
-                        <div className="flex gap-3 my-3">
-                          <div className="h-8 w-8" />
-                          <div className="text-muted-foreground">Thinking...</div>
+                        <div className="flex gap-2 sm:gap-3 my-3">
+                          <div className="h-7 w-7 sm:h-8 sm:w-8" />
+                          <div className="text-muted-foreground text-sm sm:text-base">Thinking...</div>
                         </div>
                       )}
                     </ScrollArea>
 
-                    <div className="pt-4 border-t border-border mt-4">
+                    <div className="pt-3 sm:pt-4 border-t border-border mt-3 sm:mt-4">
                       <ChatInput 
                         onSend={sendMessage} 
                         disabled={isStreaming}
@@ -671,36 +676,40 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     </div>
                   </>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    <p className="text-muted-foreground">Select or create a conversation</p>
+                  <div className="flex-1 flex items-center justify-center p-4">
+                    <p className="text-muted-foreground text-sm sm:text-base text-center">Select or create a conversation</p>
                   </div>
                 )}
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="agents" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">AI Agents</h2>
-              <Button onClick={() => setNewAgentDialog(true)}>
+          <TabsContent value="agents" className="space-y-3 sm:space-y-4">
+            <div className="flex justify-between items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-semibold truncate">AI Agents</h2>
+              <Button onClick={() => setNewAgentDialog(true)} size="sm" className="lg:hidden shrink-0">
+                <Plus weight="bold" size={20} />
+              </Button>
+              <Button onClick={() => setNewAgentDialog(true)} className="hidden lg:flex">
                 <Plus weight="bold" size={20} className="mr-2" />
                 Create Agent
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="lg:col-span-2 space-y-3 sm:space-y-4">
                 {agents.length === 0 && (
-                  <Card className="p-12">
+                  <Card className="p-6 sm:p-12">
                     <EmptyState
                       illustration={emptyStateAgents}
                       title="No agents created yet"
                       description="Create an autonomous AI agent to automate tasks and execute multi-step workflows"
                       size="lg"
                       action={
-                        <Button onClick={() => setNewAgentDialog(true)}>
+                        <Button onClick={() => setNewAgentDialog(true)} className="w-full sm:w-auto">
                           <Plus weight="bold" size={20} className="mr-2" />
-                          Create Your First Agent
+                          <span className="hidden sm:inline">Create Your First Agent</span>
+                          <span className="sm:hidden">Create Agent</span>
                         </Button>
                       }
                     />
@@ -720,9 +729,9 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 ))}
               </div>
 
-              <Card className="lg:col-span-1 p-4">
-                <h3 className="font-semibold mb-4">Execution History</h3>
-                <ScrollArea className="h-[600px]">
+              <Card className="lg:col-span-1 p-3 sm:p-4">
+                <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Execution History</h3>
+                <ScrollArea className="h-[300px] sm:h-[600px]">
                   {activeAgentRun ? (
                     <div className="space-y-2">
                       {activeAgentRun.steps.map((step, index) => (

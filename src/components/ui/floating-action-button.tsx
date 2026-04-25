@@ -15,7 +15,7 @@ export function FloatingActionButton({
   icon,
   label,
   className,
-  size = 'lg'
+  size = 'md'
 }: FloatingActionButtonProps) {
   const sizeClasses = {
     sm: 'h-12 w-12',
@@ -33,18 +33,19 @@ export function FloatingActionButton({
     <motion.button
       onClick={onClick}
       className={cn(
-        'fixed bottom-20 right-6 z-40 rounded-full bg-gradient-to-br from-primary to-accent shadow-lg flex items-center justify-center text-white lg:hidden',
+        'fixed bottom-20 sm:bottom-20 right-4 sm:right-6 z-40 rounded-full bg-gradient-to-br from-primary to-accent shadow-xl flex items-center justify-center text-white lg:hidden active:shadow-2xl safe-right',
         sizeClasses[size],
         className
       )}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.92 }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
       transition={{
         type: 'spring',
         stiffness: 400,
-        damping: 17
+        damping: 18
       }}
     >
       <div style={{ width: iconSizes[size], height: iconSizes[size] }}>
