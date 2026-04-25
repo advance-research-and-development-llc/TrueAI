@@ -41,7 +41,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
 import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession, Workflow, CostEntry, Budget } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession } from '@/lib/types'
+import type { Workflow, WorkflowTemplate, CostEntry, Budget } from '@/lib/workflow-types'
 import { AgentLearningEngine } from '@/lib/agent-learning'
 
 const AgentCard = lazy(() => import('@/components/agent/AgentCard'))
