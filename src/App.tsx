@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense, memo, useCallback, useMemo } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -17,23 +17,6 @@ import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
 import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
-import { AgentCard } from '@/components/agent/AgentCard'
-import { AgentStepView } from '@/components/agent/AgentStepView'
-import { ModelConfigPanel } from '@/components/models/ModelConfigPanel'
-import { FineTuningUI } from '@/components/models/FineTuningUI'
-import { QuantizationTools } from '@/components/models/QuantizationTools'
-import { HarnessCreator } from '@/components/harness/HarnessCreator'
-import { BundleAutomationPanel } from '@/components/harness/BundleAutomationPanel'
-import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
-import { GGUFLibrary } from '@/components/models/GGUFLibrary'
-import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
-import { HardwareOptimizer } from '@/components/models/HardwareOptimizer'
-import { QuickActionsMenu } from '@/components/models/QuickActionsMenu'
-import { PerformanceProfileManager } from '@/components/models/PerformanceProfileManager'
-import { BenchmarkRunner } from '@/components/models/BenchmarkRunner'
-import { LearningRateBenchmark } from '@/components/models/LearningRateBenchmark'
-import { AppBuilder } from '@/components/builder/AppBuilder'
-import { LocalIDE } from '@/components/builder/LocalIDE'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -44,8 +27,30 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
-import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
 import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters } from '@/lib/types'
+
+const AgentCard = lazy(() => import('@/components/agent/AgentCard'))
+const AgentStepView = lazy(() => import('@/components/agent/AgentStepView'))
+const ModelConfigPanel = lazy(() => import('@/components/models/ModelConfigPanel'))
+const FineTuningUI = lazy(() => import('@/components/models/FineTuningUI'))
+const QuantizationTools = lazy(() => import('@/components/models/QuantizationTools'))
+const HarnessCreator = lazy(() => import('@/components/harness/HarnessCreator'))
+const BundleAutomationPanel = lazy(() => import('@/components/harness/BundleAutomationPanel'))
+const HuggingFaceModelBrowser = lazy(() => import('@/components/models/HuggingFaceModelBrowser'))
+const GGUFLibrary = lazy(() => import('@/components/models/GGUFLibrary'))
+const AnalyticsDashboard = lazy(() => import('@/components/analytics/AnalyticsDashboard'))
+const HardwareOptimizer = lazy(() => import('@/components/models/HardwareOptimizer'))
+const QuickActionsMenu = lazy(() => import('@/components/models/QuickActionsMenu'))
+const BenchmarkRunner = lazy(() => import('@/components/models/BenchmarkRunner'))
+const LearningRateBenchmark = lazy(() => import('@/components/models/LearningRateBenchmark'))
+const AppBuilder = lazy(() => import('@/components/builder/AppBuilder'))
+const LocalIDE = lazy(() => import('@/components/builder/LocalIDE'))
+
+const LoadingFallback = memo(() => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+  </div>
+))
 
 function App() {
   const isMobile = useIsMobile()
@@ -87,14 +92,25 @@ function App() {
     model: 'gpt-4o-mini'
   })
 
-  const activeConversation = conversations?.find(c => c.id === activeConversationId)
-  const conversationMessages = messages?.filter(m => m.conversationId === activeConversationId) || []
-  const activeAgentRun = agentRuns?.find(r => r.id === activeAgentRunId)
+  const activeConversation = useMemo(() => 
+    conversations?.find(c => c.id === activeConversationId), 
+    [conversations, activeConversationId]
+  )
+  
+  const conversationMessages = useMemo(() => 
+    messages?.filter(m => m.conversationId === activeConversationId) || [], 
+    [messages, activeConversationId]
+  )
+  
+  const activeAgentRun = useMemo(() => 
+    agentRuns?.find(r => r.id === activeAgentRunId), 
+    [agentRuns, activeAgentRunId]
+  )
 
-  const tabOrder = ['chat', 'agents', 'models', 'analytics', 'builder']
+  const tabOrder = useMemo(() => ['chat', 'agents', 'models', 'analytics', 'builder'], [])
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const navigateToTab = (direction: 'left' | 'right') => {
+  const navigateToTab = useCallback((direction: 'left' | 'right') => {
     const currentIndex = tabOrder.indexOf(activeTab)
     let newIndex: number
     
@@ -108,24 +124,24 @@ function App() {
     
     setActiveTab(tabOrder[newIndex])
     toast.success(`Switched to ${tabOrder[newIndex]}`)
-  }
+  }, [activeTab, tabOrder])
 
   const swipeHandlers = useSwipeGesture({
-    onSwipeLeft: () => navigateToTab('left'),
-    onSwipeRight: () => navigateToTab('right')
+    onSwipeLeft: useCallback(() => navigateToTab('left'), [navigateToTab]),
+    onSwipeRight: useCallback(() => navigateToTab('right'), [navigateToTab])
   }, 100)
 
-  const refreshConversations = async () => {
+  const refreshConversations = useCallback(async () => {
     await new Promise(resolve => setTimeout(resolve, 800))
     toast.success('Conversations refreshed')
     analytics.track('conversation_created', 'chat', 'pull_to_refresh')
-  }
+  }, [])
 
-  const refreshAgents = async () => {
+  const refreshAgents = useCallback(async () => {
     await new Promise(resolve => setTimeout(resolve, 800))
     toast.success('Agents refreshed')
     analytics.track('agent_created', 'agent', 'pull_to_refresh')
-  }
+  }, [])
 
   const conversationsPullToRefresh = usePullToRefresh({
     onRefresh: refreshConversations,
@@ -143,7 +159,7 @@ function App() {
     })
   }, [])
 
-  const createConversation = () => {
+  const createConversation = useCallback(() => {
     const now = Date.now()
     const newConv: Conversation = {
       id: `conv-${now}`,
@@ -164,9 +180,9 @@ function App() {
       label: newConv.title,
       metadata: { model: newConv.model, hasSystemPrompt: !!newConv.systemPrompt }
     })
-  }
+  }, [newConversationForm, setConversations])
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = useCallback(async (content: string) => {
     if (!activeConversationId) return
 
     const startTime = Date.now()
@@ -241,9 +257,9 @@ assistant:`
     } finally {
       setIsStreaming(false)
     }
-  }
+  }, [activeConversationId, conversations, conversationMessages, setMessages, setConversations])
 
-  const createAgent = () => {
+  const createAgent = useCallback(() => {
     const now = Date.now()
     const newAgent: Agent = {
       id: `agent-${now}`,
@@ -264,9 +280,9 @@ assistant:`
       label: newAgent.name,
       metadata: { model: newAgent.model, tools: newAgent.tools, hasGoal: !!newAgent.goal }
     })
-  }
+  }, [newAgentForm, setAgents])
 
-  const runAgent = async (agentId: string) => {
+  const runAgent = useCallback(async (agentId: string) => {
     const agent = agents.find(a => a.id === agentId)
     if (!agent) return
 
@@ -411,9 +427,9 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         metadata: { agentId, error: String(error) }
       })
     }
-  }
+  }, [agents, setAgents, setAgentRuns])
 
-  const deleteAgent = (agentId: string) => {
+  const deleteAgent = useCallback((agentId: string) => {
     setAgents(prev => (prev || []).filter(a => a.id !== agentId))
     setAgentRuns(prev => (prev || []).filter(r => r.agentId !== agentId))
     toast.success('Agent deleted')
@@ -421,33 +437,33 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     analytics.track('agent_deleted', 'agent', 'delete_agent', {
       metadata: { agentId }
     })
-  }
+  }, [setAgents, setAgentRuns])
 
-  const deleteConversation = (convId: string) => {
+  const deleteConversation = useCallback((convId: string) => {
     setConversations(prev => (prev || []).filter(c => c.id !== convId))
     setMessages(prev => (prev || []).filter(m => m.conversationId !== convId))
     if (activeConversationId === convId) {
       setActiveConversationId(null)
     }
     toast.success('Conversation deleted')
-  }
+  }, [activeConversationId, setConversations, setMessages])
 
-  const toggleAgentTool = (tool: AgentTool) => {
+  const toggleAgentTool = useCallback((tool: AgentTool) => {
     setNewAgentForm(prev => ({
       ...prev,
       tools: prev.tools.includes(tool)
         ? prev.tools.filter(t => t !== tool)
         : [...prev.tools, tool]
     }))
-  }
+  }, [])
 
-  const saveModelConfig = (updatedModel: ModelConfig) => {
+  const saveModelConfig = useCallback((updatedModel: ModelConfig) => {
     setModels(prev => 
       (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
     )
     setEditingModelId(null)
     toast.success('Model configuration saved')
-  }
+  }, [setModels])
 
   const createFineTuningDataset = (dataset: FineTuningDataset) => {
     setFineTuningDatasets(prev => [dataset, ...(prev || [])])
@@ -849,16 +865,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   </Card>
                 )}
                 {agents.map(agent => (
-                  <AgentCard
-                    key={agent.id}
-                    agent={agent}
-                    onRun={runAgent}
-                    onDelete={deleteAgent}
-                    onView={(id) => {
-                      const run = agentRuns.find(r => r.agentId === id)
-                      if (run) setActiveAgentRunId(run.id)
-                    }}
-                  />
+                  <Suspense key={agent.id} fallback={<LoadingFallback />}>
+                    <AgentCard
+                      agent={agent}
+                      onRun={runAgent}
+                      onDelete={deleteAgent}
+                      onView={(id) => {
+                        const run = agentRuns.find(r => r.agentId === id)
+                        if (run) setActiveAgentRunId(run.id)
+                      }}
+                    />
+                  </Suspense>
                 ))}
               </div>
 
@@ -868,7 +885,9 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   {activeAgentRun ? (
                     <div className="space-y-2">
                       {activeAgentRun.steps.map((step, index) => (
-                        <AgentStepView key={step.id} step={step} index={index} />
+                        <Suspense key={step.id} fallback={<LoadingFallback />}>
+                          <AgentStepView step={step} index={index} />
+                        </Suspense>
                       ))}
                     </div>
                   ) : (
@@ -932,23 +951,29 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </ScrollArea>
 
               <TabsContent value="optimize">
-                <HardwareOptimizer 
-                  onSettingsApplied={(settings) => {
-                    toast.success(`Optimization applied: ${settings.tier.toUpperCase()} tier`)
-                  }}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <HardwareOptimizer 
+                    onSettingsApplied={(settings) => {
+                      toast.success(`Optimization applied: ${settings.tier.toUpperCase()} tier`)
+                    }}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="browse">
-                <HuggingFaceModelBrowser onDownload={handleHuggingFaceDownload} />
+                <Suspense fallback={<LoadingFallback />}>
+                  <HuggingFaceModelBrowser onDownload={handleHuggingFaceDownload} />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="library">
-                <GGUFLibrary
-                  models={ggufModels || []}
-                  onAddModel={addGGUFModel}
-                  onDeleteModel={deleteGGUFModel}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <GGUFLibrary
+                    models={ggufModels || []}
+                    onAddModel={addGGUFModel}
+                    onDeleteModel={deleteGGUFModel}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="config" className="space-y-3 sm:space-y-4">
@@ -974,11 +999,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </div>
                 
                 {editingModel ? (
-                  <ModelConfigPanel
-                    model={editingModel}
-                    onSave={saveModelConfig}
-                    onClose={() => setEditingModelId(null)}
-                  />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ModelConfigPanel
+                      model={editingModel}
+                      onSave={saveModelConfig}
+                      onClose={() => setEditingModelId(null)}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {models.map(model => (
@@ -1005,14 +1032,16 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                           </div>
                           <div className="flex gap-2">
                             {isMobile && (
-                              <QuickActionsMenu
-                                model={model}
-                                onUpdate={(updatedModel) => {
-                                  setModels(prev => 
-                                    (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
-                                  )
-                                }}
-                              />
+                              <Suspense fallback={<div className="h-9 w-9" />}>
+                                <QuickActionsMenu
+                                  model={model}
+                                  onUpdate={(updatedModel) => {
+                                    setModels(prev => 
+                                      (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
+                                    )
+                                  }}
+                                />
+                              </Suspense>
                             )}
                             <Button
                               variant="outline"
@@ -1030,25 +1059,29 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </TabsContent>
 
               <TabsContent value="finetuning">
-                <FineTuningUI
-                  models={models || []}
-                  datasets={fineTuningDatasets || []}
-                  jobs={fineTuningJobs || []}
-                  onCreateDataset={createFineTuningDataset}
-                  onStartJob={startFineTuningJob}
-                  onDeleteDataset={deleteFineTuningDataset}
-                  onDeleteJob={deleteFineTuningJob}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <FineTuningUI
+                    models={models || []}
+                    datasets={fineTuningDatasets || []}
+                    jobs={fineTuningJobs || []}
+                    onCreateDataset={createFineTuningDataset}
+                    onStartJob={startFineTuningJob}
+                    onDeleteDataset={deleteFineTuningDataset}
+                    onDeleteJob={deleteFineTuningJob}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="quantization">
-                <QuantizationTools
-                  models={models || []}
-                  jobs={quantizationJobs || []}
-                  onStartJob={startQuantizationJob}
-                  onDeleteJob={deleteQuantizationJob}
-                  onDownloadModel={downloadQuantizedModel}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <QuantizationTools
+                    models={models || []}
+                    jobs={quantizationJobs || []}
+                    onStartJob={startQuantizationJob}
+                    onDeleteJob={deleteQuantizationJob}
+                    onDownloadModel={downloadQuantizedModel}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="harness">
@@ -1065,21 +1098,25 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   </TabsList>
 
                   <TabsContent value="creator">
-                    <HarnessCreator
-                      harnesses={harnesses || []}
-                      onCreateHarness={createHarness}
-                      onDeleteHarness={deleteHarness}
-                      onExportHarness={exportHarness}
-                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                      <HarnessCreator
+                        harnesses={harnesses || []}
+                        onCreateHarness={createHarness}
+                        onDeleteHarness={deleteHarness}
+                        onExportHarness={exportHarness}
+                      />
+                    </Suspense>
                   </TabsContent>
 
                   <TabsContent value="automation">
-                    <BundleAutomationPanel
-                      messages={messages || []}
-                      agents={agents || []}
-                      agentRuns={agentRuns || []}
-                      harnesses={harnesses || []}
-                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                      <BundleAutomationPanel
+                        messages={messages || []}
+                        agents={agents || []}
+                        agentRuns={agentRuns || []}
+                        harnesses={harnesses || []}
+                      />
+                    </Suspense>
                   </TabsContent>
                 </Tabs>
               </TabsContent>
@@ -1098,20 +1135,24 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   </TabsList>
 
                   <TabsContent value="standard">
-                    <BenchmarkRunner 
-                      models={models}
-                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                      <BenchmarkRunner 
+                        models={models}
+                      />
+                    </Suspense>
                   </TabsContent>
 
                   <TabsContent value="learning-rate">
-                    <LearningRateBenchmark
-                      models={models}
-                      onModelUpdate={(updatedModel) => {
-                        setModels(prev => 
-                          (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
-                        )
-                      }}
-                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LearningRateBenchmark
+                        models={models}
+                        onModelUpdate={(updatedModel) => {
+                          setModels(prev => 
+                            (prev || []).map(m => m.id === updatedModel.id ? updatedModel : m)
+                          )
+                        }}
+                      />
+                    </Suspense>
                   </TabsContent>
                 </Tabs>
               </TabsContent>
@@ -1119,50 +1160,52 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           </TabsContent>
 
           <TabsContent value="analytics">
-            <AnalyticsDashboard 
-              models={models}
-              profiles={performanceProfiles}
-              onApplyOptimization={(insight) => {
-                if (insight.suggestedAction?.type === 'adjust_parameters' && insight.suggestedAction.details.modelId) {
-                  const model = models.find(m => m.id === insight.suggestedAction!.details.modelId)
+            <Suspense fallback={<LoadingFallback />}>
+              <AnalyticsDashboard 
+                models={models}
+                profiles={performanceProfiles}
+                onApplyOptimization={(insight) => {
+                  if (insight.suggestedAction?.type === 'adjust_parameters' && insight.suggestedAction.details.modelId) {
+                    const model = models.find(m => m.id === insight.suggestedAction!.details.modelId)
+                    if (model) {
+                      const updatedModel = {
+                        ...model,
+                        ...insight.suggestedAction.details.parameters
+                      }
+                      setModels(prev => (prev || []).map(m => m.id === model.id ? updatedModel : m))
+                      toast.success('Optimization applied successfully')
+                      analytics.track('optimization_applied', 'analytics', 'apply_insight', {
+                        metadata: { insightId: insight.id, insightType: insight.type }
+                      })
+                    }
+                  } else if (insight.suggestedAction?.type === 'add_profile') {
+                    toast.info('Navigate to Performance Profiles to create task-specific profiles')
+                  }
+                }}
+                onApplyAutoTune={(recommendation, modelId) => {
+                  const model = models.find(m => m.id === modelId)
                   if (model) {
                     const updatedModel = {
                       ...model,
-                      ...insight.suggestedAction.details.parameters
+                      ...recommendation.recommendedParams
                     }
-                    setModels(prev => (prev || []).map(m => m.id === model.id ? updatedModel : m))
-                    toast.success('Optimization applied successfully')
-                    analytics.track('optimization_applied', 'analytics', 'apply_insight', {
-                      metadata: { insightId: insight.id, insightType: insight.type }
+                    setModels(prev => (prev || []).map(m => m.id === modelId ? updatedModel : m))
+                    toast.success(`Model auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
+                    analytics.track('auto_tune_applied', 'analytics', 'apply_auto_tune', {
+                      metadata: { 
+                        modelId, 
+                        taskType: recommendation.taskType,
+                        confidence: recommendation.confidence
+                      }
                     })
                   }
-                } else if (insight.suggestedAction?.type === 'add_profile') {
-                  toast.info('Navigate to Performance Profiles to create task-specific profiles')
-                }
-              }}
-              onApplyAutoTune={(recommendation, modelId) => {
-                const model = models.find(m => m.id === modelId)
-                if (model) {
-                  const updatedModel = {
-                    ...model,
-                    ...recommendation.recommendedParams
-                  }
-                  setModels(prev => (prev || []).map(m => m.id === modelId ? updatedModel : m))
-                  toast.success(`Model auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
-                  analytics.track('auto_tune_applied', 'analytics', 'apply_auto_tune', {
-                    metadata: { 
-                      modelId, 
-                      taskType: recommendation.taskType,
-                      confidence: recommendation.confidence
-                    }
-                  })
-                }
-              }}
-              onCreateProfile={(taskType) => {
-                toast.info('Navigate to Models > Config to create performance profiles')
-                setActiveTab('models')
-              }}
-            />
+                }}
+                onCreateProfile={(taskType) => {
+                  toast.info('Navigate to Models > Config to create performance profiles')
+                  setActiveTab('models')
+                }}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="builder">
@@ -1179,11 +1222,15 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </TabsList>
 
               <TabsContent value="ai-builder">
-                <AppBuilder models={models} />
+                <Suspense fallback={<LoadingFallback />}>
+                  <AppBuilder models={models} />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="local-ide">
-                <LocalIDE />
+                <Suspense fallback={<LoadingFallback />}>
+                  <LocalIDE />
+                </Suspense>
               </TabsContent>
             </Tabs>
           </TabsContent>
