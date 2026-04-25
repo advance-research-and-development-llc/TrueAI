@@ -10,14 +10,14 @@ interface SwipeHandlers {
 export function useSwipeGesture(handlers: SwipeHandlers, threshold = 50) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY
     }
   }
 
-  const handleTouchEnd = (e: TouchEvent) => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current) return
 
     const touchEnd = {

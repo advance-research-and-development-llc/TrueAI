@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -11,6 +11,7 @@ import { KeyboardShortcutsHelper } from '@/components/ui/keyboard-shortcuts'
 import { MobileBottomNav } from '@/components/ui/mobile-bottom-nav'
 import { FloatingActionButton } from '@/components/ui/floating-action-button'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -59,6 +60,7 @@ function App() {
   const [newConversationDialog, setNewConversationDialog] = useState(false)
   const [editingModelId, setEditingModelId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('chat')
+  const [isSwipeIndicatorVisible, setIsSwipeIndicatorVisible] = useState(false)
 
   const [newAgentForm, setNewAgentForm] = useState({
     name: '',
@@ -76,6 +78,30 @@ function App() {
   const activeConversation = conversations?.find(c => c.id === activeConversationId)
   const conversationMessages = messages?.filter(m => m.conversationId === activeConversationId) || []
   const activeAgentRun = agentRuns?.find(r => r.id === activeAgentRunId)
+
+  const tabOrder = ['chat', 'agents', 'models', 'analytics']
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const navigateToTab = (direction: 'left' | 'right') => {
+    const currentIndex = tabOrder.indexOf(activeTab)
+    let newIndex: number
+    
+    if (direction === 'left') {
+      newIndex = currentIndex + 1
+      if (newIndex >= tabOrder.length) newIndex = 0
+    } else {
+      newIndex = currentIndex - 1
+      if (newIndex < 0) newIndex = tabOrder.length - 1
+    }
+    
+    setActiveTab(tabOrder[newIndex])
+    toast.success(`Switched to ${tabOrder[newIndex]}`)
+  }
+
+  const swipeHandlers = useSwipeGesture({
+    onSwipeLeft: () => navigateToTab('left'),
+    onSwipeRight: () => navigateToTab('right')
+  }, 100)
 
   useEffect(() => {
     analytics.track('page_view', 'app', 'load', {
@@ -565,7 +591,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           </div>
         </motion.header>
 
-      <main className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-24 sm:pb-20 lg:pb-6">
+      <main 
+        className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-24 sm:pb-20 lg:pb-6"
+        ref={contentRef}
+        onTouchStart={swipeHandlers.onTouchStart}
+        onTouchEnd={swipeHandlers.onTouchEnd}
+      >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="hidden lg:grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="chat" className="gap-2">
