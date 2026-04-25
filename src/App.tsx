@@ -23,6 +23,7 @@ import { ModelConfigPanel } from '@/components/models/ModelConfigPanel'
 import { FineTuningUI } from '@/components/models/FineTuningUI'
 import { QuantizationTools } from '@/components/models/QuantizationTools'
 import { HarnessCreator } from '@/components/harness/HarnessCreator'
+import { BundleAutomationPanel } from '@/components/harness/BundleAutomationPanel'
 import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
 import { GGUFLibrary } from '@/components/models/GGUFLibrary'
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
@@ -1045,12 +1046,36 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </TabsContent>
 
               <TabsContent value="harness">
-                <HarnessCreator
-                  harnesses={harnesses || []}
-                  onCreateHarness={createHarness}
-                  onDeleteHarness={deleteHarness}
-                  onExportHarness={exportHarness}
-                />
+                <Tabs defaultValue="creator" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="creator" className="gap-2">
+                      <Wrench weight="fill" size={18} />
+                      Harness Creator
+                    </TabsTrigger>
+                    <TabsTrigger value="automation" className="gap-2">
+                      <Lightning weight="fill" size={18} />
+                      Bundle Automation
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="creator">
+                    <HarnessCreator
+                      harnesses={harnesses || []}
+                      onCreateHarness={createHarness}
+                      onDeleteHarness={deleteHarness}
+                      onExportHarness={exportHarness}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="automation">
+                    <BundleAutomationPanel
+                      messages={messages || []}
+                      agents={agents || []}
+                      agentRuns={agentRuns || []}
+                      harnesses={harnesses || []}
+                    />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
 
               <TabsContent value="benchmark">

@@ -68,6 +68,13 @@ A browser-based AI assistant platform that enables local model integration, auto
 - **Progression**: System collects analytics data → Identifies patterns and anomalies → Generates optimization insights (performance, quality, efficiency, cost) → Ranks by severity (critical/high/medium/low) → Provides detailed recommendations with confidence scores → User applies optimizations OR system auto-tunes parameters for specific task types
 - **Success criteria**: Insights are actionable and accurate, confidence scores reflect real improvement potential, auto-tuning improves model performance for task types, learning progress visible to user, recommendations categorized by impact type
 
+### 8. Bundle Automation Based on Usage Patterns
+- **Functionality**: Intelligent system that analyzes user behavior across conversations, agent runs, and tool usage to automatically detect patterns and execute harness bundles at optimal times without manual triggering
+- **Purpose**: Streamline workflows by proactively executing frequently-used tool bundles based on contextual triggers (time-of-day, keyword presence, tool sequences, usage frequency)
+- **Trigger**: Pattern detection runs automatically every 50 interactions OR user manually analyzes from Models → Harness → Bundle Automation tab
+- **Progression**: System scans usage data → Detects 4 pattern types (temporal, contextual, sequential, frequency) → Calculates confidence scores → Suggests automation rules → User creates rules with priority/cooldown settings → Rules auto-execute when conditions match → Track success metrics and execution history → Export/import rule configurations
+- **Success criteria**: Pattern detection accuracy >80%, rules trigger at appropriate times, cooldown prevents excessive executions, clear execution history with success/failure tracking, configurable priority levels allow critical rules to execute first, automation improves workflow efficiency
+
 ## Edge Case Handling
 
 - **Empty States**: Show helpful onboarding messages when no conversations or agents exist
