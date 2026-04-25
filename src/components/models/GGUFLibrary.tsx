@@ -124,32 +124,32 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
   const filteredModels = filterModels()
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">GGUF Model Library</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold">GGUF Model Library</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage your downloaded GGUF model files
           </p>
         </div>
-        <Button onClick={() => setAddModelDialog(true)} className="gap-2">
-          <FilePlus weight="bold" size={20} />
+        <Button onClick={() => setAddModelDialog(true)} className="gap-2 w-full sm:w-auto h-10">
+          <FilePlus weight="bold" size={18} />
           Add Model
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <Input
-            placeholder="Search models by name, file, or quantization..."
+            placeholder="Search models..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-9 h-10 text-sm"
           />
         </div>
         <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-          <SelectTrigger className="w-full md:w-[180px]">
+          <SelectTrigger className="w-full sm:w-[160px] h-10">
             <SelectValue placeholder="Sort by..." />
           </SelectTrigger>
           <SelectContent>
@@ -160,203 +160,207 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          {filteredModels.length === 0 && (
-            <Card className="p-12">
-              <EmptyState
-                illustration={emptyStateModels}
-                title="No Models Found"
-                description={searchQuery ? 'Try a different search term' : 'Add your first GGUF model to get started'}
-                size="lg"
-                action={
-                  !searchQuery ? (
-                    <Button onClick={() => setAddModelDialog(true)} className="gap-2 mt-4">
-                      <FilePlus weight="bold" size={20} />
-                      Add Model
-                    </Button>
-                  ) : undefined
-                }
-              />
-            </Card>
-          )}
-
-          <div className="grid gap-4">
-            {filteredModels.map(model => (
-              <Card 
-                key={model.id} 
-                className={`p-5 cursor-pointer transition-all hover:shadow-md ${selectedModel?.id === model.id ? 'ring-2 ring-primary' : ''}`}
-                onClick={() => setSelectedModel(model)}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <File weight="duotone" size={28} className="text-primary" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg truncate">{model.name}</h3>
-                        <p className="text-sm text-muted-foreground truncate mt-0.5">
-                          {model.filename}
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="flex-shrink-0">
-                        {model.quantization}
-                      </Badge>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <HardDrives size={16} />
-                        <span>{formatBytes(model.size)}</span>
-                      </div>
-                      {model.architecture && (
-                        <div className="flex items-center gap-1.5">
-                          <ChartBar size={16} />
-                          <span>{model.architecture}</span>
-                        </div>
-                      )}
-                      {model.contextLength && (
-                        <div className="flex items-center gap-1.5">
-                          <Tag size={16} />
-                          <span>{model.contextLength.toLocaleString()} ctx</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={16} />
-                        <span>{formatDate(model.downloadedAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        <div className="lg:col-span-1">
-          <Card className="p-6 sticky top-6">
-            {selectedModel ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <h3 className="font-semibold text-lg">Model Details</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteModel(selectedModel.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash weight="bold" size={18} />
-                  </Button>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Name</Label>
-                    <p className="font-medium mt-1">{selectedModel.name}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Filename</Label>
-                    <p className="font-mono text-sm mt-1 break-all">{selectedModel.filename}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Path</Label>
-                    <p className="font-mono text-sm mt-1 break-all text-muted-foreground">{selectedModel.path}</p>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Size</Label>
-                    <p className="font-medium mt-1">{formatBytes(selectedModel.size)}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Quantization</Label>
-                    <p className="font-medium mt-1">{selectedModel.quantization}</p>
-                  </div>
-
-                  {selectedModel.architecture && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Architecture</Label>
-                      <p className="font-medium mt-1">{selectedModel.architecture}</p>
-                    </div>
-                  )}
-
-                  {selectedModel.contextLength && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Context Length</Label>
-                      <p className="font-medium mt-1">{selectedModel.contextLength.toLocaleString()} tokens</p>
-                    </div>
-                  )}
-
-                  {selectedModel.parameterCount && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Parameters</Label>
-                      <p className="font-medium mt-1">
-                        {(selectedModel.parameterCount / 1000000000).toFixed(1)}B
-                      </p>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Downloaded</Label>
-                    <p className="font-medium mt-1">{formatDate(selectedModel.downloadedAt)}</p>
-                  </div>
-
-                  {selectedModel.lastUsed && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Last Used</Label>
-                      <p className="font-medium mt-1">{formatDate(selectedModel.lastUsed)}</p>
-                    </div>
-                  )}
-
-                  {selectedModel.metadata.tensorCount && (
-                    <>
-                      <Separator />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Technical Details</Label>
-                        <div className="mt-2 space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tensors:</span>
-                            <span className="font-mono">{selectedModel.metadata.tensorCount}</span>
-                          </div>
-                          {selectedModel.metadata.layerCount && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Layers:</span>
-                              <span className="font-mono">{selectedModel.metadata.layerCount}</span>
-                            </div>
-                          )}
-                          {selectedModel.metadata.headCount && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Heads:</span>
-                              <span className="font-mono">{selectedModel.metadata.headCount}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
+        <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-1 lg:grid-cols-3 sm:gap-4">
+          <div className="lg:col-span-2">
+            {filteredModels.length === 0 && (
+              <Card className="p-8 sm:p-12">
                 <EmptyState
                   illustration={emptyStateModels}
-                  title="No Model Selected"
-                  description="Select a model to view details"
-                  size="sm"
+                  title="No Models Found"
+                  description={searchQuery ? 'Try a different search term' : 'Add your first GGUF model to get started'}
+                  size="lg"
+                  action={
+                    !searchQuery ? (
+                      <Button onClick={() => setAddModelDialog(true)} className="gap-2 mt-4 w-full sm:w-auto">
+                        <FilePlus weight="bold" size={18} />
+                        Add Model
+                      </Button>
+                    ) : undefined
+                  }
                 />
-              </div>
+              </Card>
             )}
-          </Card>
+
+            <div className="grid gap-3 sm:gap-4">
+              {filteredModels.map(model => (
+                <Card 
+                  key={model.id} 
+                  className={`p-3 sm:p-5 cursor-pointer transition-all hover:shadow-md ${selectedModel?.id === model.id ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => setSelectedModel(model)}
+                >
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <File weight="duotone" size={24} className="text-primary sm:w-7 sm:h-7" />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg truncate">{model.name}</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">
+                            {model.filename}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="flex-shrink-0 self-start text-xs">
+                          {model.quantization}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <HardDrives size={14} />
+                          <span>{formatBytes(model.size)}</span>
+                        </div>
+                        {model.architecture && (
+                          <div className="flex items-center gap-1.5">
+                            <ChartBar size={14} />
+                            <span>{model.architecture}</span>
+                          </div>
+                        )}
+                        {model.contextLength && (
+                          <div className="flex items-center gap-1.5">
+                            <Tag size={14} />
+                            <span>{model.contextLength.toLocaleString()} ctx</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={14} />
+                          <span>{formatDate(model.downloadedAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-1">
+            <Card className="p-4 sm:p-6 sticky top-6">
+              {selectedModel ? (
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-semibold text-base sm:text-lg">Model Details</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteModel(selectedModel.id)}
+                      className="text-destructive hover:text-destructive h-8 w-8"
+                    >
+                      <Trash weight="bold" size={16} />
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <ScrollArea className="h-[300px] sm:h-auto sm:max-h-[600px]">
+                    <div className="space-y-3 pr-2">
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Name</Label>
+                        <p className="font-medium mt-1 text-sm sm:text-base">{selectedModel.name}</p>
+                      </div>
+
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Filename</Label>
+                        <p className="font-mono text-xs sm:text-sm mt-1 break-all">{selectedModel.filename}</p>
+                      </div>
+
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Path</Label>
+                        <p className="font-mono text-xs sm:text-sm mt-1 break-all text-muted-foreground">{selectedModel.path}</p>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Size</Label>
+                        <p className="font-medium mt-1 text-sm sm:text-base">{formatBytes(selectedModel.size)}</p>
+                      </div>
+
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Quantization</Label>
+                        <p className="font-medium mt-1 text-sm sm:text-base">{selectedModel.quantization}</p>
+                      </div>
+
+                      {selectedModel.architecture && (
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Architecture</Label>
+                          <p className="font-medium mt-1 text-sm sm:text-base">{selectedModel.architecture}</p>
+                        </div>
+                      )}
+
+                      {selectedModel.contextLength && (
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Context Length</Label>
+                          <p className="font-medium mt-1 text-sm sm:text-base">{selectedModel.contextLength.toLocaleString()} tokens</p>
+                        </div>
+                      )}
+
+                      {selectedModel.parameterCount && (
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Parameters</Label>
+                          <p className="font-medium mt-1 text-sm sm:text-base">
+                            {(selectedModel.parameterCount / 1000000000).toFixed(1)}B
+                          </p>
+                        </div>
+                      )}
+
+                      <Separator />
+
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Downloaded</Label>
+                        <p className="font-medium mt-1 text-sm sm:text-base">{formatDate(selectedModel.downloadedAt)}</p>
+                      </div>
+
+                      {selectedModel.lastUsed && (
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Last Used</Label>
+                          <p className="font-medium mt-1 text-sm sm:text-base">{formatDate(selectedModel.lastUsed)}</p>
+                        </div>
+                      )}
+
+                      {selectedModel.metadata.tensorCount && (
+                        <>
+                          <Separator />
+                          <div>
+                            <Label className="text-muted-foreground text-xs">Technical Details</Label>
+                            <div className="mt-2 space-y-2 text-xs sm:text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Tensors:</span>
+                                <span className="font-mono">{selectedModel.metadata.tensorCount}</span>
+                              </div>
+                              {selectedModel.metadata.layerCount && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Layers:</span>
+                                  <span className="font-mono">{selectedModel.metadata.layerCount}</span>
+                                </div>
+                              )}
+                              {selectedModel.metadata.headCount && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Heads:</span>
+                                  <span className="font-mono">{selectedModel.metadata.headCount}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              ) : (
+                <div className="text-center py-8 sm:py-12 space-y-3 px-4">
+                  <EmptyState
+                    illustration={emptyStateModels}
+                    title="No Model Selected"
+                    description="Select a model to view details"
+                    size="sm"
+                  />
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
 

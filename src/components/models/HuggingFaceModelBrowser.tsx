@@ -175,29 +175,29 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
   }
 
   return (
-    <Card className="p-6">
-      <CardHeader className="px-0 pt-0">
-        <CardTitle>HuggingFace Model Browser</CardTitle>
-        <CardDescription>Search and download GGUF models from HuggingFace</CardDescription>
+    <Card className="p-3 sm:p-6">
+      <CardHeader className="px-0 pt-0 pb-3 sm:pb-6">
+        <CardTitle className="text-lg sm:text-2xl">HuggingFace Model Browser</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">Search and download GGUF models from HuggingFace</CardDescription>
       </CardHeader>
 
-      <div className="space-y-4">
-        <div className="flex gap-2">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <Input
               id="hf-search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Search models (e.g., Llama, Mistral, Phi-3)..."
-              className="pl-10"
+              placeholder="Search models..."
+              className="pl-9 h-10 text-sm"
               disabled={isSearching}
             />
           </div>
-          <Button onClick={() => performSearch()} disabled={isSearching || !searchQuery.trim()}>
+          <Button onClick={() => performSearch()} disabled={isSearching || !searchQuery.trim()} className="h-10 sm:min-w-[100px]">
             {isSearching ? (
-              <><Spinner className="animate-spin" size={20} /> Searching...</>
+              <><Spinner className="animate-spin" size={18} /><span className="ml-2 hidden sm:inline">Searching...</span></>
             ) : (
               <>Search</>
             )}
@@ -205,37 +205,38 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
         </div>
 
         {searchError && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
-            <WarningCircle size={20} className="text-destructive mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-destructive">{searchError}</p>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-2 sm:p-3 flex items-start gap-2">
+            <WarningCircle size={18} className="text-destructive mt-0.5 flex-shrink-0 sm:w-5 sm:h-5" />
+            <p className="text-xs sm:text-sm text-destructive">{searchError}</p>
           </div>
         )}
 
-        <ScrollArea className="h-[500px] pr-4">
-          <div className="space-y-3">
+        <ScrollArea className="h-[400px] sm:h-[500px] pr-2 sm:pr-4">
+          <div className="space-y-2 sm:space-y-3">
             {isSearching && models.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Spinner className="animate-spin mb-4" size={32} />
-                <p className="text-muted-foreground">Searching HuggingFace for GGUF models...</p>
+              <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4">
+                <Spinner className="animate-spin mb-3 sm:mb-4" size={28} />
+                <p className="text-muted-foreground text-sm sm:text-base">Searching models...</p>
               </div>
             )}
 
             {!isSearching && models.length === 0 && hasSearched && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-muted-foreground mb-2">No models found</p>
-                <p className="text-sm text-muted-foreground">Try searching for popular models like Llama, Mistral, or Phi-3</p>
+              <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4">
+                <p className="text-muted-foreground mb-2 text-sm sm:text-base">No models found</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Try: Llama, Mistral, or Phi-3</p>
               </div>
             )}
 
             {!hasSearched && models.length === 0 && !isSearching && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-muted-foreground mb-4">Enter a search term to find GGUF models</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4">
+                <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base">Search for GGUF models</p>
+                <div className="flex flex-wrap gap-2 justify-center max-w-sm">
                   {getPopularGGUFModels().slice(0, 4).map(modelName => (
                     <Button
                       key={modelName}
                       variant="outline"
                       size="sm"
+                      className="h-8 text-xs sm:text-sm"
                       onClick={() => {
                         setSearchQuery(modelName.split('/')[1].replace('-GGUF', ''))
                         performSearch(modelName)
@@ -261,22 +262,22 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card className="p-4 hover:border-accent/50 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
+                  <Card className="p-3 sm:p-4 hover:border-accent/50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-start gap-2 flex-wrap">
-                          <h4 className="font-semibold text-base">{model.name}</h4>
+                          <h4 className="font-semibold text-sm sm:text-base">{model.name}</h4>
                           <Badge variant="secondary" className="text-xs">
                             {model.quantization}
                           </Badge>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           by {model.author}
                         </p>
                         
                         {model.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                             {model.description}
                           </p>
                         )}
@@ -289,26 +290,26 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
                           ))}
                         </div>
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                          <span>Size: {model.size.toFixed(1)}GB</span>
-                          <span>Context: {model.contextLength}</span>
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground font-mono">
+                          <span>{model.size.toFixed(1)}GB</span>
+                          <span>{model.contextLength}ctx</span>
                           <span className="flex items-center gap-1">
-                            <TrendUp size={14} />
-                            {(model.downloads / 1000).toFixed(0)}k downloads
+                            <TrendUp size={12} />
+                            {(model.downloads / 1000).toFixed(0)}k
                           </span>
                         </div>
 
                         {downloadProgress && (
                           <div className="space-y-1">
-                            <Progress value={downloadProgress.progress} className="h-2" />
+                            <Progress value={downloadProgress.progress} className="h-1.5 sm:h-2" />
                             <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>
+                              <span className="truncate">
                                 {isDownloading && 'Downloading...'}
-                                {isCompleted && 'Download complete!'}
-                                {hasError && `Error: ${downloadProgress.error}`}
+                                {isCompleted && 'Complete!'}
+                                {hasError && 'Error'}
                               </span>
                               {downloadProgress.total > 0 && (
-                                <span>
+                                <span className="text-xs">
                                   {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
                                 </span>
                               )}
@@ -322,12 +323,14 @@ export function HuggingFaceModelBrowser({ onDownload }: HuggingFaceModelBrowserP
                         size="sm"
                         disabled={isDownloading || isCompleted}
                         variant={isCompleted ? 'secondary' : hasError ? 'destructive' : 'default'}
+                        className="w-full sm:w-auto h-9 shrink-0"
                       >
-                        {isDownloading && <Spinner className="animate-spin mr-2" size={16} />}
-                        {isCompleted && <CheckCircle weight="fill" size={16} className="mr-2" />}
-                        {hasError && <WarningCircle weight="fill" size={16} className="mr-2" />}
-                        {!isDownloading && !isCompleted && !hasError && <Download weight="bold" size={16} className="mr-2" />}
-                        {isDownloading ? 'Downloading' : isCompleted ? 'Downloaded' : hasError ? 'Failed' : 'Download'}
+                        {isDownloading && <Spinner className="animate-spin sm:mr-2" size={16} />}
+                        {isCompleted && <CheckCircle weight="fill" size={16} className="sm:mr-2" />}
+                        {hasError && <WarningCircle weight="fill" size={16} className="sm:mr-2" />}
+                        {!isDownloading && !isCompleted && !hasError && <Download weight="bold" size={16} className="sm:mr-2" />}
+                        <span className="hidden sm:inline">{isDownloading ? 'Downloading' : isCompleted ? 'Downloaded' : hasError ? 'Failed' : 'Download'}</span>
+                        <span className="sm:hidden ml-2">{isDownloading ? 'Downloading' : isCompleted ? 'Done' : hasError ? 'Failed' : 'Download'}</span>
                       </Button>
                     </div>
                   </Card>
