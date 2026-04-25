@@ -1365,11 +1365,11 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 sm:h-10 sm:w-10 relative group"
                         onClick={() => setSettingsOpen(true)}
                       >
                         <Gear size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
                         <motion.div
+                          className="absolute inset-0 rounded-lg bg-accent/10"
                           className="absolute inset-0 rounded-lg bg-accent/10"
                           initial={{ opacity: 0, scale: 0.8 }}
                           whileHover={{ opacity: 1, scale: 1 }}
@@ -1378,7 +1378,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       </Button>
                     </motion.div>
                   </TooltipTrigger>
-                  <TooltipContent>
                     <p>Settings</p>
                   </TooltipContent>
                 </Tooltip>
@@ -1397,6 +1396,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       </Button>
                     </motion.div>
                   </TooltipTrigger>
+                  <TooltipContent>
                   <TooltipContent>
                     <p>What's new</p>
                   </TooltipContent>
@@ -2222,7 +2222,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 <LazyErrorBoundary componentName="Cache Manager">
                   <CacheManager />
                 </LazyErrorBoundary>
-              </div>
 
               <Separator className="my-6" />
 
@@ -2233,6 +2232,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     <DynamicUIDashboard />
                   </Suspense>
                 </LazyErrorBoundary>
+              </div>
               </div>
             </div>
             </TabErrorBoundary>
@@ -2257,10 +2257,9 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </TabsList>
 
               <TabsContent value="builder">
-                <LazyErrorBoundary componentName="Workflow Builder">
-                  <WorkflowBuilder
+                  <WorkflowBuilder componentName="Workflow Builder">
                     workflows={workflows || []}
-                    agents={agents || []}
+                    agents={agents || []}|| []}
                     onSaveWorkflow={saveWorkflow}
                     onDeleteWorkflow={deleteWorkflow}
                     onExecuteWorkflow={executeWorkflow}
@@ -2268,6 +2267,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </LazyErrorBoundary>
               </TabsContent>
 
+              <TabsContent value="templates">
               <TabsContent value="templates">
                 <LazyErrorBoundary componentName="Workflow Templates">
                   <WorkflowTemplates onUseTemplate={useWorkflowTemplate} />
@@ -2581,7 +2581,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       {performanceOptimization.isOptimized && appSettings?.debugMode && (
         <PerformanceMonitor />
       )}
-      
       <Dialog open={uiCustomizerOpen} onOpenChange={setUiCustomizerOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -2593,6 +2592,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           <DynamicUICustomizer />
         </DialogContent>
       </Dialog>
+      
       
       <SettingsMenu
         open={settingsOpen}
@@ -2628,7 +2628,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           notificationsEnabled: true,
           notificationSound: true,
           notifyAgentComplete: true,
-          notifyModelLoaded: false,
           notifyErrors: true,
           notifyUpdates: true,
           showToast: true,
@@ -2640,6 +2639,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           localStorageEnabled: true,
           encryptData: false,
           clearDataOnExit: false,
+          requireAuth: false,
           requireAuth: false,
           autoLockEnabled: false,
           secureMode: false,
@@ -2653,10 +2653,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           offlineMode: false,
         }}
         onSettingsChange={setAppSettings}
-      />
+    </DynamicBackground>
     </DynamicBackground>
     </TooltipProvider>
   )
 }
 
-export default App
+
