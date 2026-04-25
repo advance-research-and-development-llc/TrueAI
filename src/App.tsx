@@ -1370,7 +1370,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         <Gear size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
                         <motion.div
                           className="absolute inset-0 rounded-lg bg-accent/10"
-                          className="absolute inset-0 rounded-lg bg-accent/10"
                           initial={{ opacity: 0, scale: 0.8 }}
                           whileHover={{ opacity: 1, scale: 1 }}
                           transition={{ duration: 0.2 }}
@@ -1378,6 +1377,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       </Button>
                     </motion.div>
                   </TooltipTrigger>
+                  <TooltipContent>
                     <p>Settings</p>
                   </TooltipContent>
                 </Tooltip>
@@ -1396,7 +1396,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       </Button>
                     </motion.div>
                   </TooltipTrigger>
-                  <TooltipContent>
                   <TooltipContent>
                     <p>What's new</p>
                   </TooltipContent>
@@ -2257,9 +2256,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               </TabsList>
 
               <TabsContent value="builder">
-                  <WorkflowBuilder componentName="Workflow Builder">
+                <LazyErrorBoundary componentName="Workflow Builder">
+                  <WorkflowBuilder
                     workflows={workflows || []}
-                    agents={agents || []}|| []}
+                    agents={agents || []}
                     onSaveWorkflow={saveWorkflow}
                     onDeleteWorkflow={deleteWorkflow}
                     onExecuteWorkflow={executeWorkflow}
@@ -2267,7 +2267,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </LazyErrorBoundary>
               </TabsContent>
 
-              <TabsContent value="templates">
               <TabsContent value="templates">
                 <LazyErrorBoundary componentName="Workflow Templates">
                   <WorkflowTemplates onUseTemplate={useWorkflowTemplate} />
@@ -2640,7 +2639,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           encryptData: false,
           clearDataOnExit: false,
           requireAuth: false,
-          requireAuth: false,
           autoLockEnabled: false,
           secureMode: false,
           debugMode: false,
@@ -2653,10 +2651,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           offlineMode: false,
         }}
         onSettingsChange={setAppSettings}
-    </DynamicBackground>
+      />
     </DynamicBackground>
     </TooltipProvider>
   )
 }
+
+export default App
 
 
