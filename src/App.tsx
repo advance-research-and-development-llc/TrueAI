@@ -714,8 +714,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
   const editingModel = models?.find(m => m.id === editingModelId)
 
-  }, [activeTab])
-
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground">
