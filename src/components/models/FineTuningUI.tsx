@@ -9,9 +9,11 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Flask, Upload, Play, Trash, FileText, Plus } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { emptyStateFineTuning } from '@/assets'
 import type { FineTuningDataset, FineTuningSample, FineTuningJob, ModelConfig } from '@/lib/types'
 
 interface FineTuningUIProps {
@@ -162,9 +164,12 @@ export function FineTuningUI({
           <ScrollArea className="h-[500px]">
             <div className="space-y-3">
               {datasets.length === 0 && (
-                <Card className="p-8">
-                  <p className="text-center text-muted-foreground">No datasets created yet</p>
-                </Card>
+                <EmptyState
+                  illustration={emptyStateFineTuning}
+                  title="No datasets yet"
+                  description="Create a training dataset to start fine-tuning models"
+                  size="md"
+                />
               )}
               {datasets.map(dataset => (
                 <Card
@@ -224,9 +229,12 @@ export function FineTuningUI({
           <ScrollArea className="h-[500px]">
             <div className="space-y-3">
               {jobs.length === 0 && (
-                <Card className="p-8">
-                  <p className="text-center text-muted-foreground">No training jobs yet</p>
-                </Card>
+                <EmptyState
+                  illustration={emptyStateFineTuning}
+                  title="No training jobs yet"
+                  description="Start fine-tuning a model on your custom dataset"
+                  size="md"
+                />
               )}
               {jobs.map(job => {
                 const model = models.find(m => m.id === job.modelId)
