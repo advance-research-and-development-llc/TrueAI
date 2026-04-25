@@ -45,22 +45,33 @@ export function CodeEditor({ code, language, readOnly = true, className = '', on
       link.setAttribute('data-prism-theme', theme)
       
       try {
-        const themeMap: Record<CodeTheme, string> = {
-          tomorrow: 'prism-tomorrow.css',
-          okaidia: 'prism-okaidia.css',
-          twilight: 'prism-twilight.css',
-          coy: 'prism-coy.css',
-          solarized: 'prism-solarizedlight.css',
-          funky: 'prism-funky.css',
-          dark: 'prism-dark.css'
+        let themeModule
+        switch (theme) {
+          case 'okaidia':
+            themeModule = await import('prismjs/themes/prism-okaidia.css')
+            break
+          case 'twilight':
+            themeModule = await import('prismjs/themes/prism-twilight.css')
+            break
+          case 'coy':
+            themeModule = await import('prismjs/themes/prism-coy.css')
+            break
+          case 'solarized':
+            themeModule = await import('prismjs/themes/prism-solarizedlight.css')
+            break
+          case 'funky':
+            themeModule = await import('prismjs/themes/prism-funky.css')
+            break
+          case 'dark':
+            themeModule = await import('prismjs/themes/prism-dark.css')
+            break
+          case 'tomorrow':
+          default:
+            themeModule = await import('prismjs/themes/prism-tomorrow.css')
+            break
         }
-        
-        const themeFile = themeMap[theme] || themeMap.tomorrow
-        const themeModule = await import(`prismjs/themes/${themeFile}`)
-        link.href = new URL(`prismjs/themes/${themeFile}`, import.meta.url).href
-        document.head.appendChild(link)
       } catch (error) {
-        console.warn('Failed to load theme:', theme)
+        console.warn('Failed to load theme:', theme, error)
       }
     }
 
