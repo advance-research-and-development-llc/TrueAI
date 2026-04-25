@@ -47,8 +47,10 @@ export function AutoOptimizationPanel({
   const [autoTuneRecommendations, setAutoTuneRecommendations] = useState<AutoTuneRecommendation[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [autoLearnEnabled, setAutoLearnEnabled] = useState(true)
+  const [autoImplementEnabled, setAutoImplementEnabled] = useState(false)
   const [learningProgress, setLearningProgress] = useState(0)
   const [appliedInsights, setAppliedInsights] = useState<Set<string>>(new Set())
+  const [autoImplementCount, setAutoImplementCount] = useState(0)
 
   useEffect(() => {
     analyzePerformance()
@@ -63,6 +65,12 @@ export function AutoOptimizationPanel({
     const progress = Math.min(100, (totalInteractions / 50) * 100)
     setLearningProgress(progress)
   }, [events.length])
+
+  useEffect(() => {
+    if (autoImplementEnabled && insights.length > 0) {
+      autoImplementInsights()
+    }
+  }, [insights, autoImplementEnabled])
 
   const analyzePerformance = async () => {
     if (events.length < 10) return
@@ -85,6 +93,52 @@ export function AutoOptimizationPanel({
     }
   }
 
+  const autoImplementInsights = async () => {
+    const unappliedInsights = insights.filter(i => !appliedInsights.has(i.id))
+    const highPriorityInsights = unappliedInsights.filter(i => 
+      (i.severity === 'critical' || i.severity === 'high') && i.suggestedAction
+    )
+
+    if (highPriorityInsights.length === 0) return
+
+    let implementedCount = 0
+
+    for (const insight of highPriorityInsights) {
+      try {
+        onApplyOptimization(insight)
+        setAppliedInsights(prev => new Set([...prev, insight.id]))
+        implementedCount++
+        
+        await new Promise(resolve => setTimeout(resolve, 500))
+      } catch (error) {
+        console.error(`Failed to auto-implement insight ${insight.id}:`, error)
+      }
+    }
+
+    if (implementedCount > 0) {
+      setAutoImplementCount(prev => prev + implementedCount)
+      toast.success(`Auto-implemented ${implementedCount} optimization${implementedCount > 1 ? 's' : ''}`, {
+        description: `${implementedCount} high-priority ${implementedCount > 1 ? 'insights have' : 'insight has'} been automatically applied`,
+        duration: 5000
+      })
+    }
+
+    if (autoTuneRecommendations.length > 0 && models.length > 0) {
+      const firstModel = models[0]
+      const firstRecommendation = autoTuneRecommendations[0]
+      
+      try {
+        onApplyAutoTune(firstRecommendation, firstModel.id)
+        toast.success('Auto-tune applied to primary model', {
+          description: `Optimized ${firstModel.name} for ${firstRecommendation.taskType.replace('_', ' ')}`,
+          duration: 5000
+        })
+      } catch (error) {
+        console.error('Failed to auto-tune:', error)
+      }
+    }
+  }
+
   const handleApplyInsight = (insight: OptimizationInsight) => {
     onApplyOptimization(insight)
     setAppliedInsights(prev => new Set([...prev, insight.id]))
@@ -94,6 +148,45 @@ export function AutoOptimizationPanel({
   const handleApplyAutoTune = (recommendation: AutoTuneRecommendation, modelId: string) => {
     onApplyAutoTune(recommendation, modelId)
     toast.success(`Auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
+  }
+
+  const handleApplyAll = async () => {
+    const unappliedInsights = insights.filter(i => !appliedInsights.has(i.id) && i.suggestedAction)
+    
+    if (unappliedInsights.length === 0) {
+      toast.info('No insights to apply')
+      return
+    }
+
+    let count = 0
+    for (const insight of unappliedInsights) {
+      try {
+        onApplyOptimization(insight)
+        setAppliedInsights(prev => new Set([...prev, insight.id]))
+        count++
+        await new Promise(resolve => setTimeout(resolve, 300))
+      } catch (error) {
+        console.error(`Failed to apply insight ${insight.id}:`, error)
+      }
+    }
+
+    toast.success(`Applied ${count} optimization${count > 1 ? 's' : ''}`, {
+      description: `${count} insight${count > 1 ? 's have' : ' has'} been applied successfully`,
+      duration: 4000
+    })
+
+    if (autoTuneRecommendations.length > 0 && models.length > 0) {
+      models.forEach((model, index) => {
+        if (autoTuneRecommendations[index]) {
+          try {
+            onApplyAutoTune(autoTuneRecommendations[index], model.id)
+          } catch (error) {
+            console.error(`Failed to auto-tune model ${model.id}:`, error)
+          }
+        }
+      })
+      toast.success('Auto-tune applied to all models')
+    }
   }
 
   const getSeverityColor = (severity: OptimizationInsight['severity']) => {
@@ -140,48 +233,82 @@ export function AutoOptimizationPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Brain weight="fill" size={24} className="text-white" />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <Brain weight="fill" size={24} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Auto Optimization</h3>
+              <p className="text-sm text-muted-foreground">AI-powered performance insights</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold">Auto Optimization</h3>
-            <p className="text-sm text-muted-foreground">AI-powered performance insights</p>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-learn"
+                checked={autoLearnEnabled}
+                onCheckedChange={setAutoLearnEnabled}
+              />
+              <Label htmlFor="auto-learn" className="text-sm cursor-pointer">
+                Auto-learn
+              </Label>
+            </div>
+            
+            <Button
+              onClick={analyzePerformance}
+              disabled={isAnalyzing}
+              size="sm"
+              className="gap-2"
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Sparkle weight="fill" size={16} />
+                  Analyze
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="auto-learn"
-              checked={autoLearnEnabled}
-              onCheckedChange={setAutoLearnEnabled}
-            />
-            <Label htmlFor="auto-learn" className="text-sm cursor-pointer">
-              Auto-learn
-            </Label>
+        <Card className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-purple-500 flex items-center justify-center">
+                <Lightning weight="fill" size={18} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Auto-Implement Insights</p>
+                <p className="text-xs text-muted-foreground">
+                  Automatically apply critical and high-priority optimizations
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {autoImplementCount > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <CheckCircle size={14} weight="fill" className="text-green-500" />
+                  {autoImplementCount} applied
+                </Badge>
+              )}
+              <Switch
+                id="auto-implement"
+                checked={autoImplementEnabled}
+                onCheckedChange={setAutoImplementEnabled}
+              />
+              <Label htmlFor="auto-implement" className="text-sm cursor-pointer">
+                {autoImplementEnabled ? 'Enabled' : 'Disabled'}
+              </Label>
+            </div>
           </div>
-          
-          <Button
-            onClick={analyzePerformance}
-            disabled={isAnalyzing}
-            size="sm"
-            className="gap-2"
-          >
-            {isAnalyzing ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Sparkle weight="fill" size={16} />
-                Analyze
-              </>
-            )}
-          </Button>
-        </div>
+        </Card>
       </div>
 
       <Card className="p-4">
@@ -223,10 +350,23 @@ export function AutoOptimizationPanel({
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Optimization Insights
             </h4>
-            <Badge variant="secondary" className="gap-1">
-              <Sparkle weight="fill" size={12} />
-              {insights.length} found
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1">
+                <Sparkle weight="fill" size={12} />
+                {insights.length} found
+              </Badge>
+              {insights.filter(i => !appliedInsights.has(i.id) && i.suggestedAction).length > 0 && (
+                <Button
+                  onClick={handleApplyAll}
+                  size="sm"
+                  variant="default"
+                  className="gap-2 h-8"
+                >
+                  <CheckCircle size={14} weight="fill" />
+                  Apply All ({insights.filter(i => !appliedInsights.has(i.id) && i.suggestedAction).length})
+                </Button>
+              )}
+            </div>
           </div>
 
           <ScrollArea className="h-[500px] pr-4">
