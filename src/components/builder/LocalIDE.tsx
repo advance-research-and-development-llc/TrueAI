@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -29,10 +30,12 @@ import {
   Code,
   Lightning,
   CheckCircle,
-  Circle
+  Circle,
+  List
 } from '@phosphor-icons/react'
 import { CodeEditor, type CodeTheme } from './CodeEditor'
 import { analytics } from '@/lib/analytics'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface IDEFile {
   id: string
@@ -62,6 +65,7 @@ interface ConsoleMessage {
 }
 
 export function LocalIDE() {
+  const isMobile = useIsMobile()
   const [projects, setProjects] = useKV<IDEProject[]>('ide-projects', [])
   const [editorTheme, setEditorTheme] = useKV<CodeTheme>('ide-editor-theme', 'tomorrow')
   const [autoSaveEnabled, setAutoSaveEnabled] = useKV<boolean>('ide-auto-save-enabled', true)
@@ -769,30 +773,32 @@ render(<App />, document.getElementById('app'));`,
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-3 sm:gap-4 h-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Local IDE</h2>
-          <p className="text-sm text-muted-foreground">Build web apps with a full-featured code editor</p>
+          <h2 className="text-lg sm:text-xl font-semibold">Local IDE</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Build web apps with a full-featured code editor</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card">
-            <Label htmlFor="auto-save" className="text-xs cursor-pointer">Auto-save</Label>
-            <Switch
-              id="auto-save"
-              checked={autoSaveEnabled}
-              onCheckedChange={(checked) => {
-                setAutoSaveEnabled(checked)
-                toast.success(`Auto-save ${checked ? 'enabled' : 'disabled'}`)
-                analytics.track('ide_auto_save_toggled', 'builder', 'toggle_auto_save', {
-                  metadata: { enabled: checked }
-                })
-              }}
-            />
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {!isMobile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card">
+              <Label htmlFor="auto-save" className="text-xs cursor-pointer">Auto-save</Label>
+              <Switch
+                id="auto-save"
+                checked={autoSaveEnabled}
+                onCheckedChange={(checked) => {
+                  setAutoSaveEnabled(checked)
+                  toast.success(`Auto-save ${checked ? 'enabled' : 'disabled'}`)
+                  analytics.track('ide_auto_save_toggled', 'builder', 'toggle_auto_save', {
+                    metadata: { enabled: checked }
+                  })
+                }}
+              />
+            </div>
+          )}
           <Select value={editorTheme} onValueChange={(value: CodeTheme) => handleThemeChange(value)}>
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue placeholder="Select theme" />
+            <SelectTrigger className={`${isMobile ? 'w-[140px]' : 'w-[180px]'} h-9`}>
+              <SelectValue placeholder="Theme" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="tomorrow">
@@ -839,126 +845,387 @@ render(<App />, document.getElementById('app'));`,
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => setNewProjectDialog(true)} size="sm">
-            <Plus weight="bold" size={20} className="mr-2" />
-            New Project
+          <Button onClick={() => setNewProjectDialog(true)} size="sm" className="touch-target">
+            <Plus weight="bold" size={20} className={isMobile ? '' : 'mr-2'} />
+            {!isMobile && 'New Project'}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
-        <Card className="col-span-2 p-3 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Folders size={16} />
-              Projects
-            </h3>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="space-y-1">
-              {projects.length === 0 && (
-                <div className="text-center py-8 text-xs text-muted-foreground">
-                  <FolderOpen size={32} className="mx-auto mb-2 opacity-50" />
-                  <p>No projects</p>
-                </div>
-              )}
-              {projects.map(project => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                >
-                  <Button
-                    variant={activeProjectId === project.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start h-auto py-2 px-2 text-xs"
-                    onClick={() => {
-                      setActiveProjectId(project.id)
-                      setActiveFileId(project.files[0]?.id || null)
-                      addConsoleMessage('info', `Opened project "${project.name}"`)
-                    }}
-                  >
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="truncate font-medium">{project.name}</p>
-                      <p className="text-xs opacity-70 truncate capitalize">{project.framework}</p>
-                    </div>
-                  </Button>
-                  {activeProjectId === project.id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-1 h-7 text-xs"
-                      onClick={() => deleteProject(project.id)}
-                    >
-                      <Trash size={14} className="mr-1" />
-                      Delete
-                    </Button>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </ScrollArea>
-        </Card>
+      {isMobile ? (
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
+          <div className="flex gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 touch-target">
+                  <Folders size={18} className="mr-2" />
+                  Projects
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px]">
+                <SheetHeader>
+                  <SheetTitle>Projects</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-120px)] mt-4">
+                  <div className="space-y-2">
+                    {projects.length === 0 && (
+                      <div className="text-center py-8 text-xs text-muted-foreground">
+                        <FolderOpen size={32} className="mx-auto mb-2 opacity-50" />
+                        <p>No projects</p>
+                      </div>
+                    )}
+                    {projects.map(project => (
+                      <motion.div
+                        key={project.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                      >
+                        <Button
+                          variant={activeProjectId === project.id ? 'secondary' : 'ghost'}
+                          className="w-full justify-start h-auto py-3 px-3 text-sm touch-target"
+                          onClick={() => {
+                            setActiveProjectId(project.id)
+                            setActiveFileId(project.files[0]?.id || null)
+                            addConsoleMessage('info', `Opened project "${project.name}"`)
+                          }}
+                        >
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="truncate font-medium">{project.name}</p>
+                            <p className="text-xs opacity-70 truncate capitalize">{project.framework}</p>
+                          </div>
+                        </Button>
+                        {activeProjectId === project.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full mt-1 h-10 text-xs touch-target"
+                            onClick={() => deleteProject(project.id)}
+                          >
+                            <Trash size={14} className="mr-1" />
+                            Delete
+                          </Button>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
 
-        <Card className="col-span-2 p-3 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <File size={16} />
-              Files
-            </h3>
-            {activeProject && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => setNewFileDialog(true)}
-              >
-                <Plus size={14} />
-              </Button>
-            )}
-          </div>
-          <ScrollArea className="flex-1">
-            {activeProject ? (
-              <div className="space-y-1">
-                {activeProject.files.map(file => (
-                  <div key={file.id} className="group">
-                    <Button
-                      variant={activeFileId === file.id ? 'secondary' : 'ghost'}
-                      className="w-full justify-start h-auto py-2 px-2 text-xs"
-                      onClick={() => {
-                        setActiveFileId(file.id)
-                        addConsoleMessage('info', `Opened file "${file.path}"`)
-                      }}
-                    >
-                      <span className="mr-2">{getFileIcon(file.path)}</span>
-                      <span className="flex-1 truncate text-left">{file.path}</span>
-                      {!file.saved && <span className="text-accent">●</span>}
-                    </Button>
-                    {activeFileId === file.id && activeProject.files.length > 1 && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 touch-target" disabled={!activeProject}>
+                  <File size={18} className="mr-2" />
+                  Files
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px]">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center justify-between">
+                    Files
+                    {activeProject && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full mt-1 h-6 text-xs opacity-0 group-hover:opacity-100"
-                        onClick={() => deleteFile(file.id)}
+                        className="h-8 w-8 p-0"
+                        onClick={() => setNewFileDialog(true)}
                       >
-                        <Trash size={12} className="mr-1" />
+                        <Plus size={16} />
+                      </Button>
+                    )}
+                  </SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-120px)] mt-4">
+                  {activeProject ? (
+                    <div className="space-y-2">
+                      {activeProject.files.map(file => (
+                        <div key={file.id}>
+                          <Button
+                            variant={activeFileId === file.id ? 'secondary' : 'ghost'}
+                            className="w-full justify-start h-auto py-3 px-3 text-sm touch-target"
+                            onClick={() => {
+                              setActiveFileId(file.id)
+                              addConsoleMessage('info', `Opened file "${file.path}"`)
+                            }}
+                          >
+                            <span className="mr-2 text-lg">{getFileIcon(file.path)}</span>
+                            <span className="flex-1 truncate text-left">{file.path}</span>
+                            {!file.saved && <span className="text-accent">●</span>}
+                          </Button>
+                          {activeFileId === file.id && activeProject.files.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full mt-1 h-10 text-xs touch-target"
+                              onClick={() => deleteFile(file.id)}
+                            >
+                              <Trash size={12} className="mr-1" />
+                              Delete
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-xs text-muted-foreground">
+                      <FileCode size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No project selected</p>
+                    </div>
+                  )}
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          <Card className="flex-1 min-h-0 flex flex-col">
+            {activeFile ? (
+              <Tabs defaultValue="editor" className="flex-1 flex flex-col">
+                <TabsList className="w-full">
+                  <TabsTrigger value="editor" className="flex-1">
+                    <Code size={18} className="mr-2" />
+                    Editor
+                  </TabsTrigger>
+                  <TabsTrigger value="preview" className="flex-1">
+                    <Eye size={18} className="mr-2" />
+                    Preview
+                  </TabsTrigger>
+                  <TabsTrigger value="console" className="flex-1">
+                    <Terminal size={18} className="mr-2" />
+                    Console
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="editor" className="flex-1 min-h-0 flex flex-col m-0 p-0">
+                  <div className="flex items-center justify-between p-3 border-b border-border">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span>{getFileIcon(activeFile.path)}</span>
+                      <span className="font-medium text-sm truncate">{activeFile.path}</span>
+                      <AnimatePresence mode="wait">
+                        {isSaving ? (
+                          <motion.div
+                            key="saving"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="flex items-center gap-1 text-xs text-accent"
+                          >
+                            <Circle size={12} className="animate-pulse" weight="fill" />
+                          </motion.div>
+                        ) : activeFile.saved ? (
+                          <motion.div
+                            key="saved"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                          >
+                            <CheckCircle size={14} weight="fill" className="text-green-500" />
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="unsaved"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                          >
+                            <Circle size={12} weight="fill" className="text-accent" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!autoSaveEnabled && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={saveFile}
+                          disabled={activeFile.saved}
+                        >
+                          <FloppyDisk size={16} />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={runProject}
+                        disabled={isRunning}
+                      >
+                        <Play size={16} weight="fill" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <CodeEditor
+                      code={activeFile.content}
+                      language={activeFile.language}
+                      onChange={handleCodeChange}
+                      theme={editorTheme}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="preview" className="flex-1 min-h-0 m-0 p-0">
+                  <div className="h-full bg-white">
+                    <iframe
+                      key={previewKey}
+                      ref={iframeRef}
+                      srcDoc={generatePreviewHtml()}
+                      className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-same-origin allow-modals"
+                      title="Preview"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="console" className="flex-1 min-h-0 m-0 p-0">
+                  <div className="h-full bg-card/50 p-3">
+                    <ScrollArea className="h-full">
+                      {consoleMessages.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                          <div className="text-center">
+                            <Terminal size={48} className="mx-auto mb-3 opacity-30" />
+                            <p className="text-sm">Console output will appear here</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 font-mono text-xs">
+                          {consoleMessages.map(msg => (
+                            <div key={msg.id} className={`flex gap-2 ${getConsoleColor(msg.type)}`}>
+                              <span>{getConsoleIcon(msg.type)}</span>
+                              <span className="flex-1">{msg.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-4">
+                <div className="text-center text-muted-foreground">
+                  <Code size={64} className="mx-auto mb-4 opacity-30" />
+                  <p className="text-sm">Select or create a file to start coding</p>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+          <Card className="col-span-2 p-3 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Folders size={16} />
+                Projects
+              </h3>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="space-y-1">
+                {projects.length === 0 && (
+                  <div className="text-center py-8 text-xs text-muted-foreground">
+                    <FolderOpen size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>No projects</p>
+                  </div>
+                )}
+                {projects.map(project => (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                  >
+                    <Button
+                      variant={activeProjectId === project.id ? 'secondary' : 'ghost'}
+                      className="w-full justify-start h-auto py-2 px-2 text-xs"
+                      onClick={() => {
+                        setActiveProjectId(project.id)
+                        setActiveFileId(project.files[0]?.id || null)
+                        addConsoleMessage('info', `Opened project "${project.name}"`)
+                      }}
+                    >
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="truncate font-medium">{project.name}</p>
+                        <p className="text-xs opacity-70 truncate capitalize">{project.framework}</p>
+                      </div>
+                    </Button>
+                    {activeProjectId === project.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full mt-1 h-7 text-xs"
+                        onClick={() => deleteProject(project.id)}
+                      >
+                        <Trash size={14} className="mr-1" />
                         Delete
                       </Button>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-xs text-muted-foreground">
-                <FileCode size={32} className="mx-auto mb-2 opacity-50" />
-                <p>No project selected</p>
-              </div>
-            )}
-          </ScrollArea>
-        </Card>
+            </ScrollArea>
+          </Card>
 
-        <div className="col-span-8 flex flex-col gap-4 min-h-0">
-          <Card className="flex-1 min-h-0 flex flex-col">
-            {activeFile ? (
+          <Card className="col-span-2 p-3 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <File size={16} />
+                Files
+              </h3>
+              {activeProject && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setNewFileDialog(true)}
+                >
+                  <Plus size={14} />
+                </Button>
+              )}
+            </div>
+            <ScrollArea className="flex-1">
+              {activeProject ? (
+                <div className="space-y-1">
+                  {activeProject.files.map(file => (
+                    <div key={file.id} className="group">
+                      <Button
+                        variant={activeFileId === file.id ? 'secondary' : 'ghost'}
+                        className="w-full justify-start h-auto py-2 px-2 text-xs"
+                        onClick={() => {
+                          setActiveFileId(file.id)
+                          addConsoleMessage('info', `Opened file "${file.path}"`)
+                        }}
+                      >
+                        <span className="mr-2">{getFileIcon(file.path)}</span>
+                        <span className="flex-1 truncate text-left">{file.path}</span>
+                        {!file.saved && <span className="text-accent">●</span>}
+                      </Button>
+                      {activeFileId === file.id && activeProject.files.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full mt-1 h-6 text-xs opacity-0 group-hover:opacity-100"
+                          onClick={() => deleteFile(file.id)}
+                        >
+                          <Trash size={12} className="mr-1" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  <FileCode size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>No project selected</p>
+                </div>
+              )}
+            </ScrollArea>
+          </Card>
+
+          <div className="col-span-8 flex flex-col gap-4 min-h-0">
+            <Card className="flex-1 min-h-0 flex flex-col">
+              {activeFile ? (
               <>
                 <div className="flex items-center justify-between p-3 border-b border-border">
                   <div className="flex items-center gap-2">
@@ -1131,6 +1398,7 @@ render(<App />, document.getElementById('app'));`,
           </Card>
         </div>
       </div>
+      )}
 
       <Dialog open={newProjectDialog} onOpenChange={setNewProjectDialog}>
         <DialogContent>

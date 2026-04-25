@@ -105,12 +105,18 @@ code, pre {
     -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
+    overscroll-behavior: none;
   }
   
   button, a, [role="button"] {
     -webkit-tap-highlight-color: rgba(117, 190, 218, 0.2);
     touch-action: manipulation;
     min-height: 44px;
+    transition: transform 0.1s ease;
+  }
+  
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.97);
   }
   
   input, textarea, select {
@@ -127,10 +133,33 @@ code, pre {
 
   body {
     overscroll-behavior-y: contain;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .scroll-smooth {
     scroll-behavior: smooth;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+
+  .mobile-show {
+    display: block !important;
+  }
+
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .mobile-full-height {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
   }
 }
 
