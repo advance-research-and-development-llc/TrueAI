@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
+import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
 import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters } from '@/lib/types'
 
 const AgentCard = lazy(() => import('@/components/agent/AgentCard'))
@@ -640,7 +641,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     if (editingModelId) {
       const model = models.find(m => m.id === editingModelId)
       if (model) {
-        const { defaultProfilesByTaskType } = require('@/lib/performance-profiles')
         const optimalParams = defaultProfilesByTaskType[taskType]
         
         saveModelConfig({
