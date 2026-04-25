@@ -10,7 +10,7 @@ This document provides a comprehensive overview of all assets created for the Tr
 
 ### 🎨 Images (SVG Illustrations)
 
-#### Empty States (9 files)
+#### Empty States (10 files)
 Illustrations shown when features have no data yet. Each features animated elements and consistent styling.
 
 1. **empty-state-chat.svg** (240x240px)
@@ -57,6 +57,11 @@ Illustrations shown when features have no data yet. Each features animated eleme
    - Multi-model ensemble empty state
    - Features: Multiple model nodes, consensus output
    - Usage: Ensemble tab when no ensembles configured
+
+10. **empty-state-analytics.svg** (240x240px)
+   - Analytics dashboard empty state
+   - Features: Animated bar chart, trend line, data points
+   - Usage: Analytics tab when no usage data available
 
 #### UI Icons (4 files)
 Status indicator icons for notifications and feedback.
@@ -249,14 +254,14 @@ All visual assets adhere to:
 
 ### Total Assets Created
 
-- **SVG Illustrations**: 16 files
+- **SVG Illustrations**: 17 files
 - **JSON Data Files**: 8 files
 - **Markdown Guides**: 2 files
 - **Directory READMEs**: 3 files
 - **Asset Manifest**: 1 file
 - **Centralized Index**: 1 TypeScript file
 
-**Total**: 31 production-ready asset files
+**Total**: 32 production-ready asset files
 
 ### Coverage by Feature
 
@@ -268,7 +273,8 @@ All visual assets adhere to:
 ✅ **Harness**: Empty state, example manifests
 ✅ **Knowledge/RAG**: Empty state, example CSV data
 ✅ **Workflows**: Empty state, workflow templates
-✅ **Ensemble**: Empty state illustration
+✅ **Ensemble**: Empty state illustration, EnsembleManager component
+✅ **Analytics**: Empty state illustration, AnalyticsDashboard component
 ✅ **UI/UX**: Status icons, backgrounds, patterns
 ✅ **Documentation**: Getting started guide, prompt templates, benchmarks
 

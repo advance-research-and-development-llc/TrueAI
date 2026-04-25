@@ -7,6 +7,7 @@ export { default as emptyStateFineTuning } from './images/empty-state-finetuning
 export { default as emptyStateQuantization } from './images/empty-state-quantization.svg'
 export { default as emptyStateHarness } from './images/empty-state-harness.svg'
 export { default as emptyStateEnsemble } from './images/empty-state-ensemble.svg'
+export { default as emptyStateAnalytics } from './images/empty-state-analytics.svg'
 
 export { default as iconSuccess } from './images/icon-success.svg'
 export { default as iconError } from './images/icon-error.svg'

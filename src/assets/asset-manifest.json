@@ -12,7 +12,8 @@
         "empty-state-finetuning.svg",
         "empty-state-quantization.svg",
         "empty-state-harness.svg",
-        "empty-state-ensemble.svg"
+        "empty-state-ensemble.svg",
+        "empty-state-analytics.svg"
       ],
       "icons": [
         "icon-success.svg",
@@ -80,6 +81,12 @@
       "size": "240x240",
       "usage": "Models tab when no models configured"
     },
+    "images/empty-state-analytics.svg": {
+      "description": "Empty state illustration for analytics dashboard",
+      "size": "240x240",
+      "usage": "Analytics tab when no usage data available",
+      "animated": true
+    },
     "images/agent-executing.svg": {
       "description": "Animated agent execution indicator",
       "size": "120x120",
@@ -145,6 +152,7 @@
     "knowledge": ["empty-state-knowledge.svg", "example-dataset.csv"],
     "workflow": ["empty-state-workflow.svg", "example-workflows.md"],
     "ensemble": ["empty-state-ensemble.svg"],
+    "analytics": ["empty-state-analytics.svg", "benchmark-data.json"],
     "ui": ["icon-success.svg", "icon-error.svg", "icon-warning.svg", "icon-info.svg", "background-pattern.svg", "hero-background.svg"],
     "documentation": ["getting-started.md", "prompt-templates.json", "benchmark-data.json"]
   }

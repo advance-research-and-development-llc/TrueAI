@@ -1,7 +1,9 @@
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ChartBar, TrendUp, Clock, CheckCircle } from '@phosphor-icons/react'
+import { emptyStateAnalytics } from '@/assets'
 import type { ConversationAnalytics, ModelBenchmark } from '@/lib/types'
 
 interface AnalyticsDashboardProps {
@@ -10,6 +12,27 @@ interface AnalyticsDashboardProps {
 }
 
 export function AnalyticsDashboard({ analytics, benchmarks }: AnalyticsDashboardProps) {
+  const hasData = analytics.totalMessages > 0 || analytics.totalConversations > 0 || benchmarks.length > 0
+  
+  if (!hasData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Analytics Dashboard</h2>
+          <p className="text-muted-foreground">Usage statistics and performance metrics</p>
+        </div>
+        <Card className="p-12">
+          <EmptyState
+            illustration={emptyStateAnalytics}
+            title="No analytics data yet"
+            description="Start using the app to generate usage statistics, model performance metrics, and conversation insights"
+            size="lg"
+          />
+        </Card>
+      </div>
+    )
+  }
+  
   return (
     <div className="space-y-6">
       <div>
