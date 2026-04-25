@@ -62,7 +62,7 @@ export function AnalyticsDashboard({
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d')
   const [filter, setFilter] = useState<AnalyticsFilter>({})
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState<5 | 10 | 30>(5)
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now())
   const [countdown, setCountdown] = useState<number>(0)
