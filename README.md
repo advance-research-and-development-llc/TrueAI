@@ -16,6 +16,7 @@ A comprehensive, production-ready AI assistant platform with advanced features i
 - **🔄 Background Sync**: Automatic queue and sync of offline actions
 - **📴 Offline Support**: Full functionality without internet connection
 - **💾 Service Worker**: Fast load times and offline caching
+- **🗄️ IndexedDB Caching**: Efficient storage for large conversation histories
 - **📱 Mobile Optimized**: Touch gestures, pull-to-refresh, responsive design
 - **🎨 Modern UI**: Framer Motion animations, shadcn components
 - **⚡ Performance**: Hardware optimization, benchmarking tools
@@ -25,7 +26,8 @@ A comprehensive, production-ready AI assistant platform with advanced features i
 
 - [Features Overview](FEATURES.md)
 - [Service Worker & Offline](SERVICE_WORKER.md)
-- [Background Sync](BACKGROUND_SYNC.md) - **NEW!**
+- [Background Sync](BACKGROUND_SYNC.md)
+- [IndexedDB Caching](INDEXEDDB_CACHE.md) - **NEW!**
 - [Mobile Optimizations](MOBILE_OPTIMIZATION_COMPLETE.md)
 - [Performance Guide](OPTIMIZATION_GUIDE.md)
 - [Analytics](ANALYTICS.md)
