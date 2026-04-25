@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { 
   ChartBar, 
   ChartLine, 
@@ -19,7 +21,10 @@ import {
   CalendarDots,
   ArrowUp,
   ArrowDown,
-  Download
+  Download,
+  ArrowsClockwise,
+  Pause,
+  Play
 } from '@phosphor-icons/react'
 import { useAnalytics } from '@/lib/analytics'
 import { MetricCard } from './MetricCard'
@@ -37,10 +42,69 @@ export function AnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d')
   const [filter, setFilter] = useState<AnalyticsFilter>({})
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [refreshInterval, setRefreshInterval] = useState<5 | 10 | 30>(5)
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now())
+  const [countdown, setCountdown] = useState<number>(0)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     loadMetrics()
   }, [timeRange])
+
+  useEffect(() => {
+    if (autoRefresh) {
+      intervalRef.current = setInterval(() => {
+        loadMetrics()
+      }, refreshInterval * 1000)
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+        }
+      }
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [autoRefresh, refreshInterval, timeRange])
+
+  useEffect(() => {
+    if (autoRefresh) {
+      setCountdown(refreshInterval)
+      
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            return refreshInterval
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      return () => {
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current)
+        }
+      }
+    } else {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
+      setCountdown(0)
+    }
+  }, [autoRefresh, refreshInterval])
+
+  useEffect(() => {
+    if (events.length > 0) {
+      const latestEventTime = Math.max(...events.map(e => e.timestamp))
+      if (latestEventTime > lastRefresh && !isLoading) {
+        loadMetrics()
+      }
+    }
+  }, [events.length])
 
   const loadMetrics = async () => {
     setIsLoading(true)
@@ -57,12 +121,34 @@ export function AnalyticsDashboard() {
       setFilter(newFilter)
       const data = await getMetrics(newFilter)
       setMetrics(data)
+      setLastRefresh(Date.now())
     } catch (error) {
       console.error('Failed to load metrics:', error)
       toast.error('Failed to load analytics')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRefreshIntervalChange = (value: string) => {
+    const interval = parseInt(value) as 5 | 10 | 30
+    setRefreshInterval(interval)
+    setCountdown(interval)
+  }
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh)
+    if (!autoRefresh) {
+      toast.success('Auto-refresh enabled')
+    } else {
+      toast.success('Auto-refresh paused')
+    }
+  }
+
+  const handleManualRefresh = () => {
+    loadMetrics()
+    setCountdown(refreshInterval)
+    toast.success('Analytics refreshed')
   }
 
   const handleClearData = async () => {
@@ -111,33 +197,104 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Analytics Dashboard</h2>
-          <p className="text-muted-foreground">Track performance and usage metrics</p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as any)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="all">All time</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Analytics Dashboard</h2>
+            <p className="text-muted-foreground">Track performance and usage metrics in real-time</p>
+          </div>
           
-          <Button variant="outline" size="sm" onClick={handleExportData}>
-            <Download size={16} className="mr-2" />
-            Export
-          </Button>
-          
-          <Button variant="outline" size="sm" onClick={handleClearData}>
-            Clear Data
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleManualRefresh}
+              disabled={isLoading}
+            >
+              <ArrowsClockwise size={16} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={handleExportData}>
+              <Download size={16} className="mr-2" />
+              Export
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={handleClearData}>
+              Clear Data
+            </Button>
+          </div>
         </div>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAutoRefresh}
+                  className="gap-2"
+                >
+                  {autoRefresh ? (
+                    <Pause size={16} weight="fill" />
+                  ) : (
+                    <Play size={16} weight="fill" />
+                  )}
+                  {autoRefresh ? 'Pause' : 'Resume'}
+                </Button>
+              </div>
+
+              <Separator orientation="vertical" className="h-8" />
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="refresh-interval" className="text-sm text-muted-foreground">
+                  Auto-refresh every:
+                </Label>
+                <Select 
+                  value={refreshInterval.toString()} 
+                  onValueChange={handleRefreshIntervalChange}
+                  disabled={!autoRefresh}
+                >
+                  <SelectTrigger id="refresh-interval" className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5s</SelectItem>
+                    <SelectItem value="10">10s</SelectItem>
+                    <SelectItem value="30">30s</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as any)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {autoRefresh && countdown > 0 && (
+                <Badge variant="secondary" className="gap-2 animate-pulse">
+                  <Clock size={14} weight="fill" />
+                  Next refresh in {countdown}s
+                </Badge>
+              )}
+
+              {!autoRefresh && (
+                <Badge variant="outline" className="gap-2">
+                  Updates paused
+                </Badge>
+              )}
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
