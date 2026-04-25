@@ -155,6 +155,17 @@ function App() {
   const tabOrder = useMemo(() => ['chat', 'agents', 'models', 'analytics', 'builder'], [])
   const contentRef = useRef<HTMLDivElement>(null)
 
+  const handleTabChange = useCallback((newTab: string) => {
+    if (isTabSwitching) return
+    
+    setIsTabSwitching(true)
+    setActiveTab(newTab)
+    
+    setTimeout(() => {
+      setIsTabSwitching(false)
+    }, 100)
+  }, [isTabSwitching])
+
   const navigateToTab = useCallback((direction: 'left' | 'right') => {
     if (isTabSwitching) return
     
@@ -702,17 +713,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
   }
 
   const editingModel = models?.find(m => m.id === editingModelId)
-
-  const handleTabChange = useCallback((newTab: string) => {
-    if (isTabSwitching) return
-    
-    setIsTabSwitching(true)
-    setActiveTab(newTab)
-    
-    setTimeout(() => {
-      setIsTabSwitching(false)
-    }, 100)
-  }, [isTabSwitching])
 
   useEffect(() => {
     const currentTabs = ['chat', 'agents', 'models', 'analytics', 'builder']
