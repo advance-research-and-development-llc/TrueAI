@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download } from '@phosphor-icons/react'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'
@@ -15,6 +15,7 @@ import { FineTuningUI } from '@/components/models/FineTuningUI'
 import { QuantizationTools } from '@/components/models/QuantizationTools'
 import { HarnessCreator } from '@/components/harness/HarnessCreator'
 import { HuggingFaceModelBrowser } from '@/components/models/HuggingFaceModelBrowser'
+import { GGUFLibrary } from '@/components/models/GGUFLibrary'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel } from '@/lib/types'
 
 function App() {
   const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
@@ -38,6 +39,7 @@ function App() {
   const [fineTuningJobs, setFineTuningJobs] = useKV<FineTuningJob[]>('fine-tuning-jobs', [])
   const [quantizationJobs, setQuantizationJobs] = useKV<QuantizationJob[]>('quantization-jobs', [])
   const [harnesses, setHarnesses] = useKV<HarnessManifest[]>('harnesses', [])
+  const [ggufModels, setGgufModels] = useKV<GGUFModel[]>('gguf-models', [])
   
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [activeAgentRunId, setActiveAgentRunId] = useState<string | null>(null)
@@ -431,6 +433,19 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
+  const addGGUFModel = (model: Omit<GGUFModel, 'id' | 'downloadedAt'>) => {
+    const newModel: GGUFModel = {
+      ...model,
+      id: `gguf-${Date.now()}`,
+      downloadedAt: Date.now()
+    }
+    setGgufModels(prev => [newModel, ...(prev || [])])
+  }
+
+  const deleteGGUFModel = (id: string) => {
+    setGgufModels(prev => (prev || []).filter(m => m.id !== id))
+  }
+
   const editingModel = models.find(m => m.id === editingModelId)
 
   return (
@@ -609,10 +624,14 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
           <TabsContent value="models" className="space-y-4">
             <Tabs defaultValue="browse" className="w-full">
-              <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-6">
+              <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-6 mb-6">
                 <TabsTrigger value="browse" className="gap-2">
                   <Download size={18} />
                   Browse
+                </TabsTrigger>
+                <TabsTrigger value="library" className="gap-2">
+                  <HardDrives size={18} />
+                  Library
                 </TabsTrigger>
                 <TabsTrigger value="config" className="gap-2">
                   <Lightning size={18} />
@@ -634,6 +653,14 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
               <TabsContent value="browse">
                 <HuggingFaceModelBrowser onDownload={handleHuggingFaceDownload} />
+              </TabsContent>
+
+              <TabsContent value="library">
+                <GGUFLibrary
+                  models={ggufModels || []}
+                  onAddModel={addGGUFModel}
+                  onDeleteModel={deleteGGUFModel}
+                />
               </TabsContent>
 
               <TabsContent value="config" className="space-y-4">

@@ -260,3 +260,39 @@ export interface HarnessParameter {
   required: boolean
   default?: any
 }
+
+export interface GGUFModel {
+  id: string
+  name: string
+  filename: string
+  path: string
+  size: number
+  quantization: string
+  architecture?: string
+  contextLength?: number
+  parameterCount?: number
+  downloadedAt: number
+  lastUsed?: number
+  metadata: GGUFMetadata
+}
+
+export interface GGUFMetadata {
+  format: 'GGUF'
+  version?: string
+  alignment?: number
+  tensorCount?: number
+  kvCount?: number
+  fileType?: string
+  vocabularySize?: number
+  embeddingLength?: number
+  layerCount?: number
+  headCount?: number
+  headCountKV?: number
+  ropeFrequencyBase?: number
+  ropeScalingType?: string
+  maxSequenceLength?: number
+  modelAuthor?: string
+  modelUrl?: string
+  modelLicense?: string
+  tags?: string[]
+}
