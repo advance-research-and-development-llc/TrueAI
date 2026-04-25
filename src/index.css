@@ -4,9 +4,29 @@
 @layer base {
   * {
     @apply border-border;
-    transition-property: background-color, border-color, color, fill, stroke;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    * {
+      transition-property: background-color, border-color, color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 200ms;
+    }
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+
+  img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
   }
 }
 
@@ -159,11 +179,16 @@ code, pre {
     -webkit-tap-highlight-color: rgba(117, 190, 218, 0.2);
     touch-action: manipulation;
     min-height: 44px;
-    transition: transform 0.1s ease;
   }
-  
-  button:active, a:active, [role="button"]:active {
-    transform: scale(0.97);
+
+  @media (prefers-reduced-motion: no-preference) {
+    button, a, [role="button"] {
+      transition: transform 0.1s ease;
+    }
+    
+    button:active, a:active, [role="button"]:active {
+      transform: scale(0.97);
+    }
   }
   
   input, textarea, select {
@@ -180,8 +205,6 @@ code, pre {
 
   body {
     overscroll-behavior-y: contain;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   .scroll-smooth {
@@ -208,6 +231,21 @@ code, pre {
   .mobile-stack {
     flex-direction: column !important;
   }
+
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @supports (padding: env(safe-area-inset-bottom)) {
@@ -221,5 +259,33 @@ code, pre {
   
   .safe-right {
     padding-right: env(safe-area-inset-right);
+  }
+}
+
+.low-end-device * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.low-end-device .backdrop-blur-sm,
+.low-end-device .backdrop-blur-md,
+.low-end-device .backdrop-blur-lg,
+.low-end-device .backdrop-blur-xl {
+  backdrop-filter: none !important;
+  background-color: var(--card) !important;
+}
+
+.save-data-mode img {
+  image-rendering: crisp-edges;
+}
+
+@media (prefers-contrast: high) {
+  * {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  
+  *:focus-visible {
+    outline-color: var(--ring);
   }
 }

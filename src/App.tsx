@@ -16,9 +16,13 @@ import { OfflineQueueIndicator } from '@/components/notifications/OfflineQueueIn
 import { ServiceWorkerUpdate } from '@/components/notifications/ServiceWorkerUpdate'
 import { InstallPrompt } from '@/components/notifications/InstallPrompt'
 import { SettingsMenu } from '@/components/settings/SettingsMenu'
+import { PerformanceMonitor } from '@/components/PerformanceMonitor'
+import { ConversationItem } from '@/components/chat/ConversationItem'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
+import { useAutoPerformanceOptimization } from '@/hooks/use-auto-performance'
+import { useDebounce } from '@/lib/mobile-performance'
 import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -115,6 +119,7 @@ const TabErrorBoundary = ({ children, tabName }: { children: React.ReactNode; ta
 
 function App() {
   const isMobile = useIsMobile()
+  const performanceOptimization = useAutoPerformanceOptimization()
   const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
   const [messages, setMessages] = useKV<Message[]>('messages', [])
   const [agents, setAgents] = useKV<Agent[]>('agents', [])
@@ -267,8 +272,10 @@ function App() {
     }
     
     handleTabChange(tabOrder[newIndex])
-    toast.success(`Switched to ${tabOrder[newIndex]}`)
-  }, [activeTab, tabOrder, isTabSwitching, handleTabChange])
+    if (!performanceOptimization.isLowEnd) {
+      toast.success(`Switched to ${tabOrder[newIndex]}`)
+    }
+  }, [activeTab, tabOrder, isTabSwitching, handleTabChange, performanceOptimization.isLowEnd])
 
   const swipeHandlers = useSwipeGesture({
     onSwipeLeft: useCallback(() => navigateToTab('left'), [navigateToTab]),
@@ -961,6 +968,18 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
+  const getAnimationProps = useCallback((baseProps: any) => {
+    if (performanceOptimization.shouldReduceMotion || performanceOptimization.isLowEnd) {
+      return {
+        initial: false,
+        animate: false,
+        exit: false,
+        transition: { duration: 0 }
+      }
+    }
+    return baseProps
+  }, [performanceOptimization.shouldReduceMotion, performanceOptimization.isLowEnd])
+
   const editingModel = models?.find(m => m.id === editingModelId)
 
   return (
@@ -1165,27 +1184,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                           </motion.div>
                         )}
                         {conversations?.map((conv, index) => (
-                          <motion.div 
+                          <ConversationItem
                             key={conv.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ delay: index * 0.05, duration: 0.2 }}
-                            whileHover={{ x: 4 }}
-                          >
-                            <Button
-                              variant={activeConversationId === conv.id ? 'secondary' : 'ghost'}
-                              className="w-full justify-start text-left h-auto py-3 px-4 transition-all duration-200 hover:shadow-md"
-                              onClick={() => setActiveConversationId(conv.id)}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="truncate font-medium text-sm sm:text-base">{conv.title}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {new Date(conv.updatedAt).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </Button>
-                          </motion.div>
+                            conversation={conv}
+                            isActive={activeConversationId === conv.id}
+                            onClick={() => setActiveConversationId(conv.id)}
+                            index={index}
+                          />
                         ))}
                       </div>
                     </AnimatePresence>
@@ -2063,6 +2068,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       <OfflineIndicator />
       <ServiceWorkerUpdate />
       <InstallPrompt />
+      
+      {performanceOptimization.isOptimized && appSettings?.debugMode && (
+        <PerformanceMonitor />
+      )}
       
       <SettingsMenu
         open={settingsOpen}

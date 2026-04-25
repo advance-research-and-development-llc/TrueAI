@@ -5,14 +5,17 @@ import "@github/spark/spark"
 
 import App from './App.tsx'
 import { ErrorFallback } from './ErrorFallback.tsx'
+import { PerformanceWrapper } from './components/PerformanceWrapper.tsx'
 import { register } from './lib/serviceWorker'
 
 import "./main.css"
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
-    <App />
-    <Toaster position="bottom-right" theme="dark" />
+    <PerformanceWrapper>
+      <App />
+      <Toaster position="bottom-right" theme="dark" />
+    </PerformanceWrapper>
    </ErrorBoundary>
 )
 
