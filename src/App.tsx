@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar } from '@phosphor-icons/react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { KeyboardShortcutsHelper } from '@/components/ui/keyboard-shortcuts'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'
@@ -25,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets'
 import { analytics } from '@/lib/analytics'
 import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel } from '@/lib/types'
@@ -512,20 +515,50 @@ Describe what input you would give to the ${tool} tool (one sentence).`
   const editingModel = models.find(m => m.id === editingModelId)
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Lightning weight="fill" size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">TrueAI LocalAI</h1>
-              <p className="text-sm text-muted-foreground">Enterprise AI Assistant Platform</p>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        <motion.header 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50"
+        >
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <motion.div 
+                  className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center relative overflow-hidden"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Lightning weight="fill" size={24} className="text-white relative z-10" />
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-br from-accent to-primary"
+                    initial={{ opacity: 0 }}
+                    whileHover={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </motion.div>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">TrueAI LocalAI</h1>
+                  <p className="text-sm text-muted-foreground">Enterprise AI Assistant Platform</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <Sparkle size={20} className="text-accent" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>What's new</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </motion.header>
 
       <main className="container mx-auto px-6 py-6">
         <Tabs defaultValue="chat" className="w-full">
@@ -970,7 +1003,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <KeyboardShortcutsHelper />
     </div>
+    </TooltipProvider>
   )
 }
 
