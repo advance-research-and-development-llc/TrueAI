@@ -1,0 +1,77 @@
+{
+  "providers": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "description": "Access to GPT-4 and GPT-3.5 models",
+      "apiKeyRequired": true,
+      "models": ["gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+      "pricing": {
+        "gpt-4o": "$5/1M input tokens, $15/1M output tokens",
+        "gpt-4o-mini": "$0.15/1M input tokens, $0.60/1M output tokens"
+      },
+      "features": ["Function calling", "JSON mode", "Vision", "Streaming"]
+    },
+    {
+      "id": "huggingface",
+      "name": "HuggingFace",
+      "description": "Access to open-source models in GGUF format",
+      "apiKeyRequired": false,
+      "models": ["Llama", "Mistral", "Phi", "CodeLlama", "Nous Hermes"],
+      "pricing": {
+        "default": "Free (download and run locally)"
+      },
+      "features": ["Open source", "Local inference", "No API costs"]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "description": "Local model inference server",
+      "apiKeyRequired": false,
+      "models": ["Llama", "Mistral", "Phi", "Gemma", "Custom"],
+      "pricing": {
+        "default": "Free (local)"
+      },
+      "features": ["Local inference", "Privacy", "Offline capable", "Fast"]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "description": "Access to Claude models",
+      "apiKeyRequired": true,
+      "models": ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"],
+      "pricing": {
+        "claude-3-opus": "$15/1M input tokens, $75/1M output tokens",
+        "claude-3-sonnet": "$3/1M input tokens, $15/1M output tokens",
+        "claude-3-haiku": "$0.25/1M input tokens, $1.25/1M output tokens"
+      },
+      "features": ["Long context", "Vision", "Function calling"]
+    },
+    {
+      "id": "google",
+      "name": "Google AI",
+      "description": "Access to Gemini models",
+      "apiKeyRequired": true,
+      "models": ["gemini-pro", "gemini-pro-vision", "gemini-ultra"],
+      "pricing": {
+        "gemini-pro": "$0.50/1M input tokens, $1.50/1M output tokens"
+      },
+      "features": ["Multimodal", "Long context", "Fast inference"]
+    }
+  ],
+  "comparison": {
+    "latency": {
+      "lowest": "Ollama (local)",
+      "moderate": "OpenAI, Google",
+      "higher": "HuggingFace (depends on hardware)"
+    },
+    "privacy": {
+      "highest": "Ollama, HuggingFace (local)",
+      "cloudBased": "OpenAI, Anthropic, Google"
+    },
+    "cost": {
+      "free": "Ollama, HuggingFace",
+      "paid": "OpenAI, Anthropic, Google"
+    }
+  }
+}

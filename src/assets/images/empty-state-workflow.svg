@@ -1,0 +1,22 @@
+<svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.6">
+    <rect x="40" y="30" width="80" height="60" rx="6" stroke="url(#wfGradient)" stroke-width="2"/>
+    
+    <circle cx="50" cy="50" r="6" fill="url(#wfGradient)"/>
+    <rect x="62" y="46" width="38" height="8" rx="4" fill="url(#wfGradient)" opacity="0.7"/>
+    
+    <circle cx="50" cy="70" r="6" fill="url(#wfGradient)"/>
+    <rect x="62" y="66" width="28" height="8" rx="4" fill="url(#wfGradient)" opacity="0.7"/>
+    
+    <path d="M50 56 L50 64" stroke="url(#wfGradient)" stroke-width="2" opacity="0.5"/>
+    
+    <path d="M120 50 L140 50 L140 70 L120 70" stroke="#5CB8E4" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+  </g>
+  
+  <defs>
+    <linearGradient id="wfGradient" x1="40" y1="30" x2="120" y2="90">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

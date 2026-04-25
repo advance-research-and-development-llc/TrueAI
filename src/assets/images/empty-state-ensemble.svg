@@ -1,0 +1,24 @@
+<svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.6">
+    <rect x="50" y="40" width="60" height="40" rx="6" stroke="url(#ensembleGradient)" stroke-width="2"/>
+    
+    <circle cx="65" cy="55" r="6" fill="url(#ensembleGradient)" opacity="0.7"/>
+    <circle cx="80" cy="55" r="6" fill="url(#ensembleGradient)" opacity="0.7"/>
+    <circle cx="95" cy="55" r="6" fill="url(#ensembleGradient)" opacity="0.7"/>
+    
+    <text x="80" y="72" font-family="JetBrains Mono, monospace" font-size="8" fill="#5CB8E4" text-anchor="middle" opacity="0.7">3 models</text>
+    
+    <path d="M80 80 L80 95" stroke="url(#ensembleGradient)" stroke-width="2"/>
+    <path d="M70 90 L80 95 L90 90" stroke="url(#ensembleGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <circle cx="80" cy="105" r="8" fill="url(#ensembleGradient)" opacity="0.5"/>
+    <text x="80" y="108" font-family="JetBrains Mono, monospace" font-size="8" fill="#5CB8E4" text-anchor="middle">⚡</text>
+  </g>
+  
+  <defs>
+    <linearGradient id="ensembleGradient" x1="50" y1="40" x2="110" y2="110">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#7A9FD6"/>
+    </linearGradient>
+  </defs>
+</svg>

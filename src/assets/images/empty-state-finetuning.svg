@@ -1,0 +1,25 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.6">
+    <rect x="50" y="60" width="100" height="80" rx="8" stroke="url(#ftGradient)" stroke-width="2"/>
+    
+    <circle cx="75" cy="90" r="6" fill="url(#ftGradient)"/>
+    <circle cx="75" cy="110" r="6" fill="url(#ftGradient)"/>
+    <circle cx="75" cy="130" r="6" fill="url(#ftGradient)"/>
+    
+    <rect x="88" y="86" width="50" height="8" rx="4" fill="url(#ftGradient)" opacity="0.6"/>
+    <rect x="88" y="106" width="42" height="8" rx="4" fill="url(#ftGradient)" opacity="0.6"/>
+    <rect x="88" y="126" width="46" height="8" rx="4" fill="url(#ftGradient)" opacity="0.6"/>
+    
+    <path d="M100 40 L100 60" stroke="#5CB8E4" stroke-width="2" opacity="0.4"/>
+    <path d="M110 45 L100 40 L90 45" stroke="#5CB8E4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+    
+    <text x="100" y="30" font-family="JetBrains Mono, monospace" font-size="10" fill="#5CB8E4" text-anchor="middle" opacity="0.7">TRAIN</text>
+  </g>
+  
+  <defs>
+    <linearGradient id="ftGradient" x1="50" y1="60" x2="150" y2="140">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

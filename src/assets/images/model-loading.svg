@@ -1,0 +1,24 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.7">
+    <rect x="20" y="25" width="40" height="30" rx="4" stroke="url(#loadGradient)" stroke-width="2"/>
+    
+    <rect x="28" y="32" width="6" height="16" rx="2" fill="#5CB8E4">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0s"/>
+    </rect>
+    <rect x="37" y="32" width="6" height="16" rx="2" fill="#5CB8E4">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0.2s"/>
+    </rect>
+    <rect x="46" y="32" width="6" height="16" rx="2" fill="#5CB8E4">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0.4s"/>
+    </rect>
+    
+    <circle cx="40" cy="65" r="2" fill="#5CB8E4" opacity="0.6"/>
+  </g>
+  
+  <defs>
+    <linearGradient id="loadGradient" x1="20" y1="25" x2="60" y2="55">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

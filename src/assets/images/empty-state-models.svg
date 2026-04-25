@@ -1,0 +1,29 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.6">
+    <rect x="60" y="80" width="120" height="80" rx="8" stroke="url(#modelGradient)" stroke-width="2"/>
+    
+    <circle cx="90" cy="110" r="12" stroke="url(#modelGradient)" stroke-width="2"/>
+    <circle cx="120" cy="110" r="12" stroke="url(#modelGradient)" stroke-width="2"/>
+    <circle cx="150" cy="110" r="12" stroke="url(#modelGradient)" stroke-width="2"/>
+    
+    <rect x="70" y="135" width="30" height="6" rx="3" fill="url(#modelGradient)" opacity="0.7"/>
+    <rect x="105" y="135" width="30" height="6" rx="3" fill="url(#modelGradient)" opacity="0.7"/>
+    <rect x="140" y="135" width="30" height="6" rx="3" fill="url(#modelGradient)" opacity="0.7"/>
+    
+    <path d="M90 122 L90 135" stroke="url(#modelGradient)" stroke-width="1.5" opacity="0.5"/>
+    <path d="M120 122 L120 135" stroke="url(#modelGradient)" stroke-width="1.5" opacity="0.5"/>
+    <path d="M150 122 L150 135" stroke="url(#modelGradient)" stroke-width="1.5" opacity="0.5"/>
+    
+    <circle cx="30" cy="120" r="2" fill="#5CB8E4" opacity="0.5"/>
+    <circle cx="210" cy="120" r="2" fill="#5CB8E4" opacity="0.5"/>
+    <circle cx="120" cy="40" r="3" fill="#5CB8E4" opacity="0.7"/>
+    <circle cx="120" cy="190" r="3" fill="#5CB8E4" opacity="0.7"/>
+  </g>
+  
+  <defs>
+    <linearGradient id="modelGradient" x1="60" y1="80" x2="180" y2="160">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

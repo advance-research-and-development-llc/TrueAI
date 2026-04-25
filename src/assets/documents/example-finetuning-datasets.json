@@ -1,0 +1,56 @@
+[
+  {
+    "id": "example-dataset-1",
+    "name": "Customer Support Training",
+    "description": "Training data for customer service responses",
+    "format": "jsonl",
+    "size": 2500000,
+    "examples": 500,
+    "createdAt": 1704067200000,
+    "preview": [
+      {
+        "messages": [
+          {"role": "system", "content": "You are a helpful customer support agent."},
+          {"role": "user", "content": "How do I reset my password?"},
+          {"role": "assistant", "content": "To reset your password: 1. Click 'Forgot Password' on the login page. 2. Enter your email address. 3. Check your email for a reset link. 4. Follow the link and create a new password."}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "example-dataset-2",
+    "name": "Code Generation Examples",
+    "description": "Python code generation training pairs",
+    "format": "jsonl",
+    "size": 4200000,
+    "examples": 850,
+    "createdAt": 1704153600000,
+    "preview": [
+      {
+        "messages": [
+          {"role": "system", "content": "You are a Python programming expert."},
+          {"role": "user", "content": "Write a function to calculate fibonacci numbers"},
+          {"role": "assistant", "content": "def fibonacci(n):\n    if n <= 1:\n        return n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b"}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "example-dataset-3",
+    "name": "Medical Q&A Dataset",
+    "description": "General medical questions and informative answers",
+    "format": "jsonl",
+    "size": 8700000,
+    "examples": 1200,
+    "createdAt": 1704240000000,
+    "preview": [
+      {
+        "messages": [
+          {"role": "system", "content": "You are a knowledgeable medical information assistant. Always recommend consulting healthcare professionals."},
+          {"role": "user", "content": "What are common symptoms of dehydration?"},
+          {"role": "assistant", "content": "Common symptoms of dehydration include: dry mouth, fatigue, dizziness, dark-colored urine, decreased urination, headache, and dry skin. If experiencing severe symptoms, please consult a healthcare provider."}
+        ]
+      }
+    ]
+  }
+]

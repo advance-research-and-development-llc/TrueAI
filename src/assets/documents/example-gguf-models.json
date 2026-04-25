@@ -1,0 +1,59 @@
+{
+  "models": [
+    {
+      "id": "llama-3-8b-q4",
+      "name": "Llama 3 8B (Q4)",
+      "size": 4.5,
+      "quantization": "Q4_K_M",
+      "contextLength": 8192,
+      "description": "Meta's Llama 3 8B model quantized to Q4 for efficient inference",
+      "tags": ["general", "chat", "instruction"],
+      "downloads": 125000,
+      "likes": 8900
+    },
+    {
+      "id": "mistral-7b-instruct-q5",
+      "name": "Mistral 7B Instruct (Q5)",
+      "size": 5.2,
+      "quantization": "Q5_K_M",
+      "contextLength": 8192,
+      "description": "Mistral AI's 7B instruction-tuned model with Q5 quantization",
+      "tags": ["instruction", "chat", "general"],
+      "downloads": 98000,
+      "likes": 7200
+    },
+    {
+      "id": "codellama-13b-q4",
+      "name": "CodeLlama 13B (Q4)",
+      "size": 7.8,
+      "quantization": "Q4_K_M",
+      "contextLength": 16384,
+      "description": "Code-specialized Llama model for programming tasks",
+      "tags": ["code", "programming", "completion"],
+      "downloads": 67000,
+      "likes": 5400
+    },
+    {
+      "id": "phi-3-mini-q4",
+      "name": "Phi-3 Mini (Q4)",
+      "size": 2.3,
+      "quantization": "Q4_K_M",
+      "contextLength": 4096,
+      "description": "Microsoft's efficient small language model",
+      "tags": ["small", "efficient", "general"],
+      "downloads": 45000,
+      "likes": 3800
+    },
+    {
+      "id": "nous-hermes-13b-q5",
+      "name": "Nous Hermes 13B (Q5)",
+      "size": 8.9,
+      "quantization": "Q5_K_M",
+      "contextLength": 8192,
+      "description": "High-quality instruction-following model",
+      "tags": ["instruction", "reasoning", "chat"],
+      "downloads": 34000,
+      "likes": 2900
+    }
+  ]
+}

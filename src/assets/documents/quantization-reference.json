@@ -1,0 +1,93 @@
+{
+  "quantizationFormats": [
+    {
+      "format": "Q4_K_M",
+      "name": "Q4 K-Medium",
+      "description": "4-bit quantization with K-quant medium precision",
+      "compressionRatio": 4.0,
+      "qualityRetention": "92%",
+      "speedupFactor": "3-4x",
+      "recommendedFor": ["General use", "Good balance", "Most popular"]
+    },
+    {
+      "format": "Q5_K_M",
+      "name": "Q5 K-Medium",
+      "description": "5-bit quantization with K-quant medium precision",
+      "compressionRatio": 3.2,
+      "qualityRetention": "95%",
+      "speedupFactor": "2.5-3x",
+      "recommendedFor": ["Higher quality", "Slight performance trade-off"]
+    },
+    {
+      "format": "Q8_0",
+      "name": "Q8",
+      "description": "8-bit quantization for maximum quality",
+      "compressionRatio": 2.0,
+      "qualityRetention": "98%",
+      "speedupFactor": "1.5-2x",
+      "recommendedFor": ["Maximum quality", "Less compression"]
+    },
+    {
+      "format": "Q3_K_M",
+      "name": "Q3 K-Medium",
+      "description": "3-bit quantization for maximum compression",
+      "compressionRatio": 5.3,
+      "qualityRetention": "87%",
+      "speedupFactor": "4-5x",
+      "recommendedFor": ["Maximum speed", "Resource constrained"]
+    },
+    {
+      "format": "Q6_K",
+      "name": "Q6 K-Quant",
+      "description": "6-bit quantization with K-quant",
+      "compressionRatio": 2.7,
+      "qualityRetention": "96%",
+      "speedupFactor": "2-2.5x",
+      "recommendedFor": ["Premium quality", "Moderate compression"]
+    }
+  ],
+  "modelSizes": {
+    "7B": {
+      "parameters": "7 billion",
+      "fp16Size": 14.0,
+      "q4Size": 3.5,
+      "q5Size": 4.4,
+      "q8Size": 7.0
+    },
+    "13B": {
+      "parameters": "13 billion",
+      "fp16Size": 26.0,
+      "q4Size": 6.5,
+      "q5Size": 8.1,
+      "q8Size": 13.0
+    },
+    "30B": {
+      "parameters": "30 billion",
+      "fp16Size": 60.0,
+      "q4Size": 15.0,
+      "q5Size": 18.8,
+      "q8Size": 30.0
+    },
+    "70B": {
+      "parameters": "70 billion",
+      "fp16Size": 140.0,
+      "q4Size": 35.0,
+      "q5Size": 43.8,
+      "q8Size": 70.0
+    }
+  },
+  "performanceEstimates": {
+    "inference": {
+      "7B-Q4": "20-30 tokens/sec (RTX 3060)",
+      "7B-Q5": "18-25 tokens/sec (RTX 3060)",
+      "13B-Q4": "12-18 tokens/sec (RTX 3060)",
+      "13B-Q5": "10-15 tokens/sec (RTX 3060)"
+    },
+    "memory": {
+      "7B-Q4": "4-6 GB VRAM",
+      "7B-Q5": "5-7 GB VRAM",
+      "13B-Q4": "8-10 GB VRAM",
+      "13B-Q5": "10-12 GB VRAM"
+    }
+  }
+}

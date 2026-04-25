@@ -1,0 +1,25 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.6">
+    <rect x="60" y="50" width="80" height="100" rx="8" stroke="url(#hGradient)" stroke-width="2"/>
+    
+    <circle cx="80" cy="75" r="8" stroke="url(#hGradient)" stroke-width="2"/>
+    <path d="M78 75 L80 77 L84 73" stroke="url(#hGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <rect x="95" y="68" width="35" height="6" rx="3" fill="url(#hGradient)" opacity="0.6"/>
+    <rect x="95" y="78" width="28" height="4" rx="2" fill="url(#hGradient)" opacity="0.4"/>
+    
+    <rect x="70" y="95" width="60" height="8" rx="4" fill="url(#hGradient)" opacity="0.3"/>
+    <rect x="70" y="108" width="60" height="8" rx="4" fill="url(#hGradient)" opacity="0.3"/>
+    <rect x="70" y="121" width="60" height="8" rx="4" fill="url(#hGradient)" opacity="0.3"/>
+    
+    <path d="M100 145 L100 35 L120 35" stroke="#5CB8E4" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+    <text x="125" y="40" font-family="JetBrains Mono, monospace" font-size="9" fill="#5CB8E4" opacity="0.6">tools</text>
+  </g>
+  
+  <defs>
+    <linearGradient id="hGradient" x1="60" y1="50" x2="140" y2="150">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

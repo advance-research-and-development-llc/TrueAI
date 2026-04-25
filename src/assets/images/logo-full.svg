@@ -1,0 +1,20 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g>
+    <rect x="5" y="5" width="50" height="50" rx="12" fill="url(#logoGradient)"/>
+    
+    <path d="M30 15 L30 45 M20 25 L40 25 M25 20 L35 20 M25 40 L35 40" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    
+    <circle cx="22" cy="30" r="1.5" fill="white" opacity="0.8"/>
+    <circle cx="38" cy="30" r="1.5" fill="white" opacity="0.8"/>
+    
+    <text x="65" y="35" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="700" fill="#5CB8E4" letter-spacing="-0.02em">TrueAI</text>
+    <text x="65" y="50" font-family="IBM Plex Sans, sans-serif" font-size="12" font-weight="400" fill="#A0B5C7" letter-spacing="0.05em">LocalAI</text>
+  </g>
+  
+  <defs>
+    <linearGradient id="logoGradient" x1="5" y1="5" x2="55" y2="55">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#4A7BA7"/>
+    </linearGradient>
+  </defs>
+</svg>

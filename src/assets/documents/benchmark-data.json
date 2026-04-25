@@ -1,0 +1,168 @@
+{
+  "benchmarks": [
+    {
+      "modelId": "gpt-4o",
+      "modelName": "GPT-4o",
+      "provider": "openai",
+      "tests": [
+        {
+          "category": "Reasoning",
+          "score": 92,
+          "avgResponseTime": 2.3,
+          "tokensPerSecond": 45
+        },
+        {
+          "category": "Code Generation",
+          "score": 89,
+          "avgResponseTime": 2.8,
+          "tokensPerSecond": 42
+        },
+        {
+          "category": "Creative Writing",
+          "score": 94,
+          "avgResponseTime": 2.1,
+          "tokensPerSecond": 48
+        },
+        {
+          "category": "Summarization",
+          "score": 91,
+          "avgResponseTime": 1.9,
+          "tokensPerSecond": 52
+        }
+      ],
+      "overallScore": 91.5,
+      "avgResponseTime": 2.3,
+      "totalTests": 100
+    },
+    {
+      "modelId": "gpt-4o-mini",
+      "modelName": "GPT-4o Mini",
+      "provider": "openai",
+      "tests": [
+        {
+          "category": "Reasoning",
+          "score": 85,
+          "avgResponseTime": 1.2,
+          "tokensPerSecond": 78
+        },
+        {
+          "category": "Code Generation",
+          "score": 82,
+          "avgResponseTime": 1.5,
+          "tokensPerSecond": 72
+        },
+        {
+          "category": "Creative Writing",
+          "score": 87,
+          "avgResponseTime": 1.1,
+          "tokensPerSecond": 82
+        },
+        {
+          "category": "Summarization",
+          "score": 88,
+          "avgResponseTime": 0.9,
+          "tokensPerSecond": 88
+        }
+      ],
+      "overallScore": 85.5,
+      "avgResponseTime": 1.2,
+      "totalTests": 100
+    },
+    {
+      "modelId": "llama-3-8b-q4",
+      "modelName": "Llama 3 8B (Q4)",
+      "provider": "huggingface",
+      "tests": [
+        {
+          "category": "Reasoning",
+          "score": 79,
+          "avgResponseTime": 3.1,
+          "tokensPerSecond": 25
+        },
+        {
+          "category": "Code Generation",
+          "score": 75,
+          "avgResponseTime": 3.5,
+          "tokensPerSecond": 22
+        },
+        {
+          "category": "Creative Writing",
+          "score": 81,
+          "avgResponseTime": 2.9,
+          "tokensPerSecond": 27
+        },
+        {
+          "category": "Summarization",
+          "score": 80,
+          "avgResponseTime": 2.7,
+          "tokensPerSecond": 29
+        }
+      ],
+      "overallScore": 78.8,
+      "avgResponseTime": 3.1,
+      "totalTests": 100
+    },
+    {
+      "modelId": "mistral-7b-instruct-q5",
+      "modelName": "Mistral 7B Instruct (Q5)",
+      "provider": "huggingface",
+      "tests": [
+        {
+          "category": "Reasoning",
+          "score": 82,
+          "avgResponseTime": 2.8,
+          "tokensPerSecond": 28
+        },
+        {
+          "category": "Code Generation",
+          "score": 78,
+          "avgResponseTime": 3.2,
+          "tokensPerSecond": 24
+        },
+        {
+          "category": "Creative Writing",
+          "score": 84,
+          "avgResponseTime": 2.6,
+          "tokensPerSecond": 30
+        },
+        {
+          "category": "Summarization",
+          "score": 83,
+          "avgResponseTime": 2.4,
+          "tokensPerSecond": 32
+        }
+      ],
+      "overallScore": 81.8,
+      "avgResponseTime": 2.8,
+      "totalTests": 100
+    }
+  ],
+  "testCategories": [
+    {
+      "name": "Reasoning",
+      "description": "Logical reasoning and problem-solving tasks",
+      "weight": 1.0
+    },
+    {
+      "name": "Code Generation",
+      "description": "Programming and code-related tasks",
+      "weight": 1.0
+    },
+    {
+      "name": "Creative Writing",
+      "description": "Creative and narrative generation",
+      "weight": 1.0
+    },
+    {
+      "name": "Summarization",
+      "description": "Text summarization and compression",
+      "weight": 1.0
+    }
+  ],
+  "methodology": {
+    "testSuite": "Custom benchmark suite with 100 diverse prompts per model",
+    "scoringCriteria": "Accuracy, coherence, relevance, and format compliance",
+    "hardware": "RTX 3060 12GB for local models, API for cloud models",
+    "measuredAt": "2024-01-15T10:00:00Z"
+  }
+}

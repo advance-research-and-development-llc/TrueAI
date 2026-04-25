@@ -1,0 +1,137 @@
+[
+  {
+    "id": "harness-code-assistant",
+    "name": "Code Assistant Harness",
+    "version": "1.0.0",
+    "description": "Advanced code execution, file management, and syntax highlighting tools",
+    "author": "TrueAI Team",
+    "icon": "code",
+    "tools": [
+      {
+        "name": "execute_code",
+        "description": "Execute code in a sandboxed environment",
+        "parameters": {
+          "language": "string",
+          "code": "string",
+          "timeout": "number"
+        }
+      },
+      {
+        "name": "read_file",
+        "description": "Read contents of a file",
+        "parameters": {
+          "path": "string"
+        }
+      },
+      {
+        "name": "write_file",
+        "description": "Write or update file contents",
+        "parameters": {
+          "path": "string",
+          "content": "string"
+        }
+      },
+      {
+        "name": "syntax_check",
+        "description": "Check syntax and lint code",
+        "parameters": {
+          "language": "string",
+          "code": "string"
+        }
+      }
+    ],
+    "permissions": ["file_read", "file_write", "code_execution"],
+    "category": "development"
+  },
+  {
+    "id": "harness-research-agent",
+    "name": "Research Agent Harness",
+    "version": "1.0.0",
+    "description": "Web search, note-taking, and citation management for research tasks",
+    "author": "TrueAI Team",
+    "icon": "magnifying-glass",
+    "tools": [
+      {
+        "name": "web_search",
+        "description": "Search the web for information",
+        "parameters": {
+          "query": "string",
+          "max_results": "number"
+        }
+      },
+      {
+        "name": "create_note",
+        "description": "Create a research note with tags",
+        "parameters": {
+          "title": "string",
+          "content": "string",
+          "tags": "array"
+        }
+      },
+      {
+        "name": "add_citation",
+        "description": "Add a formatted citation",
+        "parameters": {
+          "source": "string",
+          "url": "string",
+          "accessed_date": "string"
+        }
+      },
+      {
+        "name": "summarize_text",
+        "description": "Generate a summary of provided text",
+        "parameters": {
+          "text": "string",
+          "max_length": "number"
+        }
+      }
+    ],
+    "permissions": ["network_access", "storage_write"],
+    "category": "research"
+  },
+  {
+    "id": "harness-data-analyst",
+    "name": "Data Analyst Harness",
+    "version": "1.0.0",
+    "description": "CSV parsing, statistical analysis, and data visualization tools",
+    "author": "TrueAI Team",
+    "icon": "chart-bar",
+    "tools": [
+      {
+        "name": "parse_csv",
+        "description": "Parse CSV data into structured format",
+        "parameters": {
+          "data": "string",
+          "delimiter": "string"
+        }
+      },
+      {
+        "name": "calculate_stats",
+        "description": "Calculate statistical measures on dataset",
+        "parameters": {
+          "data": "array",
+          "measures": "array"
+        }
+      },
+      {
+        "name": "create_chart",
+        "description": "Generate a chart visualization",
+        "parameters": {
+          "type": "string",
+          "data": "array",
+          "options": "object"
+        }
+      },
+      {
+        "name": "filter_data",
+        "description": "Filter dataset by conditions",
+        "parameters": {
+          "data": "array",
+          "conditions": "object"
+        }
+      }
+    ],
+    "permissions": ["file_read"],
+    "category": "analytics"
+  }
+]

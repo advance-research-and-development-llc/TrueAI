@@ -1,0 +1,29 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="200" fill="url(#bgGradient)"/>
+  
+  <g opacity="0.15">
+    <circle cx="50" cy="50" r="100" fill="url(#orb1)"/>
+    <circle cx="250" cy="150" r="80" fill="url(#orb2)"/>
+  </g>
+  
+  <g opacity="0.1">
+    <path d="M0 100 Q75 80, 150 100 T300 100" stroke="#5CB8E4" stroke-width="1" fill="none"/>
+    <path d="M0 120 Q75 100, 150 120 T300 120" stroke="#5CB8E4" stroke-width="1" fill="none"/>
+    <path d="M0 80 Q75 60, 150 80 T300 80" stroke="#5CB8E4" stroke-width="1" fill="none"/>
+  </g>
+  
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="300" y2="200">
+      <stop offset="0%" stop-color="oklch(0.18 0.01 260)"/>
+      <stop offset="100%" stop-color="oklch(0.22 0.01 260)"/>
+    </linearGradient>
+    <radialGradient id="orb1">
+      <stop offset="0%" stop-color="#5CB8E4" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#5CB8E4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2">
+      <stop offset="0%" stop-color="#7A9FD6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#7A9FD6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

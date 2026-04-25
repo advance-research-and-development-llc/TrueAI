@@ -1,0 +1,29 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.8">
+    <circle cx="60" cy="60" r="45" stroke="url(#execGradient)" stroke-width="2"/>
+    <circle cx="60" cy="60" r="35" stroke="url(#execGradient)" stroke-width="2" opacity="0.6" stroke-dasharray="4 4">
+      <animateTransform attributeName="transform" type="rotate" from="0 60 60" to="360 60 60" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="60" cy="60" r="25" stroke="url(#execGradient)" stroke-width="2" opacity="0.3"/>
+    
+    <circle cx="60" cy="15" r="4" fill="#5CB8E4">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="60" cy="105" r="4" fill="#5CB8E4">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="15" cy="60" r="4" fill="#5CB8E4">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+    </circle>
+    <circle cx="105" cy="60" r="4" fill="#5CB8E4">
+      <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+    </circle>
+  </g>
+  
+  <defs>
+    <linearGradient id="execGradient" x1="15" y1="15" x2="105" y2="105">
+      <stop offset="0%" stop-color="#5CB8E4"/>
+      <stop offset="100%" stop-color="#7A9FD6"/>
+    </linearGradient>
+  </defs>
+</svg>

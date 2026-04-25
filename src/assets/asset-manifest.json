@@ -1,0 +1,151 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2024-01-15",
+  "categories": {
+    "images": {
+      "emptyStates": [
+        "empty-state-chat.svg",
+        "empty-state-agents.svg",
+        "empty-state-models.svg",
+        "empty-state-workflow.svg",
+        "empty-state-knowledge.svg",
+        "empty-state-finetuning.svg",
+        "empty-state-quantization.svg",
+        "empty-state-harness.svg",
+        "empty-state-ensemble.svg"
+      ],
+      "icons": [
+        "icon-success.svg",
+        "icon-error.svg",
+        "icon-warning.svg",
+        "icon-info.svg"
+      ],
+      "animations": [
+        "agent-executing.svg",
+        "model-loading.svg",
+        "model-downloading.svg"
+      ],
+      "branding": [
+        "logo-full.svg",
+        "icon.png",
+        "favicon.png",
+        "splash.png",
+        "adaptive-icon.png"
+      ],
+      "backgrounds": [
+        "background-pattern.svg",
+        "hero-background.svg"
+      ]
+    },
+    "documents": {
+      "examples": [
+        "example-finetuning-datasets.json",
+        "example-harness-manifests.json",
+        "example-gguf-models.json",
+        "example-dataset.csv"
+      ],
+      "reference": [
+        "quantization-reference.json",
+        "model-providers.json",
+        "benchmark-data.json",
+        "prompt-templates.json"
+      ],
+      "guides": [
+        "getting-started.md",
+        "example-workflows.md"
+      ]
+    },
+    "audio": {
+      "notifications": [],
+      "interactions": []
+    },
+    "video": {
+      "demos": [],
+      "tutorials": []
+    }
+  },
+  "assetMetadata": {
+    "images/empty-state-chat.svg": {
+      "description": "Empty state illustration for chat interface",
+      "size": "240x240",
+      "usage": "Chat tab when no conversations exist"
+    },
+    "images/empty-state-agents.svg": {
+      "description": "Empty state illustration for agents view",
+      "size": "240x240",
+      "usage": "Agents tab when no agents created"
+    },
+    "images/empty-state-models.svg": {
+      "description": "Empty state illustration for model management",
+      "size": "240x240",
+      "usage": "Models tab when no models configured"
+    },
+    "images/agent-executing.svg": {
+      "description": "Animated agent execution indicator",
+      "size": "120x120",
+      "usage": "Shown during agent execution",
+      "animated": true
+    },
+    "images/model-loading.svg": {
+      "description": "Model loading animation",
+      "size": "80x80",
+      "usage": "Shown while models are loading",
+      "animated": true
+    },
+    "images/logo-full.svg": {
+      "description": "Full TrueAI LocalAI logo with text",
+      "size": "200x60",
+      "usage": "App header and branding"
+    },
+    "documents/example-gguf-models.json": {
+      "description": "Sample GGUF model metadata for demonstrations",
+      "records": 5,
+      "usage": "Populate model browser with examples"
+    },
+    "documents/example-harness-manifests.json": {
+      "description": "Pre-configured harness examples",
+      "records": 3,
+      "usage": "Show example harnesses (Code Assistant, Research, Data Analyst)"
+    },
+    "documents/benchmark-data.json": {
+      "description": "Model benchmark and performance data",
+      "models": 4,
+      "usage": "Display comparative model performance"
+    },
+    "documents/prompt-templates.json": {
+      "description": "Pre-built system prompts and agent templates",
+      "templates": 10,
+      "usage": "Quick-start prompts for users"
+    }
+  },
+  "designSystem": {
+    "colors": {
+      "primary": "oklch(0.45 0.15 260)",
+      "accent": "oklch(0.75 0.14 200)",
+      "background": "oklch(0.18 0.01 260)",
+      "foreground": "oklch(0.95 0.01 200)"
+    },
+    "typography": {
+      "heading": "Space Grotesk",
+      "body": "IBM Plex Sans",
+      "mono": "JetBrains Mono"
+    },
+    "iconStroke": {
+      "primary": "2px",
+      "secondary": "1.5px"
+    }
+  },
+  "featureCoverage": {
+    "chat": ["empty-state-chat.svg", "logo-full.svg"],
+    "agents": ["empty-state-agents.svg", "agent-executing.svg", "example-workflows.md"],
+    "models": ["empty-state-models.svg", "model-loading.svg", "model-downloading.svg", "example-gguf-models.json", "model-providers.json"],
+    "fineTuning": ["empty-state-finetuning.svg", "example-finetuning-datasets.json"],
+    "quantization": ["empty-state-quantization.svg", "quantization-reference.json"],
+    "harness": ["empty-state-harness.svg", "example-harness-manifests.json"],
+    "knowledge": ["empty-state-knowledge.svg", "example-dataset.csv"],
+    "workflow": ["empty-state-workflow.svg", "example-workflows.md"],
+    "ensemble": ["empty-state-ensemble.svg"],
+    "ui": ["icon-success.svg", "icon-error.svg", "icon-warning.svg", "icon-info.svg", "background-pattern.svg", "hero-background.svg"],
+    "documentation": ["getting-started.md", "prompt-templates.json", "benchmark-data.json"]
+  }
+}
