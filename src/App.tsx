@@ -1291,21 +1291,21 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="border-b border-border/50 bg-card/95 backdrop-blur-xl sticky top-0 z-50 safe-top shadow-lg shadow-primary/5"
         >
-          <div className="container mx-auto px-4 sm:px-4 md:px-6 py-3 md:py-4">
+          <div className="container mx-auto px-3 sm:px-4 md:px-6 py-2.5 md:py-4">
             <div className="flex items-center justify-between gap-2">
               <motion.div 
-                className="flex items-center gap-2.5 sm:gap-3 min-w-0"
+                className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.1, duration: 0.3 }}
               >
                 <motion.div 
-                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center relative overflow-hidden shrink-0 shadow-lg shadow-primary/30"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center relative overflow-hidden shrink-0 shadow-lg shadow-primary/30"
                   whileHover={{ scale: 1.08, rotate: 5 }}
                   whileTap={{ scale: 0.92 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 >
-                  <Lightning weight="fill" size={isMobile ? 22 : 24} className="text-white relative z-10" />
+                  <Lightning weight="fill" size={isMobile ? 20 : 24} className="text-white relative z-10" />
                   <motion.div
                     className="absolute inset-0 bg-gradient-to-br from-accent via-accent to-primary"
                     initial={{ opacity: 0 }}
@@ -1319,16 +1319,16 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     transition={{ duration: 0.2 }}
                   />
                 </motion.div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight truncate bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <h1 className="text-sm sm:text-xl md:text-2xl font-bold tracking-tight truncate bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
                     TrueAI LocalAI
                   </h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block truncate">Enterprise AI Assistant Platform</p>
+                  <p className="text-xs text-muted-foreground hidden sm:block truncate">Enterprise AI Assistant</p>
                 </div>
               </motion.div>
               
               <motion.div 
-                className="flex items-center gap-1 sm:gap-2 shrink-0"
+                className="flex items-center gap-1 shrink-0"
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.3 }}
@@ -1341,10 +1341,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 sm:h-10 sm:w-10 relative group"
+                        className="h-8 w-8 sm:h-10 sm:w-10 relative group"
                         onClick={() => setUiCustomizerOpen(true)}
                       >
-                        <Palette size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
+                        <Palette size={isMobile ? 18 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
                         <motion.div
                           className="absolute inset-0 rounded-lg bg-accent/10"
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -1355,7 +1355,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     </motion.div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Customize UI</p>
+                    <p>Customize</p>
                   </TooltipContent>
                 </Tooltip>
                 
@@ -1365,9 +1365,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        className="h-8 w-8 sm:h-10 sm:w-10"
                         onClick={() => setSettingsOpen(true)}
                       >
-                        <Gear size={isMobile ? 20 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
+                        <Gear size={isMobile ? 18 : 22} className="text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
                         <motion.div
                           className="absolute inset-0 rounded-lg bg-accent/10"
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -1381,32 +1382,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     <p>Settings</p>
                   </TooltipContent>
                 </Tooltip>
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 relative group">
-                        <Sparkle size={isMobile ? 20 : 22} className="text-accent relative z-10" />
-                        <motion.div
-                          className="absolute inset-0 rounded-lg bg-accent/10"
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          whileHover={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.2 }}
-                        />
-                      </Button>
-                    </motion.div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>What's new</p>
-                  </TooltipContent>
-                </Tooltip>
               </motion.div>
             </div>
           </div>
         </motion.header>
 
       <main 
-        className="container mx-auto px-4 sm:px-4 md:px-6 py-4 sm:py-4 md:py-6 pb-24 lg:pb-6"
+        className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-20 sm:pb-24 lg:pb-6"
         ref={contentRef}
         onTouchStart={swipeHandlers.onTouchStart}
         onTouchEnd={swipeHandlers.onTouchEnd}
@@ -1451,19 +1433,19 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="flex justify-between items-center gap-2"
+              className="flex justify-between items-center gap-2 flex-wrap"
             >
-              <h2 className="text-lg sm:text-xl font-semibold truncate">Conversations</h2>
-              <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold truncate">Conversations</h2>
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
                       variant="outline" 
                       size="icon"
-                      className="h-9 w-9"
+                      className="h-8 w-8 sm:h-9 sm:w-9"
                       onClick={() => setChatSearchOpen(true)}
                     >
-                      <MagnifyingGlass size={18} />
+                      <MagnifyingGlass size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1476,10 +1458,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     <Button 
                       variant="outline" 
                       size="icon"
-                      className="h-9 w-9"
+                      className="h-8 w-8 sm:h-9 sm:w-9"
                       onClick={() => setPromptTemplatesOpen(true)}
                     >
-                      <BookBookmark size={18} />
+                      <BookBookmark size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1495,27 +1477,27 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 />
 
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button onClick={() => setNewConversationDialog(true)} size="sm" className="lg:hidden shrink-0 h-10 px-3 shadow-md hover:shadow-lg transition-shadow">
-                    <Plus weight="bold" size={20} />
+                  <Button onClick={() => setNewConversationDialog(true)} size="sm" className="lg:hidden shrink-0 h-8 px-2 sm:h-9 sm:px-3 shadow-md hover:shadow-lg transition-shadow">
+                    <Plus weight="bold" size={18} className="sm:w-[20px] sm:h-[20px]" />
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button onClick={() => setNewConversationDialog(true)} className="hidden lg:flex shadow-md hover:shadow-lg transition-shadow">
-                    <Plus weight="bold" size={20} className="mr-2" />
+                  <Button onClick={() => setNewConversationDialog(true)} className="hidden lg:flex shadow-md hover:shadow-lg transition-shadow text-sm">
+                    <Plus weight="bold" size={18} className="mr-2" />
                     New Chat
                   </Button>
                 </motion.div>
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4">
               <motion.div
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.1, duration: 0.3 }}
-                className="lg:col-span-1"
+                className="lg:col-span-1 order-2 lg:order-1"
               >
-                <Card className="p-4 relative overflow-hidden backdrop-blur-sm bg-card/80 border-border/50 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <Card className="p-3 sm:p-4 relative overflow-hidden backdrop-blur-sm bg-card/80 border-border/50 shadow-lg hover:shadow-xl transition-shadow duration-300">
                   <PullToRefreshIndicator 
                     isRefreshing={conversationsPullToRefresh.isRefreshing}
                     pullDistance={conversationsPullToRefresh.pullDistance}
@@ -1523,7 +1505,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                     className="absolute top-0 left-0 right-0 z-10"
                   />
                   <ScrollArea 
-                    className="h-[calc(100vh-320px)] sm:h-[600px]"
+                    className="h-[300px] sm:h-[400px] lg:h-[calc(100vh-320px)]"
                     {...conversationsPullToRefresh.handlers}
                   >
                     <AnimatePresence mode="popLayout">
@@ -1561,13 +1543,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 </Card>
               </motion.div>
 
-              <Card className="lg:col-span-3 p-4 sm:p-6 flex flex-col h-[calc(100vh-320px)] sm:h-[600px]">
+              <Card className="lg:col-span-3 p-3 sm:p-4 md:p-6 flex flex-col h-[400px] sm:h-[500px] lg:h-[calc(100vh-320px)] order-1 lg:order-2">
                 {activeConversation ? (
                   <>
-                    <div className="flex justify-between items-start mb-4 gap-2">
+                    <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-base sm:text-lg font-semibold truncate">{activeConversation.title}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">Model: {activeConversation.model}</p>
+                        <h3 className="text-sm sm:text-base md:text-lg font-semibold truncate">{activeConversation.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">Model: {activeConversation.model}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Tooltip>
@@ -1575,10 +1557,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9"
+                              className="h-8 w-8 sm:h-9 sm:w-9"
                               onClick={() => setConversationSettingsOpen(true)}
                             >
-                              <Gear size={18} />
+                              <Gear size={16} className="sm:w-[18px] sm:h-[18px]" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1591,10 +1573,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9"
+                              className="h-8 w-8 sm:h-9 sm:w-9"
                               onClick={() => setChatExportOpen(true)}
                             >
-                              <DownloadSimple size={18} />
+                              <DownloadSimple size={16} className="sm:w-[18px] sm:h-[18px]" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1605,19 +1587,20 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="shrink-0 h-9 px-3 active:scale-95 transition-transform hover:bg-destructive hover:text-destructive-foreground"
+                          className="shrink-0 h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm active:scale-95 transition-transform hover:bg-destructive hover:text-destructive-foreground"
                           onClick={() => deleteConversation(activeConversation.id)}
                         >
                           <span className="hidden sm:inline">Delete</span>
+                          <span className="sm:hidden">Del</span>
                         </Button>
                       </div>
                     </div>
-                    <Separator className="mb-4" />
+                    <Separator className="mb-3 sm:mb-4" />
                     
-                    <ScrollArea className="flex-1 pr-3 sm:pr-4">
+                    <ScrollArea className="flex-1 pr-2 sm:pr-3 md:pr-4">
                       {conversationMessages.length === 0 && (
-                        <div className="flex items-center justify-center h-full">
-                          <p className="text-muted-foreground text-sm sm:text-base">Start a conversation...</p>
+                        <div className="flex items-center justify-center h-full py-8">
+                          <p className="text-muted-foreground text-xs sm:text-sm">Start a conversation...</p>
                         </div>
                       )}
                       {conversationMessages.map(msg => (
@@ -1631,14 +1614,14 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         />
                       ))}
                       {isStreaming && (
-                        <div className="flex gap-3 my-3">
-                          <div className="h-8 w-8" />
-                          <div className="text-muted-foreground text-sm sm:text-base">Thinking...</div>
+                        <div className="flex gap-2 sm:gap-3 my-2 sm:my-3">
+                          <div className="h-6 w-6 sm:h-8 sm:w-8" />
+                          <div className="text-muted-foreground text-xs sm:text-sm">Thinking...</div>
                         </div>
                       )}
                     </ScrollArea>
 
-                    <div className="pt-4 border-t border-border mt-4">
+                    <div className="pt-3 sm:pt-4 border-t border-border mt-3 sm:mt-4">
                       <ChatInput 
                         onSend={sendMessage} 
                         disabled={isStreaming}
@@ -2521,35 +2504,35 @@ Describe what input you would give to the ${tool} tool (one sentence).`
               {
                 id: 'chat',
                 label: 'Chat',
-                icon: <ChatCircle weight="fill" size={24} />,
+                icon: <ChatCircle weight="fill" size={22} />,
                 active: activeTab === 'chat',
                 onClick: () => handleTabChange('chat')
               },
               {
                 id: 'agents',
                 label: 'Agents',
-                icon: <Robot weight="fill" size={24} />,
+                icon: <Robot weight="fill" size={22} />,
                 active: activeTab === 'agents',
                 onClick: () => handleTabChange('agents')
               },
               {
+                id: 'workflows',
+                label: 'Flow',
+                icon: <ArrowsClockwise weight="fill" size={22} />,
+                active: activeTab === 'workflows',
+                onClick: () => handleTabChange('workflows')
+              },
+              {
                 id: 'models',
                 label: 'Models',
-                icon: <Lightning weight="fill" size={24} />,
+                icon: <Lightning weight="fill" size={22} />,
                 active: activeTab === 'models',
                 onClick: () => handleTabChange('models')
               },
               {
-                id: 'builder',
-                label: 'Builder',
-                icon: <Cube weight="fill" size={24} />,
-                active: activeTab === 'builder',
-                onClick: () => handleTabChange('builder')
-              },
-              {
                 id: 'analytics',
-                label: 'Analytics',
-                icon: <ChartBar weight="fill" size={24} />,
+                label: 'Stats',
+                icon: <ChartBar weight="fill" size={22} />,
                 active: activeTab === 'analytics',
                 onClick: () => handleTabChange('analytics')
               }
@@ -2567,6 +2550,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
             <FloatingActionButton
               onClick={() => setNewAgentDialog(true)}
               icon={<Plus weight="bold" size={28} />}
+            />
+          )}
+
+          {activeTab === 'workflows' && (
+            <FloatingActionButton
+              onClick={() => handleTabChange('workflows')}
+              icon={<ArrowsClockwise weight="bold" size={28} />}
             />
           )}
         </>
