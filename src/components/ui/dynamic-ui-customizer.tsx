@@ -116,7 +116,7 @@ export function DynamicUICustomizer() {
               <Label>Layout Density</Label>
               <Select
                 value={preferences.layoutDensity}
-                onValueChange={(value) => updatePreference('layoutDensity', value as any)}
+                onValueChange={(value: 'compact' | 'comfortable' | 'spacious') => updatePreference('layoutDensity', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -138,7 +138,7 @@ export function DynamicUICustomizer() {
               <Label>Sidebar Position</Label>
               <Select
                 value={preferences.sidebarPosition}
-                onValueChange={(value) => updatePreference('sidebarPosition', value as any)}
+                onValueChange={(value: 'left' | 'right') => updatePreference('sidebarPosition', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -186,7 +186,7 @@ export function DynamicUICustomizer() {
               <Label>Color Scheme</Label>
               <Select
                 value={preferences.colorScheme}
-                onValueChange={(value) => updatePreference('colorScheme', value as any)}
+                onValueChange={(value: 'default' | 'vibrant' | 'minimal' | 'high-contrast') => updatePreference('colorScheme', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -206,7 +206,7 @@ export function DynamicUICustomizer() {
               <Label>Card Style</Label>
               <Select
                 value={preferences.cardStyle}
-                onValueChange={(value) => updatePreference('cardStyle', value as any)}
+                onValueChange={(value: 'flat' | 'elevated' | 'bordered' | 'glass') => updatePreference('cardStyle', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -226,7 +226,7 @@ export function DynamicUICustomizer() {
               <Label>Background Pattern</Label>
               <Select
                 value={preferences.backgroundPattern}
-                onValueChange={(value) => updatePreference('backgroundPattern', value as any)}
+                onValueChange={(value: 'none' | 'dots' | 'grid' | 'waves' | 'gradient') => updatePreference('backgroundPattern', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -247,7 +247,7 @@ export function DynamicUICustomizer() {
               <Label>Chat Bubble Style</Label>
               <Select
                 value={preferences.chatBubbleStyle}
-                onValueChange={(value) => updatePreference('chatBubbleStyle', value as any)}
+                onValueChange={(value: 'rounded' | 'sharp' | 'minimal') => updatePreference('chatBubbleStyle', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -283,7 +283,7 @@ export function DynamicUICustomizer() {
               <Label>Font Size</Label>
               <Select
                 value={preferences.fontSize}
-                onValueChange={(value) => updatePreference('fontSize', value as any)}
+                onValueChange={(value: 'small' | 'medium' | 'large' | 'xlarge') => updatePreference('fontSize', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -317,7 +317,7 @@ export function DynamicUICustomizer() {
               <Label>Animation Intensity</Label>
               <Select
                 value={preferences.animationIntensity}
-                onValueChange={(value) => updatePreference('animationIntensity', value as any)}
+                onValueChange={(value: 'none' | 'subtle' | 'normal' | 'enhanced') => updatePreference('animationIntensity', value)}
               >
                 <SelectTrigger>
                   <SelectValue />

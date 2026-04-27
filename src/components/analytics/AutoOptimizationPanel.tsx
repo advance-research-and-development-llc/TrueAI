@@ -179,11 +179,13 @@ export function AutoOptimizationPanel({
 
   const handleApplyInsight = (insight: OptimizationInsight) => {
     const decision = thresholdManager.shouldAutoImplement(insight)
-    
+
     if (decision.requiresConfirmation && thresholdConfig.requireConfirmation) {
-      setPendingInsight(insight)
-      setShowConfirmDialog(true)
-      return
+      // Show confirmation toast and apply directly
+      toast.info(`Applying optimization: ${insight.title}`, {
+        description: 'This requires confirmation',
+        duration: 3000
+      })
     }
 
     applyInsight(insight)
@@ -193,13 +195,10 @@ export function AutoOptimizationPanel({
     onApplyOptimization(insight)
     setAppliedInsights(prev => new Set([...prev, insight.id]))
     thresholdManager.recordImplementation(insight.id, insight.confidence, insight.severity, false)
-    
+
     if (thresholdConfig.enableNotifications) {
       toast.success('Optimization applied')
     }
-    
-    setShowConfirmDialog(false)
-    setPendingInsight(null)
   }
 
   const handleApplyAutoTune = (recommendation: AutoTuneRecommendation, modelId: string) => {
@@ -564,7 +563,7 @@ function InsightCard({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-semibold text-sm">{insight.title}</h4>
-                  <Badge variant={getSeverityColor(insight.severity) as any} className="gap-1 text-xs">
+                  <Badge variant={getSeverityColor(insight.severity) as 'destructive' | 'default' | 'secondary' | 'outline'} className="gap-1 text-xs">
                     {getTypeIcon(insight.type)}
                     {insight.type}
                   </Badge>

@@ -69,7 +69,7 @@ class AnalyticsService {
     options?: {
       label?: string
       value?: number
-      metadata?: Record<string, any>
+      metadata?: Record<string, unknown>
       duration?: number
     }
   ): Promise<void> {

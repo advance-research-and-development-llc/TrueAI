@@ -10,18 +10,17 @@ interface SmartContainerProps {
   adaptiveColumns?: boolean
 }
 
-export function SmartContainer({ 
-  children, 
-  className, 
+export function SmartContainer({
+  children,
+  className,
   variant = 'grid',
-  adaptiveColumns = true 
+  adaptiveColumns = true
 }: SmartContainerProps) {
-  const { 
-    preferences, 
-    adaptiveLayout, 
-    getSpacingClass, 
-    getCardStyleClasses,
-    getAnimationClasses 
+  const {
+    preferences,
+    adaptiveLayout,
+    getSpacingClass,
+    getAnimationClasses
   } = useDynamicUI()
 
   const containerClasses = useMemo(() => {

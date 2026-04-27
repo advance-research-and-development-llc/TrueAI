@@ -241,6 +241,7 @@ export function ThemeSwitcher() {
     } else if (activeTheme) {
       applyThemeColors(activeTheme.colors)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewTheme, activeTheme])
 
   const handleActivateTheme = (theme: CustomTheme) => {
@@ -338,7 +339,8 @@ export function ThemeSwitcher() {
           }
           setCustomThemes(prev => [importedTheme, ...(prev || [])])
           toast.success('Theme imported')
-        } catch (_error) {
+        } catch (error) {
+          console.error('Invalid theme file:', error)
           toast.error('Invalid theme file')
         }
       }
@@ -705,7 +707,7 @@ function ThemeEditor({ theme, onSave, onCancel, onPreview }: ThemeEditorProps) {
 
       <Separator />
 
-      <Tabs value={activeColorGroup} onValueChange={(v) => setActiveColorGroup(v as any)}>
+      <Tabs value={activeColorGroup} onValueChange={(v) => setActiveColorGroup(v as 'background' | 'action' | 'semantic')}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="background">Background</TabsTrigger>
           <TabsTrigger value="action">Actions</TabsTrigger>

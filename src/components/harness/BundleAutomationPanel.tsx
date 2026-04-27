@@ -79,6 +79,7 @@ export function BundleAutomationPanel({
     }
     updateMetrics()
     updateExecutionHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -88,6 +89,7 @@ export function BundleAutomationPanel({
       }, 30000)
       return () => clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExecuteEnabled, rules, messages, agents, agentRuns])
 
   const analyzePatterns = () => {
@@ -598,7 +600,7 @@ export function BundleAutomationPanel({
                   <Label>Priority</Label>
                   <Select
                     value={newRuleForm.priority}
-                    onValueChange={(value: any) => setNewRuleForm(prev => ({ ...prev, priority: value }))}
+                    onValueChange={(value: 'low' | 'normal' | 'high' | 'critical') => setNewRuleForm(prev => ({ ...prev, priority: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />

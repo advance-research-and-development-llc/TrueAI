@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { useIsMobile } from './use-mobile'
 
 describe('useIsMobile hook', () => {
-  let matchMediaMock: any
+  let matchMediaMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     matchMediaMock = vi.fn()

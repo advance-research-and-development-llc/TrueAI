@@ -237,7 +237,7 @@ export function useDataPrefetch<T>(
     if (enabled && (!cache || isStale())) {
       fetchData()
     }
-  }, [enabled])
+  }, [enabled, cache, isStale, fetchData])
 
   return {
     data: cache?.data || null,

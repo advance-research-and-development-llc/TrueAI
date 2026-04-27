@@ -1,4 +1,4 @@
-import { useState} from 'react'
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -6,17 +6,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Sparkle, 
-  TrendUp, 
-  Lightning, 
+import {
+  Sparkle,
+  TrendUp,
+  Lightning,
   CheckCircle,
   Warning,
   Info,
   ArrowRight,
   Eye,
   ListChecks,
-  Faders,
   Target,
   Clock,
   ChartBar,
@@ -474,7 +473,7 @@ function InsightListCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-2">
               <h4 className="font-semibold text-sm">{insight.title}</h4>
-              <Badge variant={getSeverityColor(insight.severity) as any} className="gap-1 text-xs shrink-0">
+              <Badge variant={getSeverityColor(insight.severity) as 'destructive' | 'default' | 'secondary' | 'outline'} className="gap-1 text-xs shrink-0">
                 {getTypeIcon(insight.type)}
                 {insight.type}
               </Badge>
@@ -567,7 +566,7 @@ function DetailedInsightView({
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={getSeverityColor(insight.severity) as any} className="gap-1">
+              <Badge variant={getSeverityColor(insight.severity) as 'destructive' | 'default' | 'secondary' | 'outline'} className="gap-1">
                 {getTypeIcon(insight.type)}
                 {insight.type}
               </Badge>

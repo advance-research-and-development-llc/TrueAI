@@ -123,8 +123,8 @@ async function measureInteractionLatency(metrics: BenchmarkMetrics): Promise<voi
 }
 
 function measureMemoryUsage(metrics: BenchmarkMetrics): void {
-  if ('memory' in performance && (performance as any).memory) {
-    const memory = (performance as any).memory
+  if ('memory' in performance && (performance as { memory?: { usedJSHeapSize: number } }).memory) {
+    const memory = (performance as { memory: { usedJSHeapSize: number } }).memory
     metrics.memoryUsage = Math.round(memory.usedJSHeapSize / 1048576)
   } else {
     metrics.memoryUsage = 0

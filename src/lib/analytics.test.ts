@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the global spark object
-const mockKVStore = new Map<string, any>()
+const mockKVStore = new Map<string, unknown>()
 
 describe('AnalyticsService', () => {
-  let analyticsInstance: any
+  let analyticsInstance: unknown
 
   beforeEach(async () => {
     vi.resetModules()
@@ -13,7 +13,7 @@ describe('AnalyticsService', () => {
     globalThis.spark = {
       kv: {
         get: vi.fn((key: string) => Promise.resolve(mockKVStore.get(key))),
-        set: vi.fn((key: string, value: any) => {
+        set: vi.fn((key: string, value: unknown) => {
           mockKVStore.set(key, value)
           return Promise.resolve()
         }),
@@ -23,7 +23,7 @@ describe('AnalyticsService', () => {
         }),
       },
       user: vi.fn(() => Promise.resolve({ id: 'test-user-123' })),
-    } as any
+    } as unknown
 
     // Mock console methods
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -131,21 +131,21 @@ describe('AnalyticsService', () => {
       const events = await analyticsInstance.getEvents({
         eventTypes: ['error_occurred'],
       })
-      expect(events.every((e: any) => e.type === 'error_occurred')).toBe(true)
+      expect(events.every((e: { type: string }) => e.type === 'error_occurred')).toBe(true)
     })
 
     it('should filter events by category', async () => {
       const events = await analyticsInstance.getEvents({
         category: 'category1',
       })
-      expect(events.every((e: any) => e.category === 'category1')).toBe(true)
+      expect(events.every((e: { category: string }) => e.category === 'category1')).toBe(true)
     })
 
     it('should filter events by userId', async () => {
       const events = await analyticsInstance.getEvents({
         userId: 'test-user-123',
       })
-      expect(events.every((e: any) => e.userId === 'test-user-123')).toBe(true)
+      expect(events.every((e: { userId: string }) => e.userId === 'test-user-123')).toBe(true)
     })
 
     it('should filter events by date range', async () => {
@@ -157,7 +157,7 @@ describe('AnalyticsService', () => {
         endDate: now,
       })
 
-      expect(events.every((e: any) => e.timestamp >= oneHourAgo && e.timestamp <= now)).toBe(true)
+      expect(events.every((e: { timestamp: number }) => e.timestamp >= oneHourAgo && e.timestamp <= now)).toBe(true)
     })
   })
 

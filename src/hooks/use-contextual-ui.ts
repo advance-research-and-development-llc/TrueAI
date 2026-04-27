@@ -167,7 +167,7 @@ export function useContextualUI() {
   useEffect(() => {
     const newSuggestions = generateSuggestions()
     setSuggestions(newSuggestions)
-  }, [behavior, dismissedSuggestions])
+  }, [behavior, dismissedSuggestions, generateSuggestions])
 
   const getPredictedNextAction = (): string | null => {
     if (!behavior) return null

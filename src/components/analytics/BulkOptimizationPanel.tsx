@@ -93,6 +93,7 @@ export function BulkOptimizationPanel({ models, onApplyBundle }: BulkOptimizatio
   useEffect(() => {
     loadAvailableBundles()
     loadHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [models])
 
   const loadAvailableBundles = () => {
