@@ -525,23 +525,6 @@ export interface AnalyticsFilter {
   category?: string
 }
 
-export interface OptimizationInsight {
-  id: string
-  type: 'performance' | 'quality' | 'efficiency' | 'cost'
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  title: string
-  description: string
-  recommendation: string
-  impact: string
-  confidence: number
-  affectedModels: string[]
-  suggestedAction?: {
-    type: 'adjust_parameters' | 'change_model' | 'add_profile' | 'reduce_usage'
-    details: Record<string, unknown>
-  }
-  timestamp: number
-}
-
 export type TaskType = 
   | 'creative_writing'
   | 'code_generation'

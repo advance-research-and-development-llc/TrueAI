@@ -12,6 +12,27 @@ interface DataSettingsProps {
   onSettingsChange: (_settings: AppSettings) => void
 }
 
+// Shared list of all KV keys persisted by the app. Keep in sync with useKV calls
+// across the codebase so backups/clears stay complete.
+const KNOWN_KV_KEYS = [
+  'conversations',
+  'messages',
+  'agents',
+  'agent-runs',
+  'models',
+  'settings',
+  'cache',
+  'analytics-events',
+  'analytics-sessions',
+  'lr-experiments',
+  'performance-scan-history',
+  'user-behavior',
+  'dynamic-ui-preferences',
+  'ui-usage-analytics',
+  'dismissed-suggestions',
+  'agent-memory-index',
+] as const
+
 export function DataSettings({ onSettingsChange: _onSettingsChange }: DataSettingsProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -23,10 +44,9 @@ export function DataSettings({ onSettingsChange: _onSettingsChange }: DataSettin
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Note: spark.kv doesn't expose a keys() method, so we export known keys only
-      const knownKeys = ['conversations', 'agents', 'models', 'settings', 'analytics', 'cache']
       const exportData: Record<string, unknown> = {}
 
-      for (const key of knownKeys) {
+      for (const key of KNOWN_KV_KEYS) {
         const value = await spark.kv.get(key)
         if (value !== undefined) {
           exportData[key] = value
@@ -88,8 +108,7 @@ export function DataSettings({ onSettingsChange: _onSettingsChange }: DataSettin
     setIsClearing(true)
     try {
       // Note: spark.kv doesn't expose a keys() method, so we clear known keys only
-      const knownKeys = ['conversations', 'agents', 'models', 'settings', 'analytics', 'cache']
-      for (const key of knownKeys) {
+      for (const key of KNOWN_KV_KEYS) {
         await spark.kv.delete(key)
       }
 

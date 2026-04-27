@@ -74,7 +74,7 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
   const [baselineExperimentId, setBaselineExperimentId] = useState<string | null>(null)
 
   const selectedModel = models.find(m => m.id === selectedModelId)
-  const taskTypes: TaskType[] = ['creative_writing', 'code_generation', 'summarization', 'creative_writing', 'question_answering']
+  const taskTypes: TaskType[] = ['creative_writing', 'code_generation', 'summarization', 'question_answering', 'conversation']
 
   useEffect(() => {
     if (selectedModel) {
@@ -185,14 +185,16 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
 
       setExperiments(prev => (prev ? [experiment, ...prev] : [experiment]))
 
+      const nextExperiments: LearningRateExperiment[] = [experiment, ...(experiments ?? [])]
+
       learningRateTuner.recordPerformanceMetrics({
         modelId: selectedModel.id,
         taskType: selectedTaskType,
         avgLoss: trainingLoss[trainingLoss.length - 1],
         lossVariance: calculateVariance(trainingLoss),
         avgResponseTime: benchmark.averageResponseTime,
-        successRate: (experiments && experiments.length > 0) ?
-          experiments.reduce((sum, e) => sum + (e.successRate || 0), 0) / experiments.length :
+        successRate: nextExperiments.length > 0 ?
+          nextExperiments.reduce((sum, e) => sum + (e.successRate || 0), 0) / nextExperiments.length :
           benchmark.overallScore / 100,
         userSatisfaction: benchmark.overallScore / 100,
         convergenceSpeed: (trainingLoss[0] - trainingLoss[trainingLoss.length - 1]) / epochs,

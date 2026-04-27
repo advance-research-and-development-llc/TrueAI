@@ -166,7 +166,7 @@ export class PerformanceScanner {
       const modelResponseTimes = modelEvents.map(e => e.duration!)
       const avgModelResponseTime = modelResponseTimes.reduce((sum, t) => sum + t, 0) / modelResponseTimes.length
 
-      const totalTokens = modelEvents.reduce((sum, e) => sum + ((e.metadata?.responseLength as number) || 0), 0)
+      const totalTokens = modelEvents.reduce((sum, e) => sum + (Number(e.metadata?.responseLength) || 0), 0)
       const avgTokens = totalTokens / modelEvents.length
       const tokensPerSecond = totalTokens / (modelResponseTimes.reduce((sum, t) => sum + t, 0) / 1000)
       
@@ -502,10 +502,14 @@ export class PerformanceScanner {
           if (opt.changes.maxTokens && opt.targetModel) {
             const efficiency = currentMetrics.modelEfficiency[opt.targetModel]
             if (efficiency) {
-              const reduction = (efficiency.wastedTokens / ((opt.changes.maxTokens as number) + efficiency.wastedTokens)) * 100
-              responseTimeReduction += reduction * 0.8
-              tokenEfficiencyGain += reduction
-              throughputIncrease += reduction * 0.5
+              const maxTokens = Number(opt.changes.maxTokens)
+              if (Number.isFinite(maxTokens)) {
+                const denominator = maxTokens + efficiency.wastedTokens
+                const reduction = denominator > 0 ? (efficiency.wastedTokens / denominator) * 100 : 0
+                responseTimeReduction += reduction * 0.8
+                tokenEfficiencyGain += reduction
+                throughputIncrease += reduction * 0.5
+              }
             }
           }
           break

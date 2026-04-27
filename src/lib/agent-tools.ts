@@ -100,7 +100,17 @@ export class AgentToolExecutor {
     
     if (command.startsWith('store:')) {
       const data = command.replace('store:', '').trim()
-      await spark.kv.set(`agent-memory-${Date.now()}`, data)
+      const key = `agent-memory-${Date.now()}`
+      await spark.kv.set(key, data)
+
+      // Maintain an index of memory keys so `recall` can find them, since
+      // spark.kv doesn't expose a keys() method. Cap the index to avoid
+      // unbounded growth.
+      const MAX_INDEX_SIZE = 100
+      const memoryIndex = await spark.kv.get<string[]>('agent-memory-index') || []
+      const updatedIndex = [...memoryIndex, key].slice(-MAX_INDEX_SIZE)
+      await spark.kv.set('agent-memory-index', updatedIndex)
+
       return {
         success: true,
         output: 'Data stored in memory successfully',
