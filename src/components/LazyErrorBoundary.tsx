@@ -25,7 +25,7 @@ export class LazyErrorBoundary extends Component<LazyErrorBoundaryProps, LazyErr
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: { componentStack?: string }) {
     console.error(`[LazyErrorBoundary] ${this.props.componentName || 'Component'} failed to load:`, error, errorInfo)
   }
 

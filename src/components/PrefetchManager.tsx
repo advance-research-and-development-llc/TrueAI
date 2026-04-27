@@ -1,7 +1,7 @@
 import { useEffect} from 'react'
 import { usePrefetch } from '@/hooks/use-prefetch'
 
-const PREFETCH_COMPONENTS: Record<string, () => Promise<any>> = {
+const PREFETCH_COMPONENTS: Record<string, () => Promise<unknown>> = {
   'agents': () => import('@/components/agent/AgentCard'),
   'models': () => import('@/components/models/ModelConfigPanel'),
   'analytics': () => import('@/components/analytics/AnalyticsDashboard'),

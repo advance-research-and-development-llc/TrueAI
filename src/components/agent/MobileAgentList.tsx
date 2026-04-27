@@ -29,7 +29,7 @@ const getStatusColor = (status: Agent['status']) => {
 }
 
 export const MobileAgentListItem = memo(({ agent, onRun, onView, onViewAnalytics }: MobileAgentListItemProps) => {
-  const isMobile = useIsMobile()
+  const _isMobile = useIsMobile()
 
   return (
     <motion.div
