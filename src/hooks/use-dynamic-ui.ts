@@ -60,15 +60,15 @@ export function useDynamicUI() {
     key: K,
     value: DynamicUIPreferences[K]
   ) => {
-    setPreferences(prev => ({ ...prev, [key]: value }))
+    setPreferences(prev => ({ ...prev!, [key]: value }))
   }, [setPreferences])
 
   const trackTabUsage = useCallback((tabId: string) => {
     setUsage(prev => ({
-      ...prev,
+      ...prev!,
       mostUsedTabs: {
-        ...prev.mostUsedTabs,
-        [tabId]: (prev.mostUsedTabs[tabId] || 0) + 1,
+        ...prev!.mostUsedTabs,
+        [tabId]: (prev!.mostUsedTabs[tabId] || 0) + 1,
       },
     }))
   }, [setUsage])

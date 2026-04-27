@@ -86,7 +86,7 @@ export class AutoOptimizer {
     const modelResponseTimes = this.groupByModel(chatEvents)
     
     Object.entries(modelResponseTimes).forEach(([modelId, data]) => {
-      const model = models.find(m => m.id === modelId)
+      const foundModel = _models.find(m => m.id === modelId)
       if (!model || data.times.length < 5) return
       
       const avgTime = data.times.reduce((sum, t) => sum + t, 0) / data.times.length
@@ -96,7 +96,7 @@ export class AutoOptimizer {
           id: `insight-${Date.now()}-${Math.random()}`,
           type: 'performance',
           severity: avgTime > 10000 ? 'high' : 'medium',
-          title: `Slow response times detected for ${model.name}`,
+          title: `Slow response times detected for ${foundModelResult.name}`,
           description: `Average response time is ${(avgTime / 1000).toFixed(1)}s, which is ${((avgTime / avgResponseTime - 1) * 100).toFixed(0)}% slower than average.`,
           recommendation: 'Consider reducing maxTokens or switching to a faster model for this use case.',
           impact: `Could improve response time by up to ${((avgTime - avgResponseTime) / 1000).toFixed(1)}s per request`,
@@ -107,8 +107,8 @@ export class AutoOptimizer {
             details: {
               modelId,
               parameter: 'maxTokens',
-              currentValue: model.maxTokens,
-              suggestedValue: Math.max(500, Math.floor(model.maxTokens * 0.7))
+              currentValue: foundModelResult.maxTokens,
+              suggestedValue: Math.max(500, Math.floor(foundModelResult.maxTokens * 0.7))
             }
           },
           timestamp: Date.now()
@@ -142,13 +142,13 @@ export class AutoOptimizer {
       const topModelPercentage = (topModel[1] / totalUsage) * 100
       
       if (topModelPercentage > 80) {
-        const model = models.find(m => m.id === topModel[0])
+        const foundModel = _models.find(m => m.id === topModel[0])
         insights.push({
           id: `insight-${Date.now()}-${Math.random()}`,
           type: 'efficiency',
           severity: 'low',
           title: `${model?.name || topModel[0]} is heavily utilized`,
-          description: `${topModelPercentage.toFixed(0)}% of all requests use this model. Consider diversifying model usage for different task types.`,
+          description: `${topModelPercentage.toFixed(0)}% of all requests use this foundModelResult. Consider diversifying model usage for different task types.`,
           recommendation: 'Use specialized models for different tasks: lighter models for simple queries, stronger models for complex reasoning.',
           impact: 'Could reduce average response time by 20-30% and improve output quality',
           confidence: 0.85,
@@ -171,24 +171,24 @@ export class AutoOptimizer {
     if (chatEvents.length < this.learningThreshold) return insights
     
     _models.forEach(model => {
-      const modelEvents = chatEvents.filter(e => e.metadata?.model === model.id)
+      const modelEvents = chatEvents.filter(e => e.metadata?.model === foundModelResult.id)
       if (modelEvents.length < 10) return
       
-      if (model.temperature > 0.8 && model.frequencyPenalty < 0.2) {
+      if (foundModelResult.temperature > 0.8 && foundModelResult.frequencyPenalty < 0.2) {
         insights.push({
           id: `insight-${Date.now()}-${Math.random()}`,
           type: 'quality',
           severity: 'medium',
-          title: `${model.name} may produce repetitive outputs`,
-          description: `High temperature (${model.temperature}) with low frequency penalty (${model.frequencyPenalty}) can lead to repetitive responses.`,
+          title: `${foundModelResult.name} may produce repetitive outputs`,
+          description: `High temperature (${foundModelResult.temperature}) with low frequency penalty (${foundModelResult.frequencyPenalty}) can lead to repetitive responses.`,
           recommendation: 'Increase frequency penalty to 0.3-0.5 or reduce temperature to 0.6-0.7 for more coherent outputs.',
           impact: 'Improved output quality and reduced repetition',
           confidence: 0.82,
-          affectedModels: [model.id],
+          affectedModels: [foundModelResult.id],
           suggestedAction: {
             type: 'adjust_parameters',
             details: {
-              modelId: model.id,
+              modelId: foundModelResult.id,
               parameters: {
                 frequencyPenalty: 0.4,
                 temperature: 0.7
@@ -199,23 +199,23 @@ export class AutoOptimizer {
         })
       }
       
-      if (model.temperature < 0.2 && model.topP > 0.95) {
+      if (foundModelResult.temperature < 0.2 && foundModelResult.topP > 0.95) {
         insights.push({
           id: `insight-${Date.now()}-${Math.random()}`,
           type: 'efficiency',
           severity: 'low',
-          title: `${model.name} has conflicting parameters`,
-          description: `Very low temperature (${model.temperature}) with high topP (${model.topP}) creates conflicting sampling behavior.`,
+          title: `${foundModelResult.name} has conflicting parameters`,
+          description: `Very low temperature (${foundModelResult.temperature}) with high topP (${foundModelResult.topP}) creates conflicting sampling behavior.`,
           recommendation: 'For deterministic outputs, use temperature 0.1-0.2 with topP 0.85-0.9. For creative outputs, use temperature 0.7+ with topP 0.95+.',
           impact: 'More predictable and consistent model behavior',
           confidence: 0.88,
-          affectedModels: [model.id],
+          affectedModels: [foundModelResult.id],
           suggestedAction: {
             type: 'adjust_parameters',
             details: {
-              modelId: model.id,
+              modelId: foundModelResult.id,
               parameter: 'topP',
-              currentValue: model.topP,
+              currentValue: foundModelResult.topP,
               suggestedValue: 0.88
             }
           },
@@ -299,30 +299,30 @@ export class AutoOptimizer {
     
     if (avgTokenLength > 0) {
       _models.forEach(model => {
-        const modelEvents = chatEvents.filter(e => e.metadata?.model === model.id)
+        const modelEvents = chatEvents.filter(e => e.metadata?.model === foundModelResult.id)
         if (modelEvents.length < 5) return
         
         const avgModelTokens = modelEvents
           .filter(e => e.metadata?.responseLength)
           .reduce((sum, e) => sum + (e.metadata!.responseLength || 0), 0) / modelEvents.length
         
-        if (model.maxTokens > avgModelTokens * 2) {
+        if (foundModelResult.maxTokens > avgModelTokens * 2) {
           insights.push({
             id: `insight-${Date.now()}-${Math.random()}`,
             type: 'efficiency',
             severity: 'medium',
-            title: `${model.name} maxTokens setting is oversized`,
-            description: `Configured for ${model.maxTokens} tokens but averaging ${Math.round(avgModelTokens)} tokens per response.`,
+            title: `${foundModelResult.name} maxTokens setting is oversized`,
+            description: `Configured for ${foundModelResult.maxTokens} tokens but averaging ${Math.round(avgModelTokens)} tokens per response.`,
             recommendation: `Reduce maxTokens to ${Math.round(avgModelTokens * 1.5)} to improve response time without impacting output.`,
             impact: `Could reduce response time by 15-25%`,
             confidence: 0.78,
-            affectedModels: [model.id],
+            affectedModels: [foundModelResult.id],
             suggestedAction: {
               type: 'adjust_parameters',
               details: {
-                modelId: model.id,
+                modelId: foundModelResult.id,
                 parameter: 'maxTokens',
-                currentValue: model.maxTokens,
+                currentValue: foundModelResult.maxTokens,
                 suggestedValue: Math.round(avgModelTokens * 1.5)
               }
             },
@@ -426,11 +426,11 @@ export class AutoOptimizer {
       
       _models.forEach(model => {
         const currentParams: ModelParameters = {
-          temperature: model.temperature,
-          maxTokens: model.maxTokens,
-          topP: model.topP,
-          frequencyPenalty: model.frequencyPenalty,
-          presencePenalty: model.presencePenalty
+          temperature: foundModelResult.temperature,
+          maxTokens: foundModelResult.maxTokens,
+          topP: foundModelResult.topP,
+          frequencyPenalty: foundModelResult.frequencyPenalty,
+          presencePenalty: foundModelResult.presencePenalty
         }
         
         const recommendedParams = defaultProfilesByTaskType[taskType]
@@ -473,9 +473,9 @@ export class AutoOptimizer {
     
     const modelPerformance: LearningMetrics['modelPerformance'] = {}
     _models.forEach(model => {
-      const modelEvents = responseEvents.filter(e => e.metadata?.model === model.id)
+      const modelEvents = responseEvents.filter(e => e.metadata?.model === foundModelResult.id)
       if (modelEvents.length > 0) {
-        modelPerformance[model.id] = {
+        modelPerformance[foundModelResult.id] = {
           avgResponseTime: modelEvents.reduce((sum, e) => sum + (e.duration || 0), 0) / modelEvents.length,
           successRate: 100,
           usageCount: modelEvents.length,

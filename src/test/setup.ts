@@ -54,9 +54,6 @@ const indexedDB = {
 globalThis.indexedDB = indexedDB as unknown as IDBFactory
 
 // Mock spark global
-declare global {
-  var spark: any
-}
 
 globalThis.spark = {
   kv: {
@@ -65,5 +62,4 @@ globalThis.spark = {
     delete: vi.fn(),
   },
   user: vi.fn(),
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any
+}

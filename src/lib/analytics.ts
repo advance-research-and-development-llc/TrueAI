@@ -89,7 +89,7 @@ class AnalyticsService {
         duration: options?.duration
       }
 
-      const user = await spark.user()
+      const user = await (spark as any).user()
       if (user) {
         event.userId = user.id
       }

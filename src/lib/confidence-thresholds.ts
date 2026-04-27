@@ -14,7 +14,7 @@ export interface ThresholdConfig {
   maxAutoImplementPerSession: number
   requireConfirmation: boolean
   enableNotifications: boolean
-  allowedActionTypes: OptimizationInsight['suggestedAction']['type'][]
+  allowedActionTypes: NonNullable<OptimizationInsight['suggestedAction']>['type'][]
 }
 
 export const DEFAULT_THRESHOLDS: ThresholdConfig = {
@@ -367,16 +367,23 @@ export class ConfidenceThresholdManager {
   }
 
   private validateConfig(config: unknown): config is ThresholdConfig {
+    if (typeof config !== 'object' || config === null) {
+      return false
+    }
+
+    const c = config as Record<string, unknown>
+
     return (
-      typeof config === 'object' &&
-      typeof config.autoImplementEnabled === 'boolean' &&
-      typeof config.globalMinConfidence === 'number' &&
-      typeof config.maxAutoImplementPerSession === 'number' &&
-      config.thresholds &&
-      typeof config.thresholds.critical === 'object' &&
-      typeof config.thresholds.high === 'object' &&
-      typeof config.thresholds.medium === 'object' &&
-      typeof config.thresholds.low === 'object'
+      typeof c.autoImplementEnabled === 'boolean' &&
+      typeof c.globalMinConfidence === 'number' &&
+      typeof c.maxAutoImplementPerSession === 'number' &&
+      c.thresholds &&
+      typeof c.thresholds === 'object' &&
+      c.thresholds !== null &&
+      typeof (c.thresholds as Record<string, unknown>).critical === 'object' &&
+      typeof (c.thresholds as Record<string, unknown>).high === 'object' &&
+      typeof (c.thresholds as Record<string, unknown>).medium === 'object' &&
+      typeof (c.thresholds as Record<string, unknown>).low === 'object'
     )
   }
 }

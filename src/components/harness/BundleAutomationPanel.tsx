@@ -465,7 +465,7 @@ export function BundleAutomationPanel({
                         <div className="flex items-start gap-3 flex-1 min-w-0">
                           <Switch
                             checked={rule.enabled}
-                            onCheckedChange={(enabled) => toggleRule(rule.id, enabled)}
+                            onCheckedChange={(enabled) => toggleRule(rule.id, String(enabled))}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">

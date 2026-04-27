@@ -1,7 +1,8 @@
-import type { 
-  ModelConfig, 
+import type {
+  ModelConfig,
   ModelParameters,
-  OptimizationInsight} from './types'
+  OptimizationInsight
+} from './types'
 
 export interface OptimizationBundle {
   id: string

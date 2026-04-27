@@ -72,7 +72,7 @@ export function usePrefetch() {
   }, [setPrefetchStats])
 
   const getTopPrefetchCandidates = useCallback((currentTab: string): string[] => {
-    if (!prefetchConfig.enabled || !prefetchStats) return []
+    if (!prefetchConfig?.enabled || !prefetchStats) return []
 
     const candidates = Object.values(prefetchStats)
       .filter(stat => 

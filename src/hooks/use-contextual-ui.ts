@@ -45,10 +45,10 @@ export function useContextualUI() {
 
   const trackFeatureUsage = (feature: string) => {
     setBehavior(prev => ({
-      ...prev,
+      ...prev!,
       mostUsedFeatures: {
-        ...prev.mostUsedFeatures,
-        [feature]: (prev.mostUsedFeatures[feature] || 0) + 1,
+        ...prev!.mostUsedFeatures,
+        [feature]: (prev!.mostUsedFeatures[feature] || 0) + 1,
       },
     }))
   }
@@ -63,25 +63,25 @@ export function useContextualUI() {
     else period = 'night'
 
     setBehavior(prev => ({
-      ...prev,
+      ...prev!,
       timePatterns: {
-        ...prev.timePatterns,
-        [period]: [...new Set([...prev.timePatterns[period], feature])],
+        ...prev!.timePatterns,
+        [period]: [...new Set([...prev!.timePatterns[period], feature])],
       },
     }))
   }
 
   const trackError = (error: string) => {
     setBehavior(prev => ({
-      ...prev,
-      errorPatterns: [...prev.errorPatterns.slice(-10), error],
+      ...prev!,
+      errorPatterns: [...prev!.errorPatterns.slice(-10), error],
     }))
   }
 
   const trackSessionDuration = (duration: number) => {
     setBehavior(prev => ({
-      ...prev,
-      sessionDuration: [...prev.sessionDuration.slice(-20), duration],
+      ...prev!,
+      sessionDuration: [...prev!.sessionDuration.slice(-20), duration],
       lastActive: Date.now(),
     }))
   }

@@ -107,11 +107,11 @@ export class AgentToolExecutor {
         metadata: { action: 'store', dataLength: data.length }
       }
     } else if (command === 'recall') {
-      const keys = await spark.kv.keys()
-      const memoryKeys = keys.filter(k => k.startsWith('agent-memory-'))
+      // Note: spark.kv doesn't expose a keys() method, so we'll store memory indices
+      const memoryIndex = await spark.kv.get<string[]>('agent-memory-index') || []
       const memories: string[] = []
-      
-      for (const key of memoryKeys.slice(-5)) {
+
+      for (const key of memoryIndex.slice(-5)) {
         const data = await spark.kv.get<string>(key)
         if (data) memories.push(data)
       }

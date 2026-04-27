@@ -21,15 +21,18 @@ export function DataSettings({ onSettingsChange: _onSettingsChange }: DataSettin
     setIsExporting(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const allKeys = await spark.kv.keys()
+
+      // Note: spark.kv doesn't expose a keys() method, so we export known keys only
+      const knownKeys = ['conversations', 'agents', 'models', 'settings', 'analytics', 'cache']
       const exportData: Record<string, unknown> = {}
-      
-      for (const key of allKeys) {
+
+      for (const key of knownKeys) {
         const value = await spark.kv.get(key)
-        exportData[key] = value
+        if (value !== undefined) {
+          exportData[key] = value
+        }
       }
-      
+
       const dataStr = JSON.stringify(exportData, null, 2)
       const dataBlob = new Blob([dataStr], { type: 'application/json' })
       const url = URL.createObjectURL(dataBlob)
@@ -84,11 +87,12 @@ export function DataSettings({ onSettingsChange: _onSettingsChange }: DataSettin
 
     setIsClearing(true)
     try {
-      const allKeys = await spark.kv.keys()
-      for (const key of allKeys) {
+      // Note: spark.kv doesn't expose a keys() method, so we clear known keys only
+      const knownKeys = ['conversations', 'agents', 'models', 'settings', 'analytics', 'cache']
+      for (const key of knownKeys) {
         await spark.kv.delete(key)
       }
-      
+
       toast.success('All data cleared')
       window.location.reload()
     } catch (error) {

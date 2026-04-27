@@ -34,8 +34,8 @@ export function usePerformanceOptimization() {
 
   const [capabilities, setCapabilities] = useState<DeviceCapabilities>({
     cores: navigator.hardwareConcurrency || 4,
-    memory: (navigator as Record<string, unknown>).deviceMemory as number || 4,
-    connectionType: (navigator as Record<string, unknown>).connection?.effectiveType as string || '4g',
+    memory: (navigator as any).deviceMemory as number || 4,
+    connectionType: (navigator as any).connection?.effectiveType as string || '4g',
     batteryLevel: null,
     isCharging: false,
     devicePixelRatio: window.devicePixelRatio || 1
@@ -43,8 +43,8 @@ export function usePerformanceOptimization() {
 
   const detectCapabilities = useCallback(async () => {
     const cores = navigator.hardwareConcurrency || 4
-    const memory = (navigator as Record<string, unknown>).deviceMemory as number || 4
-    const connection = (navigator as Record<string, unknown>).connection as Record<string, unknown> | undefined
+    const memory = (navigator as any).deviceMemory as number || 4
+    const connection = (navigator as any).connection as Record<string, unknown> | undefined
     const connectionType = connection?.effectiveType as string || '4g'
     
     let batteryLevel = null
@@ -52,7 +52,7 @@ export function usePerformanceOptimization() {
 
     try {
       if ('getBattery' in navigator) {
-        const battery = await (navigator as Record<string, unknown>).getBattery() as { level: number; charging: boolean }
+        const battery = await (navigator as any).getBattery() as { level: number; charging: boolean }
         batteryLevel = battery.level * 100
         isCharging = battery.charging
       }
@@ -98,10 +98,10 @@ export function usePerformanceOptimization() {
       detectCapabilities()
     }
 
-    if ((navigator as Record<string, unknown>).connection) {
-      ((navigator as Record<string, unknown>).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).addEventListener('change', handleConnectionChange)
+    if ((navigator as any).connection) {
+      ((navigator as any).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).addEventListener('change', handleConnectionChange)
       return () => {
-        ((navigator as Record<string, unknown>).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).removeEventListener('change', handleConnectionChange)
+        ((navigator as any).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).removeEventListener('change', handleConnectionChange)
       }
     }
   }, [detectCapabilities])
