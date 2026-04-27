@@ -531,7 +531,7 @@ export class BulkOptimizationManager {
       }
 
       try {
-        await this.applyAction(action, bundle.affectedModels)
+        await this.applyAction(action, _models, bundle.affectedModels)
         appliedActions.push(action.id)
       } catch (error) {
         failedActions.push({
@@ -572,7 +572,7 @@ export class BulkOptimizationManager {
 
     try {
       Object.entries(rollbackData).forEach(([modelId, params]) => {
-        const model = models.find(m => m.id === modelId)
+        const model = _models.find(m => m.id === modelId)
         if (model) {
           Object.assign(model, params)
         }
@@ -591,7 +591,7 @@ export class BulkOptimizationManager {
     const state: Record<string, any> = {}
     
     affectedModelIds.forEach(modelId => {
-      const model = models.find(m => m.id === modelId)
+      const model = _models.find(m => m.id === modelId)
       if (model) {
         state[modelId] = {
           temperature: model.temperature,
@@ -613,7 +613,7 @@ export class BulkOptimizationManager {
   ): Promise<void> {
     if (action.type === 'adjust_parameters' && action.parameters) {
       affectedModelIds.forEach(modelId => {
-        const model = models.find(m => m.id === modelId)
+        const model = _models.find(m => m.id === modelId)
         if (model && action.parameters) {
           Object.assign(model, action.parameters)
         }
@@ -643,7 +643,7 @@ export class BulkOptimizationManager {
 
   getAvailableBundles(_models: ModelConfig[]): OptimizationBundle[] {
     return optimizationBundleTemplates.map(template => 
-      this.createBundle(template.map(m => m.id))
+      this.createBundle(template, _models.map(m => m.id))
     )
   }
 

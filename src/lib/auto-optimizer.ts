@@ -65,7 +65,7 @@ export class AutoOptimizer {
     insights.push(...this.analyzeParameterEffectiveness(events, _models))
     insights.push(...this.detectAnomalies(events))
     insights.push(...this.identifyOptimizationOpportunities(events, _models, profiles))
-    insights.push(...this.generateProactiveRecommendations(events))
+    insights.push(...this.generateProactiveRecommendations(events, _models))
     
     return insights.sort((a, b) => {
       const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
@@ -170,7 +170,7 @@ export class AutoOptimizer {
     
     if (chatEvents.length < this.learningThreshold) return insights
     
-    models.forEach(model => {
+    _models.forEach(model => {
       const modelEvents = chatEvents.filter(e => e.metadata?.model === model.id)
       if (modelEvents.length < 10) return
       
@@ -298,7 +298,7 @@ export class AutoOptimizer {
       .reduce((sum, e) => sum + (e.metadata!.responseLength || 0), 0) / chatEvents.length
     
     if (avgTokenLength > 0) {
-      models.forEach(model => {
+      _models.forEach(model => {
         const modelEvents = chatEvents.filter(e => e.metadata?.model === model.id)
         if (modelEvents.length < 5) return
         
@@ -411,7 +411,7 @@ export class AutoOptimizer {
     _models: ModelConfig[]
   ): AutoTuneRecommendation[] {
     const recommendations: AutoTuneRecommendation[] = []
-    const learningMetrics = this.calculateLearningMetrics(events)
+    const learningMetrics = this.calculateLearningMetrics(events, _models)
     
     if (learningMetrics.totalInteractions < this.learningThreshold) {
       return recommendations
@@ -424,7 +424,7 @@ export class AutoOptimizer {
     if (dominantTask && dominantTask[1] > learningMetrics.totalInteractions * 0.4) {
       const taskType = dominantTask[0] as TaskType
       
-      models.forEach(model => {
+      _models.forEach(model => {
         const currentParams: ModelParameters = {
           temperature: model.temperature,
           maxTokens: model.maxTokens,
@@ -472,7 +472,7 @@ export class AutoOptimizer {
     const taskTypeDistribution = this.inferTaskTypes(events)
     
     const modelPerformance: LearningMetrics['modelPerformance'] = {}
-    models.forEach(model => {
+    _models.forEach(model => {
       const modelEvents = responseEvents.filter(e => e.metadata?.model === model.id)
       if (modelEvents.length > 0) {
         modelPerformance[model.id] = {

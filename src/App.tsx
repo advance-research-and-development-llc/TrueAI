@@ -923,19 +923,19 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     toast.success('Conversation archived')
   }, [setConversations])
 
-  const editMessage = useCallback((_messageId: string, newContent: string) => {
+  const editMessage = useCallback((messageId: string, newContent: string) => {
     setMessages(prev => (prev || []).map(m =>
       m.id === messageId ? { ...m, content: newContent } : m
     ))
     toast.success('Message edited')
   }, [setMessages])
 
-  const deleteMessage = useCallback((_messageId: string) => {
+  const deleteMessage = useCallback((messageId: string) => {
     setMessages(prev => (prev || []).filter(m => m.id !== messageId))
     toast.success('Message deleted')
   }, [setMessages])
 
-  const regenerateMessage = useCallback(async (_messageId: string) => {
+  const regenerateMessage = useCallback(async (messageId: string) => {
     const message = messages?.find(m => m.id === messageId)
     if (!message || message.role !== 'assistant' || !activeConversationId) return
 
@@ -2297,7 +2297,8 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         toast.success(`Model auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
                         analytics.track('auto_tune_applied', 'analytics', 'apply_auto_tune', {
                           metadata: { 
-                            modelId: recommendation.taskType,
+                            modelId: modelId,
+                            taskType: recommendation.taskType,
                             confidence: recommendation.confidence
                           }
                         })

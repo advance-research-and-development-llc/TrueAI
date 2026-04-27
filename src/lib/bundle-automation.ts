@@ -95,7 +95,7 @@ export class BundleAutomationEngine {
     newPatterns.push(...this.detectTemporalPatterns(messages, agentRuns))
     newPatterns.push(...this.detectContextualPatterns(messages, _agents))
     newPatterns.push(...this.detectSequentialPatterns(agentRuns))
-    newPatterns.push(...this.detectFrequencyPatterns(messages))
+    newPatterns.push(...this.detectFrequencyPatterns(messages, _agents))
 
     this.patterns = newPatterns
     this.metrics.lastAnalyzed = Date.now()

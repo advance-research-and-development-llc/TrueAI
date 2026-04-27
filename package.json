@@ -22,7 +22,7 @@
     },
     "dependencies": {
         "@capacitor/android": "^8.3.1",
-        "@capacitor/cli": "^7.6.2",
+        "@capacitor/cli": "^8.3.1",
         "@capacitor/core": "^8.3.1",
         "@github/spark": ">=0.43.1 <1",
         "@heroicons/react": "^2.2.0",
