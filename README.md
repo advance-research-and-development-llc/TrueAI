@@ -107,6 +107,16 @@ The project includes a `.nvmrc` file, so you can simply run `nvm use` to switch 
 
 ### Android APK
 
+#### Download Pre-built APK
+
+Download the latest release APK from the [GitHub Releases](https://github.com/smackypants/trueai-localai/releases) page:
+- **TrueAI-LocalAI-debug.apk** - Debug version for testing
+- **TrueAI-LocalAI-release-unsigned.apk** - Release version (unsigned)
+
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for installation instructions and release details.
+
+#### Build from Source
+
 1. **Build Android APK**
    ```bash
    npm run android:build
