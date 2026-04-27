@@ -55,17 +55,17 @@ export class AutoOptimizer {
   
   async analyzeAndOptimize(
     events: AnalyticsEvent[],
-    models: ModelConfig[],
+    _models: ModelConfig[],
     profiles: PerformanceProfile[]
   ): Promise<OptimizationInsight[]> {
     const insights: OptimizationInsight[] = []
     
-    insights.push(...this.analyzeResponseTimes(events, models))
-    insights.push(...this.analyzeModelUsagePatterns(events, models))
-    insights.push(...this.analyzeParameterEffectiveness(events, models))
+    insights.push(...this.analyzeResponseTimes(events, _models))
+    insights.push(...this.analyzeModelUsagePatterns(events, _models))
+    insights.push(...this.analyzeParameterEffectiveness(events, _models))
     insights.push(...this.detectAnomalies(events))
-    insights.push(...this.identifyOptimizationOpportunities(events, models, profiles))
-    insights.push(...this.generateProactiveRecommendations(events, models))
+    insights.push(...this.identifyOptimizationOpportunities(events, _models, profiles))
+    insights.push(...this.generateProactiveRecommendations(events))
     
     return insights.sort((a, b) => {
       const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
@@ -75,7 +75,7 @@ export class AutoOptimizer {
   
   private analyzeResponseTimes(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): OptimizationInsight[] {
     const insights: OptimizationInsight[] = []
     const chatEvents = events.filter(e => e.type === 'chat_message_received' && e.duration)
@@ -121,7 +121,7 @@ export class AutoOptimizer {
   
   private analyzeModelUsagePatterns(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): OptimizationInsight[] {
     const insights: OptimizationInsight[] = []
     const chatEvents = events.filter(e => e.type === 'chat_message_received' && e.metadata?.model)
@@ -163,7 +163,7 @@ export class AutoOptimizer {
   
   private analyzeParameterEffectiveness(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): OptimizationInsight[] {
     const insights: OptimizationInsight[] = []
     const chatEvents = events.filter(e => e.type === 'chat_message_received')
@@ -285,7 +285,7 @@ export class AutoOptimizer {
   
   private identifyOptimizationOpportunities(
     events: AnalyticsEvent[],
-    models: ModelConfig[],
+    _models: ModelConfig[],
     profiles: PerformanceProfile[]
   ): OptimizationInsight[] {
     const insights: OptimizationInsight[] = []
@@ -358,7 +358,7 @@ export class AutoOptimizer {
   
   private generateProactiveRecommendations(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): OptimizationInsight[] {
     const insights: OptimizationInsight[] = []
     
@@ -408,10 +408,10 @@ export class AutoOptimizer {
   
   generateAutoTuneRecommendations(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): AutoTuneRecommendation[] {
     const recommendations: AutoTuneRecommendation[] = []
-    const learningMetrics = this.calculateLearningMetrics(events, models)
+    const learningMetrics = this.calculateLearningMetrics(events)
     
     if (learningMetrics.totalInteractions < this.learningThreshold) {
       return recommendations
@@ -454,7 +454,7 @@ export class AutoOptimizer {
   
   calculateLearningMetrics(
     events: AnalyticsEvent[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): LearningMetrics {
     const chatEvents = events.filter(e => 
       e.type === 'chat_message_sent' || e.type === 'chat_message_received'

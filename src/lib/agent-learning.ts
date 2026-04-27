@@ -5,9 +5,7 @@ import type {
   LearningInsight,
   AgentVersion,
   VersionChange,
-  Agent,
-  FeedbackIssue
-} from './types'
+  Agent} from './types'
 
 export class AgentLearningEngine {
   static analyzeFeedback(

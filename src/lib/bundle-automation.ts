@@ -86,16 +86,16 @@ export class BundleAutomationEngine {
 
   analyzeUsagePatterns(
     messages: Message[],
-    agents: Agent[],
+    _agents: Agent[],
     agentRuns: AgentRun[],
-    harnesses: HarnessManifest[]
+    _harnesses: HarnessManifest[]
   ): UsagePattern[] {
     const newPatterns: UsagePattern[] = []
 
     newPatterns.push(...this.detectTemporalPatterns(messages, agentRuns))
-    newPatterns.push(...this.detectContextualPatterns(messages, agents))
+    newPatterns.push(...this.detectContextualPatterns(messages, _agents))
     newPatterns.push(...this.detectSequentialPatterns(agentRuns))
-    newPatterns.push(...this.detectFrequencyPatterns(messages, agents))
+    newPatterns.push(...this.detectFrequencyPatterns(messages))
 
     this.patterns = newPatterns
     this.metrics.lastAnalyzed = Date.now()
@@ -139,7 +139,7 @@ export class BundleAutomationEngine {
     return patterns
   }
 
-  private detectContextualPatterns(messages: Message[], agents: Agent[]): UsagePattern[] {
+  private detectContextualPatterns(messages: Message[], _agents: Agent[]): UsagePattern[] {
     const patterns: UsagePattern[] = []
     const keywordClusters: Record<string, string[]> = {
       'code_assistant': ['code', 'function', 'debug', 'error', 'syntax', 'implement', 'refactor'],
@@ -220,7 +220,7 @@ export class BundleAutomationEngine {
     return patterns
   }
 
-  private detectFrequencyPatterns(messages: Message[], agents: Agent[]): UsagePattern[] {
+  private detectFrequencyPatterns(messages: Message[], _agents: Agent[]): UsagePattern[] {
     const patterns: UsagePattern[] = []
     const dailyActivity: Record<string, number> = {}
 
@@ -281,7 +281,7 @@ export class BundleAutomationEngine {
 
   createRuleFromPattern(
     pattern: UsagePattern,
-    harnesses: HarnessManifest[],
+    _harnesses: HarnessManifest[],
     options: {
       autoEnable?: boolean
       priority?: AutoExecutionRule['priority']

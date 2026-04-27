@@ -13,7 +13,7 @@ import { FloatingActionButton } from '@/components/ui/floating-action-button'
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { OfflineIndicator } from '@/components/notifications/OfflineIndicator'
-import { OfflineQueueIndicator } from '@/components/notifications/OfflineQueueIndicator'
+// Removed unused import from '@/components/notifications/OfflineQueueIndicator'
 import { ServiceWorkerUpdate } from '@/components/notifications/ServiceWorkerUpdate'
 import { InstallPrompt } from '@/components/notifications/InstallPrompt'
 import { SettingsMenu } from '@/components/settings/SettingsMenu'
@@ -30,7 +30,7 @@ import { useSwipeGesture } from '@/hooks/use-touch-gestures'
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh'
 import { useAutoPerformanceOptimization } from '@/hooks/use-auto-performance'
 import { useIndexedDBCache } from '@/hooks/use-indexeddb-cache'
-import { useDebounce } from '@/lib/mobile-performance'
+// Removed unused import from '@/lib/mobile-performance'
 import { useDynamicUI } from '@/hooks/use-dynamic-ui'
 import { useContextualUI } from '@/hooks/use-contextual-ui'
 import { useTabPreloader } from '@/hooks/use-tab-preloader'
@@ -38,8 +38,8 @@ import { useSmartPrefetch } from '@/hooks/use-data-prefetcher'
 import { DynamicUICustomizer } from '@/components/ui/dynamic-ui-customizer'
 import { DynamicUIDashboard } from '@/components/ui/dynamic-ui-dashboard'
 import { ContextualSuggestionsPanel } from '@/components/ui/contextual-suggestions'
-import { SmartContainer, DynamicCard, DynamicBackground } from '@/components/ui/smart-layout'
-import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play, ArrowsClockwise, CurrencyDollar, MagnifyingGlass, BookBookmark, DownloadSimple, PushPin, Palette } from '@phosphor-icons/react'
+import { DynamicBackground } from '@/components/ui/smart-layout'
+import { ChatCircle, Robot, Lightning, Plus, Flask, Cube, Wrench, Download, HardDrives, ChartBar, Sparkle, Cpu, Code, Gear, Users, Brain, Play, ArrowsClockwise, CurrencyDollar, MagnifyingGlass, BookBookmark, DownloadSimple, Palette } from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -56,7 +56,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets/index'
 import { analytics } from '@/lib/analytics'
 import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
-import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, ModelParameters, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession } from '@/lib/types'
+import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession } from '@/lib/types'
 import type { Workflow, WorkflowTemplate, CostEntry, Budget } from '@/lib/workflow-types'
 import { AgentLearningEngine } from '@/lib/agent-learning'
 import { PrefetchManager } from '@/components/PrefetchManager'
@@ -923,19 +923,19 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     toast.success('Conversation archived')
   }, [setConversations])
 
-  const editMessage = useCallback((messageId: string, newContent: string) => {
+  const editMessage = useCallback((_messageId: string, newContent: string) => {
     setMessages(prev => (prev || []).map(m =>
       m.id === messageId ? { ...m, content: newContent } : m
     ))
     toast.success('Message edited')
   }, [setMessages])
 
-  const deleteMessage = useCallback((messageId: string) => {
+  const deleteMessage = useCallback((_messageId: string) => {
     setMessages(prev => (prev || []).filter(m => m.id !== messageId))
     toast.success('Message deleted')
   }, [setMessages])
 
-  const regenerateMessage = useCallback(async (messageId: string) => {
+  const regenerateMessage = useCallback(async (_messageId: string) => {
     const message = messages?.find(m => m.id === messageId)
     if (!message || message.role !== 'assistant' || !activeConversationId) return
 
@@ -960,7 +960,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     URL.revokeObjectURL(url)
   }, [])
 
-  const handleSelectMessage = useCallback((conversationId: string, messageId: string) => {
+  const handleSelectMessage = useCallback((conversationId: string, _messageId: string) => {
     setActiveConversationId(conversationId)
     setActiveTab('chat')
   }, [])
@@ -1191,7 +1191,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     toast.success('Profile deleted')
   }
 
-  const autoTuneModel = (taskType: TaskType) => {
+  const autoTuneModel = (_taskType: TaskType) => {
     if (editingModelId) {
       const model = models?.find(m => m.id === editingModelId)
       if (model) {
@@ -1964,7 +1964,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   <LazyErrorBoundary componentName="Collaborative Agent Manager">
                     <CollaborativeAgentManager 
                       agents={agents || []}
-                      onRunCollaboration={async (agentIds, objective) => {
+                      onRunCollaboration={async (agentIds) => {
                         for (const agentId of agentIds) {
                           await runAgent(agentId)
                           await new Promise(resolve => setTimeout(resolve, 1000))
@@ -2297,14 +2297,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         toast.success(`Model auto-tuned for ${recommendation.taskType.replace('_', ' ')}`)
                         analytics.track('auto_tune_applied', 'analytics', 'apply_auto_tune', {
                           metadata: { 
-                            modelId, 
-                            taskType: recommendation.taskType,
+                            modelId: recommendation.taskType,
                             confidence: recommendation.confidence
                           }
                         })
                       }
                     }}
-                    onCreateProfile={(taskType) => {
+                    onCreateProfile={(_taskType) => {
                       toast.info('Navigate to Models > Config to create performance profiles')
                       handleTabChange('models')
                     }}

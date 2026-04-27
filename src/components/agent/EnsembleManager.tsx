@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Stack, Play, Trash, Clock, CheckCircle } from '@phosphor-icons/react'
 import { emptyStateEnsemble } from '@/assets'
-import type { EnsembleAgent, EnsembleRun } from '@/lib/types'
+import type { EnsembleAgent} from '@/lib/types'
 
 interface EnsembleManagerProps {
   ensembles: EnsembleAgent[]

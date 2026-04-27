@@ -16,8 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
   Lightning, 
-  Play, 
-  Pause, 
   Trash, 
   Plus, 
   Clock, 

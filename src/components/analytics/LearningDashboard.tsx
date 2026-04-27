@@ -29,7 +29,7 @@ import {
   type ThresholdAdjustment,
   type LearningStats
 } from '@/lib/learning-algorithms'
-import { thresholdManager, type ThresholdConfig } from '@/lib/confidence-thresholds'
+import { type ThresholdConfig } from '@/lib/confidence-thresholds'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 

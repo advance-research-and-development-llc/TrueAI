@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, ReactNode } from 'react'
+import { useRef, useState, ReactNode } from 'react'
 import { useThrottle } from '@/lib/mobile-performance'
 
 interface VirtualListProps<T> {

@@ -14,14 +14,12 @@ import {
   TrendUp, 
   TrendDown, 
   ChartLine, 
-  Lightning, 
   Target, 
   Brain,
   ArrowUp,
   ArrowDown,
   Equals,
   CheckCircle,
-  WarningCircle,
   Info as InfoIcon
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'

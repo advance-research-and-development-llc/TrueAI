@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
@@ -18,10 +18,8 @@ import {
   CheckCircle,
   Target,
   Download,
-  Upload,
-  ArrowsClockwise
-} from '@phosphor-icons/react'
-import type { ThresholdConfig, ConfidenceThreshold } from '@/lib/confidence-thresholds'
+  Upload} from '@phosphor-icons/react'
+import type { ThresholdConfig} from '@/lib/confidence-thresholds'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
@@ -214,7 +212,7 @@ export function ConfidenceThresholdConfig({
             onConfigChange(imported)
             setActivePreset('custom')
             toast.success('Configuration imported')
-          } catch (error) {
+          } catch (_error) {
             toast.error('Invalid configuration file')
           }
         }

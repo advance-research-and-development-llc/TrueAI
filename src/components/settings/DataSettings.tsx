@@ -10,10 +10,10 @@ import type { AppSettings } from '@/lib/types'
 
 interface DataSettingsProps {
   settings: AppSettings
-  onSettingsChange: (settings: AppSettings) => void
+  onSettingsChange: (_settings: AppSettings) => void
 }
 
-export function DataSettings({ settings, onSettingsChange }: DataSettingsProps) {
+export function DataSettings({ onSettingsChange }: DataSettingsProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)

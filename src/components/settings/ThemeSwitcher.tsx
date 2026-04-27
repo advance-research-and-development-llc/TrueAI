@@ -338,7 +338,7 @@ export function ThemeSwitcher() {
           }
           setCustomThemes(prev => [importedTheme, ...(prev || [])])
           toast.success('Theme imported')
-        } catch (error) {
+        } catch (_error) {
           toast.error('Invalid theme file')
         }
       }

@@ -67,7 +67,7 @@ export function PerformanceWrapper({ children }: PerformanceWrapperProps) {
     if ('PerformanceObserver' in window) {
       try {
         observer.observe({ entryTypes: ['longtask'] })
-      } catch (e) {
+      } catch (_e) {
         console.info('Long task monitoring not available')
       }
     }

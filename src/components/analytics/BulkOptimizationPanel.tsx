@@ -21,15 +21,12 @@ import {
   Lightning,
   Sparkle,
   CheckCircle,
-  Warning,
   ArrowsClockwise,
   Stack,
   Target,
   Rocket,
-  Fire,
   Gauge,
   ListChecks,
-  Cpu,
   Code,
   PaintBrush,
   ChatCircle,
@@ -38,12 +35,9 @@ import {
   BatteryCharging,
   ChartBar,
   Play,
-  ArrowCounterClockwise,
-  X
-} from '@phosphor-icons/react'
+  ArrowCounterClockwise} from '@phosphor-icons/react'
 import { 
   bulkOptimizationManager, 
-  optimizationBundleTemplates, 
   optimizationPresets,
   type OptimizationBundle,
   type OptimizationAction,

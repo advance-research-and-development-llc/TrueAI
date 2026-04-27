@@ -12,9 +12,7 @@ import { Progress } from '@/components/ui/progress'
 import { 
   FilePlus, 
   MagnifyingGlass, 
-  Trash, 
-  Info, 
-  Download,
+  Trash,
   File,
   HardDrives,
   ChartBar,

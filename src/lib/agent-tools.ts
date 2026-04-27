@@ -42,15 +42,13 @@ export class AgentToolExecutor {
         default:
           return {
             success: false,
-            output: '',
-            error: `Unknown tool: ${tool}`
+            output: `Unknown tool: ${tool}`
           }
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
-        output: '',
-        error: error instanceof Error ? error.message : String(error)
+        output: _error instanceof Error ? _error.message : String(_error)
       }
     }
   }
@@ -65,11 +63,10 @@ export class AgentToolExecutor {
         output: `Result: ${result}`,
         metadata: { expression: sanitizedInput, result }
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
-        output: '',
-        error: 'Invalid mathematical expression'
+        output: 'Invalid mathematical expression'
       }
     }
   }
@@ -128,8 +125,7 @@ export class AgentToolExecutor {
 
     return {
       success: false,
-      output: '',
-      error: 'Invalid memory command. Use "store: <data>" or "recall"'
+      output: 'Invalid memory command. Use "store: <data>" or "recall"'
     }
   }
 
@@ -153,8 +149,7 @@ export class AgentToolExecutor {
       if (input.includes('function') || input.includes('=>')) {
         return {
           success: false,
-          output: '',
-          error: 'Function definitions are not allowed for security reasons'
+          output: 'Function definitions are not allowed for security reasons'
         }
       }
 
@@ -164,11 +159,10 @@ export class AgentToolExecutor {
         output: `Executed code successfully. Result: ${JSON.stringify(result)}`,
         metadata: { codeLength: input.length, resultType: typeof result }
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
-        output: '',
-        error: `Code execution error: ${error instanceof Error ? error.message : String(error)}`
+        output: `Code execution error: ${_error instanceof Error ? _error.message : String(_error)}`
       }
     }
   }
@@ -191,11 +185,10 @@ export class AgentToolExecutor {
         output: summary,
         metadata: { parsed, keyCount: Object.keys(parsed).length }
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
-        output: '',
-        error: 'Invalid JSON format'
+        output: 'Invalid JSON format'
       }
     }
   }
@@ -237,8 +230,7 @@ export class AgentToolExecutor {
     } catch {
       return {
         success: false,
-        output: '',
-        error: 'Invalid data format for analysis'
+        output: 'Invalid data format for analysis'
       }
     }
   }
@@ -304,8 +296,7 @@ export class AgentToolExecutor {
     if (parts.length !== 2) {
       return {
         success: false,
-        output: '',
-        error: 'Format: <text> | <target_language>'
+        output: 'Format: <text> | <target_language>'
       }
     }
 

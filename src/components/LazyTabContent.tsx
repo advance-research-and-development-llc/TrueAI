@@ -1,6 +1,6 @@
 import { ReactNode, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LoadingSkeleton } from '@/components/ui/loading-skeleton'
+// Removed unused import from '@/components/ui/loading-skeleton'
 
 interface LazyTabContentProps {
   isActive: boolean
