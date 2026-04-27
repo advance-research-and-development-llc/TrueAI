@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { expect, afterEach, vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
 // Cleanup after each test
@@ -23,7 +23,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+globalThis.IntersectionObserver = class IntersectionObserver {
   constructor() {}
   disconnect() {}
   observe() {}
@@ -34,7 +34,7 @@ global.IntersectionObserver = class IntersectionObserver {
 }
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
+globalThis.ResizeObserver = class ResizeObserver {
   constructor() {}
   disconnect() {}
   observe() {}
@@ -47,10 +47,10 @@ const indexedDB = {
   deleteDatabase: vi.fn(),
   databases: vi.fn(),
 }
-global.indexedDB = indexedDB as any
+globalThis.indexedDB = indexedDB as any
 
 // Mock spark global
-global.spark = {
+globalThis.spark = {
   kv: {
     get: vi.fn(),
     set: vi.fn(),
