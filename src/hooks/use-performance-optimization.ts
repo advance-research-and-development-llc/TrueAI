@@ -34,7 +34,9 @@ export function usePerformanceOptimization() {
 
   const [capabilities, setCapabilities] = useState<DeviceCapabilities>({
     cores: navigator.hardwareConcurrency || 4,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     memory: (navigator as any).deviceMemory as number || 4,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     connectionType: (navigator as any).connection?.effectiveType as string || '4g',
     batteryLevel: null,
     isCharging: false,
@@ -43,7 +45,9 @@ export function usePerformanceOptimization() {
 
   const detectCapabilities = useCallback(async () => {
     const cores = navigator.hardwareConcurrency || 4
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const memory = (navigator as any).deviceMemory as number || 4
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const connection = (navigator as any).connection as Record<string, unknown> | undefined
     const connectionType = connection?.effectiveType as string || '4g'
 
@@ -52,6 +56,7 @@ export function usePerformanceOptimization() {
 
     try {
       if ('getBattery' in navigator) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const battery = await (navigator as any).getBattery() as { level: number; charging: boolean }
         batteryLevel = battery.level * 100
         isCharging = battery.charging
@@ -99,9 +104,12 @@ export function usePerformanceOptimization() {
       detectCapabilities()
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((navigator as any).connection) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ((navigator as any).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).addEventListener('change', handleConnectionChange)
       return () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ((navigator as any).connection as { addEventListener: (event: string, handler: () => void) => void; removeEventListener: (event: string, handler: () => void) => void }).removeEventListener('change', handleConnectionChange)
       }
     }

@@ -4,8 +4,7 @@ import type {
   PerformanceProfile,
   ModelParameters
 } from './types'
-import { scanHardware, generateOptimizedSettings, type HardwareSpecs } from './hardware-scanner'
-import { autoOptimizer } from './auto-optimizer'
+import { scanHardware, type HardwareSpecs } from './hardware-scanner'
 
 export interface PerformanceScanResult {
   id: string

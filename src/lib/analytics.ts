@@ -89,7 +89,7 @@ class AnalyticsService {
         duration: options?.duration
       }
 
-      const user = await (spark as any).user()
+      const user = await (spark as any).user() // eslint-disable-line @typescript-eslint/no-explicit-any
       if (user) {
         event.userId = user.id
       }

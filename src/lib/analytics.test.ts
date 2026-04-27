@@ -3,8 +3,8 @@ import type { AnalyticsEvent } from './types'
 
 // Mock the global spark object
 declare global {
-  // eslint-disable-next-line no-var
   // @ts-expect-error - spark is a test mock
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var spark: any
 }
 

@@ -157,7 +157,7 @@ export async function registerBackgroundSync(tag: string = 'background-sync'): P
 
   try {
     const registration = await navigator.serviceWorker.ready
-    await (registration as any).sync.register(tag)
+    await (registration as any).sync.register(tag) // eslint-disable-line @typescript-eslint/no-explicit-any
     console.log(`[ServiceWorker] Background sync registered: ${tag}`)
     return true
   } catch (error) {

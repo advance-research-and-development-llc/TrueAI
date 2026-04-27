@@ -35,7 +35,7 @@ globalThis.IntersectionObserver = class IntersectionObserver {
     return []
   }
   unobserve() {}
-} as any
+} as any // eslint-disable-line @typescript-eslint/no-explicit-any
 
 // Mock ResizeObserver
 globalThis.ResizeObserver = class ResizeObserver {
@@ -55,9 +55,8 @@ globalThis.indexedDB = indexedDB as unknown as IDBFactory
 
 // Mock spark global
 declare global {
-  // eslint-disable-next-line no-var
   // @ts-expect-error - spark is a test mock
-  var spark: any
+  var spark: any // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 // @ts-expect-error - spark is a test mock
