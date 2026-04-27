@@ -8,10 +8,7 @@ import { useKV } from '@github/spark/hooks'
 
 export function InstallPrompt() {
   const { canInstall, isInstalled, promptInstall } = useInstallPrompt()
-  const [dismissedStr, setDismissedStr] = useLocalStorage<string>('pwa-dismissed', 'false')
-  const dismissed = dismissedStr === 'true'
-  const setDismissed = (value: string) => setDismissedStr(value)
-  const [dismissedOld, setDismissed] = useKV('install-prompt-dismissed', false)
+  const [dismissed, setDismissed] = useKV<boolean>('install-prompt-dismissed', false)
   const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
@@ -33,7 +30,7 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    setDismissed('true')
+    setDismissed(true)
   }
 
   if (isInstalled) return null

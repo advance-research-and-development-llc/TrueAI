@@ -1,7 +1,7 @@
 import { useEffect, useRef, RefObject } from 'react'
 
 export function useScrollOptimization(elementRef: RefObject<HTMLElement>) {
-  const rafRef = useRef<number | undefined>()
+  const rafRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const element = elementRef.current

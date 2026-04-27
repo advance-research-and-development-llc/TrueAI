@@ -183,7 +183,7 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
         successRate: benchmark.tests.filter(t => !t.error).length / benchmark.tests.length
       }
 
-      setExperiments(prev => [experiment, ...prev])
+      setExperiments(prev => (prev ? [experiment, ...prev] : [experiment]))
 
       learningRateTuner.recordPerformanceMetrics({
         modelId: selectedModel.id,
@@ -191,7 +191,9 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
         avgLoss: trainingLoss[trainingLoss.length - 1],
         lossVariance: calculateVariance(trainingLoss),
         avgResponseTime: benchmark.averageResponseTime,
-        successRate: experiments?.successRate,
+        successRate: (experiments && experiments.length > 0) ?
+          experiments.reduce((sum, e) => sum + (e.successRate || 0), 0) / experiments.length :
+          benchmark.overallScore / 100,
         userSatisfaction: benchmark.overallScore / 100,
         convergenceSpeed: (trainingLoss[0] - trainingLoss[trainingLoss.length - 1]) / epochs,
         stabilityIndex: learningRateTuner.getLearningRateMetrics(
@@ -491,7 +493,7 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
         </div>
       </Card>
 
-      {experiments?.length > 0 && (
+      {experiments && experiments.length > 0 && (
         <Card className="p-6">
           <Tabs defaultValue="results" className="w-full">
             <div className="flex justify-between items-center mb-4">
@@ -589,7 +591,7 @@ export function LearningRateBenchmark({ models, onModelUpdate, _recentBenchmarks
                 </div>
               </div>
 
-              {baseline && (
+              {baseline && modelExperiments && (
                 <ScrollArea className="h-80">
                   <div className="space-y-3">
                     {modelExperiments

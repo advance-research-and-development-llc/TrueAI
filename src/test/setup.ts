@@ -54,7 +54,13 @@ const indexedDB = {
 globalThis.indexedDB = indexedDB as unknown as IDBFactory
 
 // Mock spark global
+declare global {
+  // eslint-disable-next-line no-var
+  // @ts-expect-error - spark is a test mock
+  var spark: any
+}
 
+// @ts-expect-error - spark is a test mock
 globalThis.spark = {
   kv: {
     get: vi.fn(),

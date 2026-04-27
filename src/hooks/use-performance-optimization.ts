@@ -46,8 +46,8 @@ export function usePerformanceOptimization() {
     const memory = (navigator as any).deviceMemory as number || 4
     const connection = (navigator as any).connection as Record<string, unknown> | undefined
     const connectionType = connection?.effectiveType as string || '4g'
-    
-    let batteryLevel = null
+
+    let batteryLevel: number | null = null
     let isCharging = false
 
     try {
@@ -57,6 +57,7 @@ export function usePerformanceOptimization() {
         isCharging = battery.charging
       }
     } catch (_e) {
+      batteryLevel = null
       // Battery API not supported, ignore
     }
 

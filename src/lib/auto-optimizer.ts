@@ -129,7 +129,7 @@ export class AutoOptimizer {
     if (chatEvents.length < this.learningThreshold) return insights
     
     const modelUsage = chatEvents.reduce((acc, e) => {
-      const model = e.metadata!.model
+      const model = String(e.metadata!.model)
       acc[model] = (acc[model] || 0) + 1
       return acc
     }, {} as Record<string, number>)
@@ -295,16 +295,16 @@ export class AutoOptimizer {
     
     const avgTokenLength = chatEvents
       .filter(e => e.metadata?.responseLength)
-      .reduce((sum, e) => sum + (e.metadata!.responseLength || 0), 0) / chatEvents.length
-    
+      .reduce((sum, e) => sum + (Number(e.metadata!.responseLength) || 0), 0) / chatEvents.length
+
     if (avgTokenLength > 0) {
       _models.forEach(model => {
         const modelEvents = chatEvents.filter(e => e.metadata?.model === model.id)
         if (modelEvents.length < 5) return
-        
+
         const avgModelTokens = modelEvents
           .filter(e => e.metadata?.responseLength)
-          .reduce((sum, e) => sum + (e.metadata!.responseLength || 0), 0) / modelEvents.length
+          .reduce((sum, e) => sum + (Number(e.metadata!.responseLength) || 0), 0) / modelEvents.length
         
         if (model.maxTokens > avgModelTokens * 2) {
           insights.push({
@@ -342,7 +342,7 @@ export class AutoOptimizer {
         recommendation: 'Create task-specific profiles (e.g., creative writing, code generation, data analysis) for better results.',
         impact: 'Improved output quality and task-specific optimization',
         confidence: 0.85,
-        affectedModels: models.map(m => m.id),
+        affectedModels: _models.map(m => m.id),
         suggestedAction: {
           type: 'add_profile',
           details: {
@@ -426,11 +426,11 @@ export class AutoOptimizer {
       
       _models.forEach(model => {
         const currentParams: ModelParameters = {
-          temperature: foundModel.temperature,
-          maxTokens: foundModel.maxTokens,
-          topP: foundModel.topP,
-          frequencyPenalty: foundModel.frequencyPenalty,
-          presencePenalty: foundModel.presencePenalty
+          temperature: model.temperature,
+          maxTokens: model.maxTokens,
+          topP: model.topP,
+          frequencyPenalty: model.frequencyPenalty,
+          presencePenalty: model.presencePenalty
         }
         
         const recommendedParams = defaultProfilesByTaskType[taskType]
@@ -473,9 +473,9 @@ export class AutoOptimizer {
     
     const modelPerformance: LearningMetrics['modelPerformance'] = {}
     _models.forEach(model => {
-      const modelEvents = responseEvents.filter(e => e.metadata?.model === foundModel.id)
+      const modelEvents = responseEvents.filter(e => e.metadata?.model === model.id)
       if (modelEvents.length > 0) {
-        modelPerformance[foundModel.id] = {
+        modelPerformance[model.id] = {
           avgResponseTime: modelEvents.reduce((sum, e) => sum + (e.duration || 0), 0) / modelEvents.length,
           successRate: 100,
           usageCount: modelEvents.length,
@@ -517,7 +517,7 @@ export class AutoOptimizer {
   
   private groupByModel(events: AnalyticsEvent[]): Record<string, { times: number[] }> {
     return events.reduce((acc, event) => {
-      const model = event.metadata?.model || 'unknown'
+      const model = String(event.metadata?.model || 'unknown')
       if (!acc[model]) {
         acc[model] = { times: [] }
       }

@@ -373,11 +373,11 @@ export class ConfidenceThresholdManager {
 
     const c = config as Record<string, unknown>
 
-    return (
+    const result: boolean = (
       typeof c.autoImplementEnabled === 'boolean' &&
       typeof c.globalMinConfidence === 'number' &&
       typeof c.maxAutoImplementPerSession === 'number' &&
-      c.thresholds &&
+      c.thresholds !== undefined &&
       typeof c.thresholds === 'object' &&
       c.thresholds !== null &&
       typeof (c.thresholds as Record<string, unknown>).critical === 'object' &&
@@ -385,6 +385,8 @@ export class ConfidenceThresholdManager {
       typeof (c.thresholds as Record<string, unknown>).medium === 'object' &&
       typeof (c.thresholds as Record<string, unknown>).low === 'object'
     )
+
+    return result
   }
 }
 

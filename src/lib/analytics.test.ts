@@ -4,6 +4,7 @@ import type { AnalyticsEvent } from './types'
 // Mock the global spark object
 declare global {
   // eslint-disable-next-line no-var
+  // @ts-expect-error - spark is a test mock
   var spark: any
 }
 
@@ -28,6 +29,7 @@ describe('AnalyticsService', () => {
     vi.resetModules()
     mockKVStore.clear()
 
+    // @ts-expect-error - spark is a test mock
     globalThis.spark = {
       kv: {
         get: vi.fn((key: string) => Promise.resolve(mockKVStore.get(key))),

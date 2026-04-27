@@ -34,14 +34,17 @@ export function useTabPreloader(
   const hoverTimer = useRef<NodeJS.Timeout | null>(null)
 
   const recordMetric = useCallback((tabName: string, metric: Partial<TabMetrics>) => {
-    setMetrics(current => ({
-      ...current,
-      [tabName]: {
-        ...current[tabName],
-        ...metric,
-        lastPreloaded: Date.now()
+    setMetrics(current => {
+      const base = current || {}
+      return {
+        ...base,
+        [tabName]: {
+          ...(base[tabName] || {}),
+          ...metric,
+          lastPreloaded: Date.now()
+        }
       }
-    }))
+    })
   }, [setMetrics])
 
   const preloadTab = useCallback(async (tabName: string, priority: 'high' | 'low' = 'low') => {

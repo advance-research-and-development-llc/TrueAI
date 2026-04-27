@@ -2272,9 +2272,10 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                       if (insight.suggestedAction?.type === 'adjust_parameters' && insight.suggestedAction.details.modelId) {
                         const model = models?.find(m => m.id === insight.suggestedAction!.details.modelId)
                         if (model) {
+                          const params = insight.suggestedAction.details.parameters
                           const updatedModel = {
                             ...model,
-                            ...insight.suggestedAction.details.parameters
+                            ...(typeof params === 'object' && params !== null ? params : {})
                           }
                           setModels(prev => (prev || []).map(m => m.id === model.id ? updatedModel : m))
                           toast.success('Optimization applied successfully')
