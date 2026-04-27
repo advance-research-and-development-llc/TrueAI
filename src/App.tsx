@@ -1195,14 +1195,14 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     if (editingModelId) {
       const model = models?.find(m => m.id === editingModelId)
       if (model) {
-        const optimalParams = defaultProfilesByTaskType[taskType]
-        
+        const optimalParams = defaultProfilesByTaskType[_taskType]
+
         saveModelConfig({
           ...model,
           ...optimalParams
         })
-        
-        toast.success(`Auto-tuned for ${taskType.replace('_', ' ')}`)
+
+        toast.success(`Auto-tuned for ${_taskType.replace('_', ' ')}`)
       }
     }
   }
@@ -2761,6 +2761,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           notificationsEnabled: true,
           notificationSound: true,
           notifyAgentComplete: true,
+          notifyModelLoaded: true,
           notifyErrors: true,
           notifyUpdates: true,
           showToast: true,
@@ -2773,6 +2774,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           encryptData: false,
           clearDataOnExit: false,
           requireAuth: false,
+          autoLockEnabled: false,
           secureMode: false,
           debugMode: false,
           devTools: false,

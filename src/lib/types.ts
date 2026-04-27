@@ -371,6 +371,9 @@ export type AnalyticsEventType =
   | 'agent_run_completed'
   | 'agent_run_failed'
   | 'agent_deleted'
+  | 'agent_feedback_submitted'
+  | 'agent_learning_completed'
+  | 'learning_insight_applied'
   | 'model_configured'
   | 'model_downloaded'
   | 'model_deleted'
@@ -391,6 +394,13 @@ export type AnalyticsEventType =
   | 'feature_used'
   | 'optimization_applied'
   | 'auto_tune_applied'
+  | 'workflow_saved'
+  | 'workflow_deleted'
+  | 'workflow_executed'
+  | 'template_used'
+  | 'budget_created'
+  | 'app_project_created'
+  | 'app_code_generated'
 
 export interface AnalyticsSession {
   id: string
