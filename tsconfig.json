@@ -29,5 +29,9 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/App-Enhanced.tsx",
+    "src/components/OptimizedImage.tsx"
   ]
 }

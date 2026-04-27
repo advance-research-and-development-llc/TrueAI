@@ -1,4 +1,7 @@
 /// <reference types="vite/client" />
+/// <reference types="react" />
+/// <reference types="react/jsx-runtime" />
+
 declare const GITHUB_RUNTIME_PERMANENT_NAME: string
 declare const BASE_KV_SERVICE_URL: string
 
@@ -15,4 +18,15 @@ declare module '*.svg?url' {
 declare module '*.json' {
   const content: any
   export default content
+}
+
+// Global spark declaration
+declare const spark: {
+  kv: {
+    get: <T = any>(key: string) => Promise<T | undefined>;
+    set: (key: string, value: any) => Promise<void>;
+    delete: (key: string) => Promise<void>;
+  };
+  llmPrompt: (strings: TemplateStringsArray, ...values: any[]) => string;
+  llm: (prompt: string, model?: string) => Promise<string>;
 }
