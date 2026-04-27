@@ -68,7 +68,7 @@ export async function scanHardware(): Promise<HardwareSpecs> {
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     console.warn('Could not detect GPU info')
   }
 
@@ -81,7 +81,7 @@ export async function scanHardware(): Promise<HardwareSpecs> {
         charging: batteryManager.charging
       }
     }
-  } catch (e) {
+  } catch (_e) {
     console.warn('Could not detect battery info')
   }
 
@@ -96,7 +96,7 @@ export async function scanHardware(): Promise<HardwareSpecs> {
         saveData: conn.saveData || false
       }
     }
-  } catch (e) {
+  } catch (_e) {
     console.warn('Could not detect connection info')
   }
 

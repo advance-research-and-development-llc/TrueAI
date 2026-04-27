@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { HardwareSpecs, OptimizedSettings } from '@/lib/hardware-scanner'
 import { scanHardware, generateOptimizedSettings, formatHardwareInfo } from '@/lib/hardware-scanner'
-import type { BenchmarkResult, BenchmarkComparison as BenchmarkComparisonType } from '@/lib/benchmark'
+import type { BenchmarkComparison as BenchmarkComparisonType } from '@/lib/benchmark'
 import { runBenchmark, compareBenchmarks } from '@/lib/benchmark'
 import { BenchmarkComparison } from './BenchmarkComparison'
 
@@ -56,9 +56,9 @@ export function HardwareOptimizer({ onSettingsApplied }: HardwareOptimizerProps)
       }
 
       toast.success(`Hardware scan complete - ${specs.tier.toUpperCase()} tier detected`)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to scan hardware')
-      console.error(error)
+      console.error(_error)
     } finally {
       setIsScanning(false)
     }

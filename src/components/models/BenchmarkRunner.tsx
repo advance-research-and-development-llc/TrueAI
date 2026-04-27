@@ -12,12 +12,11 @@ import { Label } from '@/components/ui/label'
 import { Play, Stop, ChartBar, Target, TrendUp, Clock, Lightning, Brain, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { ModelConfig, TaskType, ModelParameters } from '@/lib/types'
+import type { ModelConfig, TaskType} from '@/lib/types'
 import { 
   runModelBenchmark, 
   benchmarkTests, 
   compareBenchmarkSuites,
-  generateBenchmarkReport,
   type BenchmarkSuite,
   type BenchmarkTest
 } from '@/lib/model-benchmark'

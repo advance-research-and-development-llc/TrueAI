@@ -26,13 +26,9 @@ import {
   FloppyDisk,
   Folders,
   File,
-  Sparkle,
   Code,
-  Lightning,
   CheckCircle,
-  Circle,
-  List
-} from '@phosphor-icons/react'
+  Circle} from '@phosphor-icons/react'
 import { CodeEditor, type CodeTheme } from './CodeEditor'
 import { analytics } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/use-mobile'

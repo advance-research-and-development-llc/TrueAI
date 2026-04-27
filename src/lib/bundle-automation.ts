@@ -86,16 +86,16 @@ export class BundleAutomationEngine {
 
   analyzeUsagePatterns(
     messages: Message[],
-    agents: Agent[],
+    _agents: Agent[],
     agentRuns: AgentRun[],
-    harnesses: HarnessManifest[]
+    _harnesses: HarnessManifest[]
   ): UsagePattern[] {
     const newPatterns: UsagePattern[] = []
 
     newPatterns.push(...this.detectTemporalPatterns(messages, agentRuns))
-    newPatterns.push(...this.detectContextualPatterns(messages, agents))
+    newPatterns.push(...this.detectContextualPatterns(messages, _agents))
     newPatterns.push(...this.detectSequentialPatterns(agentRuns))
-    newPatterns.push(...this.detectFrequencyPatterns(messages, agents))
+    newPatterns.push(...this.detectFrequencyPatterns(messages, _agents))
 
     this.patterns = newPatterns
     this.metrics.lastAnalyzed = Date.now()
@@ -139,7 +139,7 @@ export class BundleAutomationEngine {
     return patterns
   }
 
-  private detectContextualPatterns(messages: Message[], agents: Agent[]): UsagePattern[] {
+  private detectContextualPatterns(messages: Message[], _agents: Agent[]): UsagePattern[] {
     const patterns: UsagePattern[] = []
     const keywordClusters: Record<string, string[]> = {
       'code_assistant': ['code', 'function', 'debug', 'error', 'syntax', 'implement', 'refactor'],
@@ -220,7 +220,7 @@ export class BundleAutomationEngine {
     return patterns
   }
 
-  private detectFrequencyPatterns(messages: Message[], agents: Agent[]): UsagePattern[] {
+  private detectFrequencyPatterns(messages: Message[], _agents: Agent[]): UsagePattern[] {
     const patterns: UsagePattern[] = []
     const dailyActivity: Record<string, number> = {}
 
@@ -281,7 +281,7 @@ export class BundleAutomationEngine {
 
   createRuleFromPattern(
     pattern: UsagePattern,
-    harnesses: HarnessManifest[],
+    _harnesses: HarnessManifest[],
     options: {
       autoEnable?: boolean
       priority?: AutoExecutionRule['priority']
@@ -402,30 +402,33 @@ export class BundleAutomationEngine {
     let result = false
 
     switch (condition.type) {
-      case 'time_range':
+      case 'time_range': {
         const currentHour = new Date(context.currentTime).getHours()
         if (condition.operator === 'in_range' && Array.isArray(condition.value)) {
           result = currentHour >= condition.value[0] && currentHour < condition.value[1]
         }
         break
+      }
 
-      case 'keyword_match':
+      case 'keyword_match': {
         const recentContent = context.recentMessages.map(m => m.content.toLowerCase()).join(' ')
         if (condition.operator === 'contains') {
           result = recentContent.includes(String(condition.value).toLowerCase())
         }
         break
+      }
 
-      case 'tool_used':
-        const toolsUsed = context.recentRuns.flatMap(run => 
+      case 'tool_used': {
+        const toolsUsed = context.recentRuns.flatMap(run =>
           run.steps.filter(s => s.toolName).map(s => s.toolName)
         )
         if (condition.operator === 'equals') {
           result = toolsUsed.some(tool => tool === condition.value)
         }
         break
+      }
 
-      case 'message_count':
+      case 'message_count': {
         const msgCount = context.recentMessages.length
         if (condition.operator === 'greater_than') {
           result = msgCount > condition.value
@@ -433,18 +436,21 @@ export class BundleAutomationEngine {
           result = msgCount < condition.value
         }
         break
+      }
 
-      case 'agent_status':
+      case 'agent_status': {
         const hasStatus = context.activeAgents.some(agent => agent.status === condition.value)
         result = condition.operator === 'equals' ? hasStatus : !hasStatus
         break
+      }
 
-      case 'model_type':
+      case 'model_type': {
         const usedModels = context.recentMessages.map(m => m.model).filter(Boolean)
         if (condition.operator === 'contains') {
           result = usedModels.some(model => model?.includes(String(condition.value)))
         }
         break
+      }
     }
 
     return condition.negate ? !result : result

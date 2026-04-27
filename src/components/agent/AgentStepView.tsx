@@ -1,7 +1,7 @@
 import { AgentStep } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Brain, Calculator, Clock, Database, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { Brain, Calculator, Clock, Database, CheckCircle} from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 

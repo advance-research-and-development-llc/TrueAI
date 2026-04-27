@@ -18,7 +18,6 @@ import {
   Robot,
   Lightning,
   Warning,
-  CalendarDots,
   ArrowUp,
   ArrowDown,
   Download,

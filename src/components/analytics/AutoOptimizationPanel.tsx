@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { DialogFooter } from '@/components/ui/dialog'
 import { 
   Sparkle, 
   TrendUp, 
@@ -23,9 +23,7 @@ import {
   Clock,
   Target,
   Gear,
-  Eye,
-  ListChecks
-} from '@phosphor-icons/react'
+  Eye} from '@phosphor-icons/react'
 import { useAnalytics } from '@/lib/analytics'
 import { autoOptimizer, type OptimizationInsight } from '@/lib/auto-optimizer'
 import { thresholdManager, type ThresholdConfig } from '@/lib/confidence-thresholds'
@@ -50,7 +48,6 @@ export function AutoOptimizationPanel({
   profiles,
   onApplyOptimization,
   onApplyAutoTune,
-  onCreateProfile,
   thresholdConfig: externalThresholdConfig,
   onThresholdConfigChange
 }: AutoOptimizationPanelProps) {

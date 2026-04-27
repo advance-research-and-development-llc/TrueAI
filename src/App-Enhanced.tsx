@@ -8,8 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { 
   ChatCircle, Robot, Lightning, Plus, Bell, Package,
-  ChartBar, Calendar, Stack, Database
-} from '@phosphor-icons/react'
+  ChartBar} from '@phosphor-icons/react'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { AgentCard } from '@/components/agent/AgentCard'

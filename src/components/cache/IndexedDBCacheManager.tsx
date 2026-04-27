@@ -50,8 +50,8 @@ export function IndexedDBCacheManager() {
     try {
       const cacheStats = await getCacheStats()
       setStats(cacheStats)
-    } catch (error) {
-      console.error('Failed to load cache stats:', error)
+    } catch (_error) {
+      console.error('Failed to load cache stats:')
     } finally {
       setIsLoading(false)
     }
@@ -70,7 +70,7 @@ export function IndexedDBCacheManager() {
       setJustSynced(true)
       setTimeout(() => setJustSynced(false), 2000)
       toast.success('Cache synced successfully')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to sync cache')
     }
   }
@@ -80,7 +80,7 @@ export function IndexedDBCacheManager() {
       await cleanupCache()
       await loadStats()
       toast.success('Cache cleaned up successfully')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to cleanup cache')
     }
   }
@@ -94,7 +94,7 @@ export function IndexedDBCacheManager() {
       await clearCache()
       await loadStats()
       toast.success('Cache cleared successfully')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to clear cache')
     }
   }
@@ -103,7 +103,7 @@ export function IndexedDBCacheManager() {
     try {
       await exportCache()
       toast.success('Cache exported successfully')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to export cache')
     }
   }
@@ -119,7 +119,7 @@ export function IndexedDBCacheManager() {
           await importCache(file)
           await loadStats()
           toast.success('Cache imported successfully')
-        } catch (error) {
+        } catch (_error) {
           toast.error('Failed to import cache')
         }
       }

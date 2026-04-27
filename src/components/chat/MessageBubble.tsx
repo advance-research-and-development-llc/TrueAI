@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Message } from '@/lib/types'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { User, Robot } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'

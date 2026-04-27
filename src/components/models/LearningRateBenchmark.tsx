@@ -25,9 +25,7 @@ import {
   Target,
   Brain,
   Sparkle,
-  Download,
-  Upload
-} from '@phosphor-icons/react'
+  Download} from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { ModelConfig, TaskType } from '@/lib/types'

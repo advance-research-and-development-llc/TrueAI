@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect} from 'react'
 import { usePrefetch } from '@/hooks/use-prefetch'
 
 const PREFETCH_COMPONENTS: Record<string, () => Promise<any>> = {

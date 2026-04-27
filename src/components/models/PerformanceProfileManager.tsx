@@ -9,10 +9,10 @@ import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TabsTrigger } from '@/components/ui/tabs'
 import { Lightbulb, Sparkle, TrendUp, CheckCircle, ArrowRight, Faders } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
-import type { PerformanceProfile, TaskType, ModelParameters, AutoTuneRecommendation } from '@/lib/types'
+import type { PerformanceProfile, TaskType, ModelParameters} from '@/lib/types'
 import { 
   taskTypeDescriptions, 
   generateAutoTuneRecommendation, 
@@ -34,7 +34,6 @@ interface PerformanceProfileManagerProps {
 export function PerformanceProfileManager({
   profiles,
   currentModelParams,
-  currentModelId,
   onCreateProfile,
   onApplyProfile,
   onDeleteProfile,

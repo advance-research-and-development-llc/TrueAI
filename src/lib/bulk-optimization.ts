@@ -1,10 +1,7 @@
 import type { 
   ModelConfig, 
-  ModelParameters, 
-  TaskType,
-  OptimizationInsight,
-  PerformanceProfile
-} from './types'
+  ModelParameters,
+  OptimizationInsight} from './types'
 import { defaultProfilesByTaskType } from './performance-profiles'
 
 export interface OptimizationBundle {
@@ -516,14 +513,14 @@ export class BulkOptimizationManager {
 
   async applyBundle(
     bundle: OptimizationBundle,
-    models: ModelConfig[],
+    _models: ModelConfig[],
     onProgress?: (progress: number, action: OptimizationAction) => void
   ): Promise<BulkOptimizationResult> {
     const startTime = Date.now()
     const appliedActions: string[] = []
     const failedActions: { actionId: string; error: string }[] = []
     
-    const rollbackData = this.captureCurrentState(models, bundle.affectedModels)
+    const rollbackData = this.captureCurrentState(_models, bundle.affectedModels)
     this.rollbackStates.set(bundle.id, rollbackData)
 
     for (let i = 0; i < bundle.actions.length; i++) {
@@ -534,7 +531,7 @@ export class BulkOptimizationManager {
       }
 
       try {
-        await this.applyAction(action, models, bundle.affectedModels)
+        await this.applyAction(action, _models, bundle.affectedModels)
         appliedActions.push(action.id)
       } catch (error) {
         failedActions.push({
@@ -567,7 +564,7 @@ export class BulkOptimizationManager {
     return result
   }
 
-  async rollbackBundle(bundleId: string, models: ModelConfig[]): Promise<boolean> {
+  async rollbackBundle(bundleId: string, _models: ModelConfig[]): Promise<boolean> {
     const rollbackData = this.rollbackStates.get(bundleId)
     if (!rollbackData) {
       throw new Error('No rollback data available for this bundle')
@@ -575,7 +572,7 @@ export class BulkOptimizationManager {
 
     try {
       Object.entries(rollbackData).forEach(([modelId, params]) => {
-        const model = models.find(m => m.id === modelId)
+        const model = _models.find(m => m.id === modelId)
         if (model) {
           Object.assign(model, params)
         }
@@ -590,11 +587,11 @@ export class BulkOptimizationManager {
     }
   }
 
-  private captureCurrentState(models: ModelConfig[], affectedModelIds: string[]): Record<string, any> {
+  private captureCurrentState(_models: ModelConfig[], affectedModelIds: string[]): Record<string, any> {
     const state: Record<string, any> = {}
     
     affectedModelIds.forEach(modelId => {
-      const model = models.find(m => m.id === modelId)
+      const model = _models.find(m => m.id === modelId)
       if (model) {
         state[modelId] = {
           temperature: model.temperature,
@@ -611,12 +608,12 @@ export class BulkOptimizationManager {
 
   private async applyAction(
     action: OptimizationAction,
-    models: ModelConfig[],
+    _models: ModelConfig[],
     affectedModelIds: string[]
   ): Promise<void> {
     if (action.type === 'adjust_parameters' && action.parameters) {
       affectedModelIds.forEach(modelId => {
-        const model = models.find(m => m.id === modelId)
+        const model = _models.find(m => m.id === modelId)
         if (model && action.parameters) {
           Object.assign(model, action.parameters)
         }
@@ -644,17 +641,17 @@ export class BulkOptimizationManager {
     return this.rollbackStates.has(bundleId)
   }
 
-  getAvailableBundles(models: ModelConfig[]): OptimizationBundle[] {
+  getAvailableBundles(_models: ModelConfig[]): OptimizationBundle[] {
     return optimizationBundleTemplates.map(template => 
-      this.createBundle(template, models.map(m => m.id))
+      this.createBundle(template, _models.map(m => m.id))
     )
   }
 
-  getPresetBundles(presetId: string, models: ModelConfig[]): OptimizationBundle[] {
+  getPresetBundles(presetId: string, _models: ModelConfig[]): OptimizationBundle[] {
     const preset = optimizationPresets.find(p => p.id === presetId)
     if (!preset) return []
 
-    const availableBundles = this.getAvailableBundles(models)
+    const availableBundles = this.getAvailableBundles(_models)
     return preset.bundles
       .map(bundleName => 
         availableBundles.find(b => 
@@ -666,7 +663,7 @@ export class BulkOptimizationManager {
 
   generateInsightBasedBundles(
     insights: OptimizationInsight[],
-    models: ModelConfig[]
+    _models: ModelConfig[]
   ): OptimizationBundle[] {
     const bundles: OptimizationBundle[] = []
 
