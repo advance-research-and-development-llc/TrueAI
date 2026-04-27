@@ -28,6 +28,10 @@ so that the app's local-AI features actually work on a real device.
   first running `npx cap sync` no longer fails.
 - **Versioning.** Bumped `versionCode` to 2 and `versionName` to `1.0.1` so
   installs cleanly upgrade over v1.0.0.
+- **Polished native chrome.** Status-bar / theme color now match the dark app
+  theme (was a light cyan on v1.0.0), the splash screen no longer flashes
+  white before the dark app paints, and content correctly respects the
+  notch / cutout safe-areas on modern Android devices.
 
 ### Installation
 

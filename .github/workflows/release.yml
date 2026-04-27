@@ -96,6 +96,11 @@ jobs:
               additionally trust user-installed CA certs (mitmproxy etc.).
               Release builds reaching an arbitrary LAN IP should use the
               device's `*.local` mDNS hostname or an HTTPS endpoint.
+            - **Polished Android native chrome.** Status-bar / theme color
+              now match the dark app theme (was a light cyan in v1.0.0), the
+              splash screen no longer flashes white before the dark app
+              paints, and content correctly respects notch / cutout
+              safe-areas on modern Android devices.
             - Added the `ACCESS_NETWORK_STATE` permission for accurate
               online/offline detection.
             - Fixed a missing `res/values/colors.xml` that broke direct

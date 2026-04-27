@@ -26,6 +26,26 @@
 - **CHORE**: Bumped Android `versionCode` (1 → 2) and `versionName`
   (1.0.0 → 1.0.1) so the new APK installs as an update over v1.0.0.
 
+### 🎨 UI / Performance (Android)
+
+- **FIX**: Activated safe-area handling on Android. The app's CSS already used
+  `env(safe-area-inset-*)` extensively, but `index.html`'s viewport meta was
+  missing `viewport-fit=cover`, so on devices with notches / cutouts /
+  punch-holes those values resolved to `0` and content rendered under the
+  system bars. Added `viewport-fit=cover` so the existing safe-area styles
+  take effect.
+- **FIX**: Aligned the native chrome with the app's dark theme:
+  - `<meta name="theme-color">` was `#75bed8` (light cyan) — corrected to
+    `#1a1d24` to match the app `--background` (`oklch(0.18 0.01 260)`).
+  - `colors.xml` `colorPrimary` / `colorPrimaryDark` now match the theme
+    (`#1a1d24` / `#0f1117`); `colorAccent` set to the app's accent cyan.
+  - Capacitor `SplashScreen.backgroundColor` was `#ffffff` causing a jarring
+    white→dark flash on launch — now `#1a1d24` so the splash blends into
+    the first paint.
+- **CHORE**: Added the standard `<meta name="mobile-web-app-capable">`
+  alongside the existing Apple-prefixed one for full PWA install behavior on
+  Android.
+
 ### 📦 Release
 
 - A new release **v1.0.1** is published containing the rebuilt
