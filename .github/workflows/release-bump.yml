@@ -71,10 +71,22 @@ jobs:
           grep -E '^\s*versionName\s+"'"${NEW_NAME}"'"$' "$GRADLE" >/dev/null
 
       - name: Prepend CHANGELOG entry
+        env:
+          # Pass via env so the value isn't interpolated into the shell script
+          # by the runner — avoids quote/newline injection from the input.
+          RAW_NOTES: ${{ github.event.inputs.notes }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.validate.outputs.version }}"
-          NOTES="${{ github.event.inputs.notes }}"
+          # Collapse newlines, trim, default if empty, and cap length so a
+          # pasted essay can't bloat CHANGELOG.md.
+          NOTES=$(printf '%s' "${RAW_NOTES}" | tr '\n\r' '  ' | sed -E 's/^ +| +$//g')
+          if [ -z "${NOTES}" ]; then
+            NOTES="Maintenance release."
+          fi
+          if [ "${#NOTES}" -gt 280 ]; then
+            NOTES="${NOTES:0:277}..."
+          fi
           DATE=$(date -u +%Y-%m-%d)
           TMP=$(mktemp)
           {
