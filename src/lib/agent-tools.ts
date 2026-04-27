@@ -185,7 +185,7 @@ export class AgentToolExecutor {
     }
   }
 
-  private executeCodeInterpreter(input: string): ToolResult {
+  private executeCodeInterpreter(_input: string): ToolResult {
     // Code execution is inherently dangerous and should be disabled
     // in production environments or heavily sandboxed
     return {
