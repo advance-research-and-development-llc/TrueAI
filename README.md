@@ -177,8 +177,6 @@ npm run lint         # Lint code
 
 ## 🤝 Contributing
 
-This is a Spark template. Customize it for your needs!
-
 Website: https://advancedtechnologyresearch.com/
 
 ## 📄 License
