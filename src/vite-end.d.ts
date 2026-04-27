@@ -23,8 +23,10 @@ declare module '*.json' {
 // Global spark declaration
 declare const spark: {
   kv: {
-    get: (key: string) => Promise<any>;
+    get: <T = any>(key: string) => Promise<T | undefined>;
     set: (key: string, value: any) => Promise<void>;
     delete: (key: string) => Promise<void>;
   };
+  llmPrompt: (strings: TemplateStringsArray, ...values: any[]) => string;
+  llm: (prompt: string, model?: string) => Promise<string>;
 }

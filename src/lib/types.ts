@@ -401,6 +401,11 @@ export type AnalyticsEventType =
   | 'budget_created'
   | 'app_project_created'
   | 'app_code_generated'
+  | 'app_build_started'
+  | 'app_build_completed'
+  | 'app_test_started'
+  | 'app_test_completed'
+  | 'app_project_deleted'
 
 export interface AnalyticsSession {
   id: string
