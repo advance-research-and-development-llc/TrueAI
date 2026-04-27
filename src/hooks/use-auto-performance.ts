@@ -50,6 +50,6 @@ export function useAutoPerformanceOptimization() {
     isLowEnd: capabilities?.tier === 'low',
     isMidTier: capabilities?.tier === 'mid',
     isHighEnd: capabilities?.tier === 'high',
-    shouldReduceMotion: capabilities?.tier === 'low' || capabilities?.saveData
+    shouldReduceMotion: !!(capabilities?.tier === 'low' || capabilities?.saveData)
   }
 }

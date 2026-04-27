@@ -246,9 +246,8 @@ describe('useAutoPerformanceOptimization hook', () => {
 
     await waitFor(() => {
       expect(document.body.classList.contains('save-data-mode')).toBe(true)
+      expect(result.current.shouldReduceMotion).toBe(true)
     })
-
-    expect(result.current.shouldReduceMotion).toBe(true)
   })
 
   it('should call optimizer getInstance only once', async () => {

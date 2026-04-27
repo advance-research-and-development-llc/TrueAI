@@ -1,5 +1,43 @@
 # Changelog - TrueAI LocalAI
 
+## Version 1.0.2 - Test & Resource Loader Fixes (2026-04)
+
+### 🐛 Bug Fixes
+
+- **FIX**: `ResourceLoader.addTask()` no longer drains the queue synchronously.
+  Adding a task now schedules processing on the next macrotask, so
+  `getQueueSize()` reflects the queued state and consumers can inspect /
+  clear the queue before work begins. The internal worker loop was rewritten
+  to chain task completions via `.finally()` instead of a 10ms `setTimeout`
+  poll, eliminating a busy-wait and making behavior deterministic under
+  fake timers in tests.
+- **FIX**: `ResourceLoader.clear()` now also resets the `scheduled` flag and
+  `activeCount`, fixing a singleton-state leak that could prevent later
+  scheduled work from ever running once `clear()` had been called between
+  test runs (or between consecutive `optimizeResourceLoading` calls in a
+  single session).
+- **FIX**: `preloadFont()` and `preloadCriticalResources()` now set the
+  `as` value via `setAttribute('as', ...)` so the attribute is actually
+  reflected in the DOM. Previously, assigning `link.as = 'font' | 'fetch'`
+  was not reflected in environments that don't implement the `as` IDL
+  attribute reflection (notably JSDOM, but also affects CSS/JS selectors
+  that target `link[as="..."]`).
+- **FIX**: `useAutoPerformanceOptimization().shouldReduceMotion` now always
+  returns a strict `boolean` (was returning `undefined` before capabilities
+  were detected, and the raw `saveData` value once they were).
+
+### ✅ Tests
+
+- All 122 unit tests now pass (was 11 failing in v1.0.1).
+
+### 📦 Release
+
+- A new release **v1.0.2** is published containing the rebuilt
+  `TrueAI-LocalAI-debug.apk` and `TrueAI-LocalAI-release-unsigned.apk` with
+  the above fixes baked in. Android `versionCode` bumped 2 → 3 and
+  `versionName` bumped 1.0.1 → 1.0.2 so the new APK installs cleanly as an
+  update.
+
 ## Version 1.0.1 - Android App Connectivity & Build Fixes (2026-04)
 
 ### 🐛 Bug Fixes (Android)
