@@ -5,7 +5,7 @@ This document provides comprehensive instructions for building the TrueAI LocalA
 ## Prerequisites
 
 - Node.js 18+ and npm
-- Java JDK 17
+- Java JDK 17 (required - Java 21+ not supported yet)
 - Android SDK (API level 34 recommended)
 - Android Studio (optional, for debugging)
 
