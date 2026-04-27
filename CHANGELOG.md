@@ -7,13 +7,13 @@
 - **FIX**: Local AI servers (Ollama, LocalAI, etc.) could not be reached from the
   installed Android app. Android 9+ blocks cleartext (HTTP) traffic by default,
   which broke the app's core feature of talking to user-hosted local model
-  servers over `http://localhost`, `http://127.0.0.1`, the emulator host
-  `http://10.0.2.2`, and private LAN IPs (`192.168.x.x`, `10.x.x.x`,
-  `172.16.x.x`) and `*.local` mDNS hosts. Added
-  `android/app/src/main/res/xml/network_security_config.xml` and wired it up
-  via `android:networkSecurityConfig` in `AndroidManifest.xml` so cleartext is
-  only permitted for these local addresses; all other traffic remains
-  HTTPS-only.
+  servers over `http://localhost`, the Android emulator host
+  `http://10.0.2.2`, and arbitrary LAN IPs the user enters at runtime. Added
+  `android/app/src/main/res/xml/network_security_config.xml` (and
+  `android:usesCleartextTraffic="true"` for API 23 fallback, since
+  `networkSecurityConfig` is only honored from API 24+) so the app can reach
+  any user-configured local server. System CA trust anchors are still used,
+  so HTTPS validation is unchanged.
 - **FIX**: Added the missing `ACCESS_NETWORK_STATE` permission so the app can
   detect online/offline state on Android.
 - **FIX**: Added the missing `android/app/src/main/res/values/colors.xml`.
