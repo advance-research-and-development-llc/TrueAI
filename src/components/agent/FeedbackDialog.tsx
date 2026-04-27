@@ -27,7 +27,7 @@ export function FeedbackDialog({ open, onOpenChange, agentRun, onSubmit }: Feedb
   const [issueDescriptions, setIssueDescriptions] = useState<Record<string, string>>({})
   const [hoveredStar, setHoveredStar] = useState<number | null>(null)
 
-  const issueTypes: { type: FeedbackIssue['type']; label: string; icon: any }[] = [
+  const issueTypes: { type: FeedbackIssue['type']; label: string; icon: React.ComponentType<{ size?: number; weight?: string; className?: string }> }[] = [
     { type: 'incorrect_result', label: 'Incorrect Result', icon: XCircle },
     { type: 'missing_information', label: 'Missing Information', icon: Target },
     { type: 'wrong_tool', label: 'Wrong Tool Used', icon: Brain },

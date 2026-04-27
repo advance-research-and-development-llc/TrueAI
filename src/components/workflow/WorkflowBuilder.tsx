@@ -38,7 +38,7 @@ import {
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import type { Workflow, WorkflowNode as WFNode, WorkflowEdge as WFEdge, Agent } from '@/lib/types'
+import type { Workflow, WorkflowNode as _WFNode, WorkflowEdge as _WFEdge, Agent } from '@/lib/types'
 
 interface WorkflowBuilderProps {
   workflows: Workflow[]
@@ -48,7 +48,7 @@ interface WorkflowBuilderProps {
   onExecuteWorkflow: (id: string) => void
 }
 
-const AgentNode = memo(({ data }: { data: any }) => (
+const AgentNode = memo(({ data }: { data: { label: string; agentId?: string } }) => (
   <Card className="p-3 min-w-[180px] border-2 border-primary/50 shadow-lg">
     <div className="flex items-center gap-2 mb-2">
       <Robot weight="fill" size={18} className="text-primary" />
@@ -62,7 +62,7 @@ const AgentNode = memo(({ data }: { data: any }) => (
   </Card>
 ))
 
-const ToolNode = memo(({ data }: { data: any }) => (
+const ToolNode = memo(({ data }: { data: { label: string; toolName?: string } }) => (
   <Card className="p-3 min-w-[180px] border-2 border-accent/50 shadow-lg">
     <div className="flex items-center gap-2 mb-2">
       <Wrench weight="fill" size={18} className="text-accent" />
@@ -76,7 +76,7 @@ const ToolNode = memo(({ data }: { data: any }) => (
   </Card>
 ))
 
-const DecisionNode = memo(({ data }: { data: any }) => (
+const DecisionNode = memo(({ data }: { data: { label: string; condition?: string } }) => (
   <Card className="p-3 min-w-[180px] border-2 border-yellow-500/50 shadow-lg">
     <div className="flex items-center gap-2 mb-2">
       <GitBranch weight="fill" size={18} className="text-yellow-500" />
@@ -90,7 +90,7 @@ const DecisionNode = memo(({ data }: { data: any }) => (
   </Card>
 ))
 
-const ParallelNode = memo(({ data }: { data: any }) => (
+const ParallelNode = memo(({ data }: { data: { label: string } }) => (
   <Card className="p-3 min-w-[180px] border-2 border-purple-500/50 shadow-lg">
     <div className="flex items-center gap-2 mb-2">
       <ArrowsLeftRight weight="fill" size={18} className="text-purple-500" />
@@ -102,7 +102,7 @@ const ParallelNode = memo(({ data }: { data: any }) => (
   </Card>
 ))
 
-const StartNode = memo(({ data }: { data: any }) => (
+const StartNode = memo(({ data }: { data: { label: string } }) => (
   <Card className="p-3 min-w-[120px] border-2 border-green-500/50 shadow-lg bg-green-500/10">
     <div className="flex items-center gap-2">
       <Lightning weight="fill" size={18} className="text-green-500" />
@@ -111,7 +111,7 @@ const StartNode = memo(({ data }: { data: any }) => (
   </Card>
 ))
 
-const EndNode = memo(({ data }: { data: any }) => (
+const EndNode = memo(({ data }: { data: { label: string } }) => (
   <Card className="p-3 min-w-[120px] border-2 border-red-500/50 shadow-lg bg-red-500/10">
     <div className="flex items-center gap-2">
       <CheckCircle weight="fill" size={18} className="text-red-500" />
@@ -189,7 +189,7 @@ export function WorkflowBuilder({
       description: workflowDescription,
       nodes: nodes.map((node) => ({
         id: node.id,
-        type: node.type as any,
+        type: node.type as unknown,
         position: node.position,
         data: node.data,
       })),
@@ -258,14 +258,14 @@ export function WorkflowBuilder({
     setNewWorkflowDialog(false)
   }
 
-  const onNodeClick = useCallback((_event: any, node: Node) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (node.type !== 'start' && node.type !== 'end') {
       setSelectedNode(node)
       setNodeConfigDialog(true)
     }
   }, [])
 
-  const updateNodeConfig = (config: any) => {
+  const updateNodeConfig = (config: Record<string, unknown> | undefined) => {
     if (!selectedNode) return
 
     setNodes((nds) =>

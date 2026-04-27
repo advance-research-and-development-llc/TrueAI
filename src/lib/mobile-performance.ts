@@ -36,29 +36,31 @@ export class MobilePerformanceOptimizer {
 
   async detectDeviceCapabilities(): Promise<DeviceCapabilities> {
     const cores = navigator.hardwareConcurrency || 4
-    const memory = (navigator as any).deviceMemory || 4
+    const memory = (navigator as { deviceMemory?: number }).deviceMemory || 4
     
     let batteryLevel = 1
     let charging = true
     
     if ('getBattery' in navigator) {
       try {
-        const battery = await (navigator as any).getBattery()
-        batteryLevel = battery.level
-        charging = battery.charging
-      } catch (e) {
+        const battery = await (navigator as { getBattery?: () => Promise<{ level: number; charging: boolean }> }).getBattery?.()
+        if (battery) {
+          batteryLevel = battery.level
+          charging = battery.charging
+        }
+      } catch (_e) {
         console.warn('Battery API not available')
       }
     }
 
-    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
+    const connection = (navigator as { connection?: { effectiveType?: string; saveData?: boolean } }).connection || (navigator as { mozConnection?: { effectiveType?: string; saveData?: boolean } }).mozConnection || (navigator as { webkitConnection?: { effectiveType?: string; saveData?: boolean } }).webkitConnection
     const effectiveType = connection?.effectiveType || '4g'
     const saveData = connection?.saveData || false
 
     const canvas = document.createElement('canvas')
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-    const debugInfo = gl ? (gl as any).getExtension('WEBGL_debug_renderer_info') : null
-    const gpu = debugInfo ? (gl as any).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Unknown'
+    const debugInfo = gl ? (gl as WebGLRenderingContext & { getExtension(name: string): { UNMASKED_RENDERER_WEBGL: number } | null }).getExtension('WEBGL_debug_renderer_info') : null
+    const gpu = debugInfo && gl ? (gl as WebGLRenderingContext & { getParameter(pname: number): string }).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Unknown'
 
     let tier: DeviceCapabilities['tier'] = 'mid'
     
@@ -159,8 +161,8 @@ export class MobilePerformanceOptimizer {
   }
 
   getMemoryUsage(): number {
-    if ((performance as any).memory) {
-      const memory = (performance as any).memory
+    if ((performance as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory) {
+      const memory = (performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory
       return Math.round((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100)
     }
     return 0
@@ -225,7 +227,7 @@ export function useOptimizedAnimation(enabled: boolean = true) {
   return shouldAnimate
 }
 
-export function useThrottle<T extends (...args: any[]) => any>(
+export function useThrottle<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number = 100
 ): T {
@@ -243,7 +245,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
   ) as T
 }
 
-export function useDebounce<T extends (...args: any[]) => any>(
+export function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number = 150
 ): T {
@@ -285,6 +287,7 @@ export function useIntersectionObserver(
     observer.observe(element)
 
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elementRef, options.threshold, options.rootMargin])
 
   return isIntersecting

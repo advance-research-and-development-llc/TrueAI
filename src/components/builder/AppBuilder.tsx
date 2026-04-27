@@ -6,11 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { _Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Code, Flask, Package, FileCode, Eye, Download, Trash, Sparkle, CheckCircle, XCircle, Clock, Cube, Lightning } from '@phosphor-icons/react'
 import { toast } from 'sonner'
@@ -135,7 +133,7 @@ interface AppBuilderProps {
   models: { id: string; name: string }[]
 }
 
-export function AppBuilder({ models }: AppBuilderProps) {
+export function AppBuilder({ models: _models }: AppBuilderProps) {
   const [projects, setProjects] = useKV<AppProject[]>('app-builder-projects', [])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [newProjectDialog, setNewProjectDialog] = useState(false)
@@ -354,11 +352,11 @@ Return ONLY valid JSON in this exact format:
         throw new Error('Invalid response format')
       }
 
-      const files: AppFile[] = result.files.map((f: any) => ({
-        path: f.path,
-        content: f.content,
-        language: f.language,
-        size: f.content.length
+      const files: AppFile[] = result.files.map((f: Record<string, unknown>) => ({
+        path: f.path as string,
+        content: f.content as string,
+        language: f.language as string,
+        size: (f.content as string).length
       }))
 
       const tempProject: AppProject = {
@@ -640,7 +638,8 @@ Return ONLY valid JSON in this exact format:
     if (activeProject && activeProject.files.length > 0 && !activeProject.previewUrl) {
       updateLivePreview(activeProject.id)
     }
-  }, [activeProject?.files.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProject?.files.length, activeProject?.id, activeProject?.previewUrl])
 
   useEffect(() => {
     return () => {
@@ -650,6 +649,7 @@ Return ONLY valid JSON in this exact format:
         }
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const downloadProject = (projectId: string) => {

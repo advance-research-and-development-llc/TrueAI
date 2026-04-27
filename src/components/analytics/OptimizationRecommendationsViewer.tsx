@@ -1,4 +1,4 @@
-import { useState} from 'react'
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -6,24 +6,24 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Sparkle, 
-  TrendUp, 
-  Lightning, 
+import {
+  Sparkle,
+  TrendUp,
+  Lightning,
   CheckCircle,
   Warning,
   Info,
   ArrowRight,
   Eye,
   ListChecks,
-  Faders,
   Target,
   Clock,
   ChartBar,
   Brain,
   MagnifyingGlass,
   Rocket,
-  FunnelSimple
+  FunnelSimple,
+  Faders
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { OptimizationInsight } from '@/lib/auto-optimizer'
@@ -53,7 +53,7 @@ export function OptimizationRecommendationsViewer({
   const [selectedInsight, setSelectedInsight] = useState<OptimizationInsight | null>(null)
   const [filterSeverity, setFilterSeverity] = useState<OptimizationInsight['severity'] | 'all'>('all')
   const [filterType, setFilterType] = useState<OptimizationInsight['type'] | 'all'>('all')
-  const [sortBy, setSortBy] = useState<'severity' | 'confidence' | 'timestamp'>('severity')
+  const _sortBy = 'severity'
   const [showAppliedOnly, setShowAppliedOnly] = useState(false)
   const [showUnappliedOnly, setShowUnappliedOnly] = useState(false)
 
@@ -63,10 +63,10 @@ export function OptimizationRecommendationsViewer({
     .filter(i => !showAppliedOnly || appliedInsights.has(i.id))
     .filter(i => !showUnappliedOnly || !appliedInsights.has(i.id))
     .sort((a, b) => {
-      if (sortBy === 'severity') {
+      if (_sortBy === 'severity') {
         const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
         return severityOrder[b.severity] - severityOrder[a.severity]
-      } else if (sortBy === 'confidence') {
+      } else if (_sortBy === 'confidence') {
         return b.confidence - a.confidence
       } else {
         return b.timestamp - a.timestamp
@@ -474,7 +474,7 @@ function InsightListCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-2">
               <h4 className="font-semibold text-sm">{insight.title}</h4>
-              <Badge variant={getSeverityColor(insight.severity) as any} className="gap-1 text-xs shrink-0">
+              <Badge variant={getSeverityColor(insight.severity) as 'destructive' | 'default' | 'secondary' | 'outline'} className="gap-1 text-xs shrink-0">
                 {getTypeIcon(insight.type)}
                 {insight.type}
               </Badge>
@@ -567,7 +567,7 @@ function DetailedInsightView({
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={getSeverityColor(insight.severity) as any} className="gap-1">
+              <Badge variant={getSeverityColor(insight.severity) as 'destructive' | 'default' | 'secondary' | 'outline'} className="gap-1">
                 {getTypeIcon(insight.type)}
                 {insight.type}
               </Badge>
@@ -698,7 +698,7 @@ function AutoTuneRecommendationCard({
   models,
   onApply
 }: AutoTuneRecommendationCardProps) {
-  const [selectedModel, setSelectedModel] = useState<string>(models[0]?.id || '')
+  const [_selectedModel, _setSelectedModel] = useState<string>(models[0]?.id || '')
 
   const parameterChanges = [
     {
@@ -773,7 +773,7 @@ function AutoTuneRecommendationCard({
         )}
 
         <Button
-          onClick={() => onApply(selectedModel)}
+          onClick={() => onApply(_selectedModel)}
           className="w-full gap-2"
           size="sm"
         >

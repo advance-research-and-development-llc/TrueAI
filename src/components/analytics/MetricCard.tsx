@@ -8,10 +8,11 @@ interface MetricCardProps {
   icon: React.ReactNode
   trend?: 'up' | 'down' | 'neutral'
   trendValue?: string
+  // isUpdating is not used but kept for backwards compatibility
   isUpdating?: boolean
 }
 
-export function MetricCard({ title, value, icon, trend = 'neutral', trendValue, isUpdating = false }: MetricCardProps) {
+export function MetricCard({ title, value, icon, trend = 'neutral', trendValue }: MetricCardProps) {
   const [showUpdatePulse, setShowUpdatePulse] = useState(false)
   const [prevValue, setPrevValue] = useState(value)
 
@@ -19,7 +20,7 @@ export function MetricCard({ title, value, icon, trend = 'neutral', trendValue, 
     if (value !== prevValue) {
       setShowUpdatePulse(true)
       setPrevValue(value)
-      
+
       const timer = setTimeout(() => {
         setShowUpdatePulse(false)
       }, 1000)

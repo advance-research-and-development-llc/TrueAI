@@ -4,32 +4,32 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
-import { 
-  TrendUp, 
-  TrendDown, 
-  ChartLine, 
-  Target, 
+import {
+  TrendUp,
+  TrendDown,
+  ChartLine,
+  Target,
   Brain,
   ArrowUp,
   ArrowDown,
   Equals,
   CheckCircle,
-  Info as InfoIcon
+  InfoIcon,
+  Zap,
+  AlertCircle
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { 
-  learningRateTuner, 
-  type LearningRateMetrics, 
+import {
+  learningRateTuner,
+  type LearningRateMetrics,
   type LearningRateAdjustment,
-  type LearningRateSchedule,
-  type PerformanceMetrics
+  type LearningRateSchedule
 } from '@/lib/learning-rate-tuner'
 import type { ModelConfig, FineTuningJob } from '@/lib/types'
 
@@ -89,7 +89,8 @@ export function LearningRateDashboard({
         }
       }
     }
-  }, [selectedJob, autoTuneEnabled, onUpdateJobLearningRate, selectedJobId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?.id, selectedJob?.metrics, selectedJob?.learningRate, selectedJob?.progress, selectedJob?.startedAt, autoTuneEnabled])
 
   const generateSchedule = () => {
     if (!selectedJob) return
@@ -540,7 +541,7 @@ export function LearningRateDashboard({
 
                 <div className="space-y-2">
                   <Label>Adjustment Strategy</Label>
-                  <Select value={selectedStrategy} onValueChange={(v) => setSelectedStrategy(v as any)}>
+                  <Select value={selectedStrategy} onValueChange={(v) => setSelectedStrategy(v as 'adaptive' | 'step_decay' | 'cosine_annealing')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

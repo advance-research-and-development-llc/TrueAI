@@ -14,7 +14,7 @@ export function PerformanceWrapper({ children }: PerformanceWrapperProps) {
     if (!isOptimized || !capabilities) return
 
     const optimizer = MobilePerformanceOptimizer.getInstance()
-    const resourceLoader = ResourceLoader.getInstance()
+    const _resourceLoader = ResourceLoader.getInstance()
 
     optimizeResourceLoading(capabilities.tier)
 

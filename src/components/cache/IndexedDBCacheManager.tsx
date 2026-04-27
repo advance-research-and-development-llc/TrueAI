@@ -50,8 +50,8 @@ export function IndexedDBCacheManager() {
     try {
       const cacheStats = await getCacheStats()
       setStats(cacheStats)
-    } catch (_error) {
-      console.error('Failed to load cache stats:')
+    } catch (error) {
+      console.error('Failed to load cache stats:', error)
     } finally {
       setIsLoading(false)
     }
@@ -61,6 +61,7 @@ export function IndexedDBCacheManager() {
     if (isInitialized) {
       loadStats()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitialized])
 
   const handleSync = async () => {

@@ -179,7 +179,7 @@ function App() {
   const performanceOptimization = useAutoPerformanceOptimization()
   const dynamicUI = useDynamicUI()
   const contextualUI = useContextualUI()
-  const smartPrefetch = useSmartPrefetch(activeTab)
+  const _smartPrefetch = useSmartPrefetch(activeTab)
   const [conversations, setConversations] = useKV<Conversation[]>('conversations', [])
   const [messages, setMessages] = useKV<Message[]>('messages', [])
   const [agents, setAgents] = useKV<Agent[]>('agents', [])
@@ -205,7 +205,7 @@ function App() {
   const [agentFeedbacks, setAgentFeedbacks] = useKV<AgentFeedback[]>('agent-feedbacks', [])
   const [agentLearningMetrics, setAgentLearningMetrics] = useKV<Record<string, AgentLearningMetrics>>('agent-learning-metrics', {})
   const [agentVersions, setAgentVersions] = useKV<AgentVersion[]>('agent-versions', [])
-  const [learningSessions, setLearningSessions] = useKV<LearningSession[]>('learning-sessions', [])
+  const [_learningSessions, setLearningSessions] = useKV<LearningSession[]>('learning-sessions', [])
   const [workflows, setWorkflows] = useKV<Workflow[]>('workflows', [])
   const [costEntries, setCostEntries] = useKV<CostEntry[]>('cost-entries', [])
   const [budgets, setBudgets] = useKV<Budget[]>('budgets', [])
@@ -276,8 +276,8 @@ function App() {
   const [newAgentDialog, setNewAgentDialog] = useState(false)
   const [newConversationDialog, setNewConversationDialog] = useState(false)
   const [editingModelId, setEditingModelId] = useState<string | null>(null)
-  const [isSwipeIndicatorVisible, setIsSwipeIndicatorVisible] = useState(false)
-  const [tabLoadingStates, setTabLoadingStates] = useState<Record<string, boolean>>({})
+  const [_isSwipeIndicatorVisible, _setIsSwipeIndicatorVisible] = useState(false)
+  const [_tabLoadingStates, _setTabLoadingStates] = useState<Record<string, boolean>>({})
   const [isTabSwitching, setIsTabSwitching] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [uiCustomizerOpen, setUiCustomizerOpen] = useState(false)
@@ -323,7 +323,7 @@ function App() {
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handlePreloadTab = useCallback(async (tabName: string) => {
-    const componentMap: Record<string, () => Promise<any>> = {
+    const componentMap: Record<string, () => Promise<unknown>> = {
       'agents': () => import('@/components/agent/AgentCard'),
       'models': () => import('@/components/models/ModelConfigPanel'),
       'analytics': () => import('@/components/analytics/AnalyticsDashboard'),
@@ -408,7 +408,7 @@ function App() {
     threshold: 80
   })
 
-  const agentsPullToRefresh = usePullToRefresh({
+  const _agentsPullToRefresh = usePullToRefresh({
     onRefresh: refreshAgents,
     threshold: 80
   })
@@ -425,7 +425,7 @@ function App() {
         indexedDBCache.cacheConversation(conv)
       })
     }
-  }, [conversations, indexedDBCache.isInitialized])
+  }, [conversations, indexedDBCache.isInitialized, indexedDBCache])
 
   useEffect(() => {
     if (indexedDBCache.isInitialized && messages && messages.length > 0) {
@@ -434,7 +434,7 @@ function App() {
       }, 1000)
       return () => clearTimeout(debouncedSync)
     }
-  }, [messages, indexedDBCache.isInitialized])
+  }, [messages, indexedDBCache.isInitialized, indexedDBCache])
 
   useEffect(() => {
     if (activeTab === 'chat' && conversations && conversations.length > 0 && !activeConversationId) {
@@ -947,7 +947,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
 
     setMessages(prev => (prev || []).filter(m => m.id !== messageId))
     await sendMessage(previousMessage.content)
-  }, [messages, activeConversationId, setMessages])
+  }, [messages, activeConversationId, setMessages, sendMessage])
 
   const exportMessage = useCallback((message: Message) => {
     const content = `${message.role.toUpperCase()} (${new Date(message.timestamp).toLocaleString()}):\n\n${message.content}`
@@ -1154,7 +1154,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     setGgufModels(prev => (prev || []).filter(m => m.id !== id))
   }
 
-  const createPerformanceProfile = (profile: Omit<PerformanceProfile, 'id' | 'createdAt'>) => {
+  const _createPerformanceProfile = (profile: Omit<PerformanceProfile, 'id' | 'createdAt'>) => {
     const newProfile: PerformanceProfile = {
       ...profile,
       id: `profile-${Date.now()}`,
@@ -1164,7 +1164,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     toast.success('Performance profile created')
   }
 
-  const applyPerformanceProfile = (profile: PerformanceProfile) => {
+  const _applyPerformanceProfile = (profile: PerformanceProfile) => {
     if (editingModelId) {
       const model = models?.find(m => m.id === editingModelId)
       if (model) {
@@ -1186,12 +1186,12 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
-  const deletePerformanceProfile = (id: string) => {
+  const _deletePerformanceProfile = (id: string) => {
     setPerformanceProfiles(prev => (prev || []).filter(p => p.id !== id))
     toast.success('Profile deleted')
   }
 
-  const autoTuneModel = (_taskType: TaskType) => {
+  const _autoTuneModel = (_taskType: TaskType) => {
     if (editingModelId) {
       const model = models?.find(m => m.id === editingModelId)
       if (model) {
@@ -1207,7 +1207,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
-  const getAnimationProps = useCallback((baseProps: any) => {
+  const _getAnimationProps = useCallback((baseProps: Record<string, unknown>) => {
     if (performanceOptimization.shouldReduceMotion || performanceOptimization.isLowEnd) {
       return {
         initial: false,
@@ -1268,7 +1268,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     })
   }, [setWorkflows])
 
-  const trackCost = useCallback((tokensIn: number, tokensOut: number, model: string, resource: 'conversation' | 'agent' | 'workflow', resourceId: string, resourceName: string) => {
+  const _trackCost = useCallback((tokensIn: number, tokensOut: number, model: string, resource: 'conversation' | 'agent' | 'workflow', resourceId: string, resourceName: string) => {
     const MODEL_COSTS: Record<string, { input: number; output: number }> = {
       'gpt-4o': { input: 0.01 / 1000, output: 0.03 / 1000 },
       'gpt-4o-mini': { input: 0.0015 / 1000, output: 0.006 / 1000 },

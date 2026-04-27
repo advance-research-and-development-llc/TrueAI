@@ -86,6 +86,7 @@ export function useContextualUI() {
     }))
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const generateSuggestions = () => {
     if (!behavior) return []
 
@@ -167,7 +168,7 @@ export function useContextualUI() {
   useEffect(() => {
     const newSuggestions = generateSuggestions()
     setSuggestions(newSuggestions)
-  }, [behavior, dismissedSuggestions])
+  }, [behavior, dismissedSuggestions, generateSuggestions])
 
   const getPredictedNextAction = (): string | null => {
     if (!behavior) return null

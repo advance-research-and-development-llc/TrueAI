@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { Agent } from '@/lib/types'
+import type { Agent, AgentCapability } from '@/lib/types'
 import { Gear, Brain, Lightning, Shield } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -254,15 +254,15 @@ export function AgentConfigPanel({ agent, onSave, onClose }: AgentConfigPanelPro
                   key={capability.id}
                   whileHover={{ x: 2 }}
                   className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    config.capabilities?.includes(capability.id as any)
+                    config.capabilities?.includes(capability.id as AgentCapability)
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
                   }`}
                   onClick={() => {
                     const capabilities = config.capabilities || []
-                    const newCapabilities = capabilities.includes(capability.id as any)
+                    const newCapabilities = capabilities.includes(capability.id as AgentCapability)
                       ? capabilities.filter(c => c !== capability.id)
-                      : [...capabilities, capability.id as any]
+                      : [...capabilities, capability.id as AgentCapability]
                     updateConfig({ capabilities: newCapabilities })
                   }}
                 >
@@ -272,12 +272,12 @@ export function AgentConfigPanel({ agent, onSave, onClose }: AgentConfigPanelPro
                       <p className="text-sm text-muted-foreground">{capability.description}</p>
                     </div>
                     <Switch
-                      checked={config.capabilities?.includes(capability.id as any) || false}
+                      checked={config.capabilities?.includes(capability.id as AgentCapability) || false}
                       onCheckedChange={() => {
                         const capabilities = config.capabilities || []
-                        const newCapabilities = capabilities.includes(capability.id as any)
+                        const newCapabilities = capabilities.includes(capability.id as AgentCapability)
                           ? capabilities.filter(c => c !== capability.id)
-                          : [...capabilities, capability.id as any]
+                          : [...capabilities, capability.id as AgentCapability]
                         updateConfig({ capabilities: newCapabilities })
                       }}
                     />

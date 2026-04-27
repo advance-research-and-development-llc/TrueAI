@@ -186,7 +186,7 @@ export function useIndexedDBCache(options: UseIndexedDBCacheOptions = {}) {
         clearInterval(syncIntervalRef.current)
       }
     }
-  }, [])
+  }, [loadFromCache])
 
   useEffect(() => {
     if (!enableAutoSync || !isInitialized) return

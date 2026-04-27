@@ -4,7 +4,7 @@ export interface ToolResult {
   success: boolean
   output: string
   error?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export class AgentToolExecutor {

@@ -9,12 +9,12 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  Brain, 
-  TrendUp, 
-  TrendDown, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Brain,
+  TrendUp,
+  TrendDown,
+  CheckCircle,
+  XCircle,
   Target,
   CircleNotch,
   Sparkle,
@@ -22,9 +22,8 @@ import {
   ArrowDown,
   Lightbulb
 } from '@phosphor-icons/react'
-import { 
+import {
   learningAlgorithm,
-  type UserFeedback,
   type LearningMetrics,
   type ThresholdAdjustment,
   type LearningStats

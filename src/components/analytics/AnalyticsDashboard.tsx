@@ -6,14 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { 
-  ChartBar, 
-  ChartLine, 
-  Clock, 
-  Users, 
-  TrendUp, 
+import {
+  ChartBar,
+  ChartLine,
+  Clock,
+  Users,
+  TrendUp,
   ChatCircle,
   Robot,
   Lightning,
@@ -30,7 +29,6 @@ import {
 } from '@phosphor-icons/react'
 import { useAnalytics } from '@/lib/analytics'
 import { MetricCard } from './MetricCard'
-import { EventChart } from './EventChart'
 import { CategoryBreakdown } from './CategoryBreakdown'
 import { TimeSeriesChart } from './TimeSeriesChart'
 import { TopItemsList } from './TopItemsList'
@@ -40,15 +38,15 @@ import { LearningDashboard } from './LearningDashboard'
 import { PerformanceScanPanel } from './PerformanceScanPanel'
 import { BulkOptimizationPanel } from './BulkOptimizationPanel'
 import { thresholdManager, type ThresholdConfig } from '@/lib/confidence-thresholds'
-import type { AnalyticsMetrics, AnalyticsFilter, ModelConfig, PerformanceProfile } from '@/lib/types'
+import type { AnalyticsMetrics, AnalyticsFilter, ModelConfig, PerformanceProfile, OptimizationInsight, AutoTuneRecommendation } from '@/lib/types'
 import { toast } from 'sonner'
 import { useKV } from '@github/spark/hooks'
 
 interface AnalyticsDashboardProps {
   models?: ModelConfig[]
   profiles?: PerformanceProfile[]
-  onApplyOptimization?: (insight: any) => void
-  onApplyAutoTune?: (recommendation: any, modelId: string) => void
+  onApplyOptimization?: (insight: OptimizationInsight) => void
+  onApplyAutoTune?: (recommendation: AutoTuneRecommendation, modelId: string) => void
   onCreateProfile?: (taskType: string) => void
   onModelUpdate?: (models: ModelConfig[]) => void
 }
@@ -67,7 +65,6 @@ export function AnalyticsDashboard({
   const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d')
-  const [filter, setFilter] = useState<AnalyticsFilter>({})
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState<5 | 10 | 30>(5)
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now())
@@ -78,11 +75,10 @@ export function AnalyticsDashboard({
 
   const safeEvents = events || []
   const safeSessions = sessions || []
-  const safeModels = models || []
-  const safeProfiles = profiles || []
 
   useEffect(() => {
     loadMetrics()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange])
 
   useEffect(() => {
@@ -101,6 +97,7 @@ export function AnalyticsDashboard({
         clearInterval(intervalRef.current)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, refreshInterval, timeRange])
 
   useEffect(() => {
@@ -136,6 +133,7 @@ export function AnalyticsDashboard({
         loadMetrics()
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safeEvents.length])
 
   const loadMetrics = async () => {
@@ -156,7 +154,6 @@ export function AnalyticsDashboard({
         newFilter.startDate = now - 30 * 24 * 60 * 60 * 1000
       }
 
-      setFilter(newFilter)
       const data = await getMetrics(newFilter)
       setMetrics(data)
       setLastRefresh(Date.now())
@@ -312,7 +309,7 @@ export function AnalyticsDashboard({
             </div>
 
             <div className="flex items-center gap-4">
-              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as any)}>
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as '7d' | '30d' | 'all')}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>

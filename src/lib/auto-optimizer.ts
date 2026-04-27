@@ -20,7 +20,7 @@ export interface OptimizationInsight {
   affectedModels: string[]
   suggestedAction?: {
     type: 'adjust_parameters' | 'change_model' | 'add_profile' | 'reduce_usage'
-    details: any
+    details: Record<string, unknown>
   }
   timestamp: number
 }

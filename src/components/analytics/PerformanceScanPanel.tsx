@@ -22,10 +22,9 @@ import {
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { 
+import {
   performanceScanner,
   type PerformanceScanResult,
-  type Bottleneck,
   type OptimizationAction
 } from '@/lib/performance-scanner'
 import type { AnalyticsEvent, ModelConfig, PerformanceProfile } from '@/lib/types'
@@ -70,7 +69,7 @@ export function PerformanceScanPanel({
   const applyOptimization = async (optimization: OptimizationAction) => {
     setIsApplying(true)
     try {
-      const { updated, applied } = await performanceScanner.applyOptimizations([optimization], models)
+      const { updated } = await performanceScanner.applyOptimizations([optimization], models)
       onApplyOptimizations(updated)
       setAppliedOptimizations(prev => new Set([...prev, optimization.id]))
       toast.success(`Applied: ${optimization.description}`)
@@ -84,17 +83,17 @@ export function PerformanceScanPanel({
 
   const applyAllAutoOptimizations = async () => {
     if (!scanResult) return
-    
+
     setIsApplying(true)
     try {
       const autoOptimizations = scanResult.optimizations.filter(o => o.autoApplicable)
       const { updated, applied } = await performanceScanner.applyOptimizations(autoOptimizations, models)
       onApplyOptimizations(updated)
-      
+
       autoOptimizations.forEach(opt => {
         setAppliedOptimizations(prev => new Set([...prev, opt.id]))
       })
-      
+
       toast.success(`Applied ${applied} optimizations`)
     } catch (error) {
       toast.error('Failed to apply optimizations')

@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -79,6 +78,7 @@ export function BundleAutomationPanel({
     }
     updateMetrics()
     updateExecutionHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -88,6 +88,7 @@ export function BundleAutomationPanel({
       }, 30000)
       return () => clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExecuteEnabled, rules, messages, agents, agentRuns])
 
   const analyzePatterns = () => {
@@ -598,7 +599,7 @@ export function BundleAutomationPanel({
                   <Label>Priority</Label>
                   <Select
                     value={newRuleForm.priority}
-                    onValueChange={(value: any) => setNewRuleForm(prev => ({ ...prev, priority: value }))}
+                    onValueChange={(value: 'low' | 'normal' | 'high' | 'critical') => setNewRuleForm(prev => ({ ...prev, priority: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />

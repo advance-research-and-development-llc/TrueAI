@@ -5,21 +5,21 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Gear, 
-  ShieldCheck, 
-  Lightning, 
+import {
+  Gear,
+  ShieldCheck,
+  Lightning,
   Brain,
   Warning,
   Info,
   CheckCircle,
   Target,
   Download,
-  Upload} from '@phosphor-icons/react'
-import type { ThresholdConfig} from '@/lib/confidence-thresholds'
+  Upload
+} from '@phosphor-icons/react'
+import type { ThresholdConfig } from '@/lib/confidence-thresholds'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
@@ -329,7 +329,7 @@ export function ConfidenceThresholdConfig({
                       ? 'border-primary ring-2 ring-primary/20'
                       : 'hover:border-primary/50'
                   }`}
-                  onClick={() => handlePresetChange(key as any)}
+                  onClick={() => handlePresetChange(key as 'conservative' | 'balanced' | 'aggressive')}
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -400,13 +400,13 @@ export function ConfidenceThresholdConfig({
                       <Label className="text-xs text-muted-foreground">Manual Approval</Label>
                       <Switch
                         checked={threshold.requiresManualApproval}
-                        onCheckedChange={() => handleManualApprovalToggle(severity as any)}
+                        onCheckedChange={() => handleManualApprovalToggle(severity as keyof ThresholdConfig['thresholds'])}
                       />
                     </div>
                   </div>
                   <Slider
                     value={[Math.round(threshold.minConfidence * 100)]}
-                    onValueChange={(value) => handleThresholdChange(severity as any, value[0])}
+                    onValueChange={(value) => handleThresholdChange(severity as keyof ThresholdConfig['thresholds'], value[0])}
                     min={50}
                     max={100}
                     step={5}
@@ -507,13 +507,13 @@ export function ConfidenceThresholdConfig({
                     <p className="text-xs text-muted-foreground">{action.description}</p>
                   </div>
                   <Switch
-                    checked={config.allowedActionTypes.includes(action.type as any)}
+                    checked={config.allowedActionTypes.includes(action.type as 'adjust_parameters' | 'change_model' | 'add_profile' | 'reduce_usage')}
                     onCheckedChange={(checked) => {
                       setActivePreset('custom')
                       onConfigChange({
                         ...config,
                         allowedActionTypes: checked
-                          ? [...config.allowedActionTypes, action.type as any]
+                          ? [...config.allowedActionTypes, action.type as 'adjust_parameters' | 'change_model' | 'add_profile' | 'reduce_usage']
                           : config.allowedActionTypes.filter(t => t !== action.type)
                       })
                     }}
