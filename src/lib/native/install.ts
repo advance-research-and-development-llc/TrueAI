@@ -8,13 +8,40 @@
  * native plugin must never block app startup.
  */
 
-import { StatusBar, Style } from '@capacitor/status-bar'
-import { SplashScreen } from '@capacitor/splash-screen'
-import { Keyboard, KeyboardResize } from '@capacitor/keyboard'
 import { isNative } from './platform'
 import { initAppLifecycle } from './app-lifecycle'
 
+let StatusBar: any = null
+let Style: any = null
+let SplashScreen: any = null
+let Keyboard: any = null
+let KeyboardResize: any = null
+
+try {
+  const statusBarModule = await import('@capacitor/status-bar')
+  StatusBar = statusBarModule.StatusBar
+  Style = statusBarModule.Style
+} catch {
+  console.debug('[native/install] @capacitor/status-bar not available')
+}
+
+try {
+  const splashScreenModule = await import('@capacitor/splash-screen')
+  SplashScreen = splashScreenModule.SplashScreen
+} catch {
+  console.debug('[native/install] @capacitor/splash-screen not available')
+}
+
+try {
+  const keyboardModule = await import('@capacitor/keyboard')
+  Keyboard = keyboardModule.Keyboard
+  KeyboardResize = keyboardModule.KeyboardResize
+} catch {
+  console.debug('[native/install] @capacitor/keyboard not available')
+}
+
 async function configureStatusBar(): Promise<void> {
+  if (!StatusBar || !Style) return
   try {
     // Match the dark theme background defined in capacitor.config.ts.
     await StatusBar.setStyle({ style: Style.Dark })
@@ -26,6 +53,7 @@ async function configureStatusBar(): Promise<void> {
 }
 
 async function configureKeyboard(): Promise<void> {
+  if (!Keyboard || !KeyboardResize) return
   try {
     // Resize the WebView so chat inputs aren't covered by the keyboard.
     await Keyboard.setResizeMode({ mode: KeyboardResize.Body })
@@ -36,6 +64,7 @@ async function configureKeyboard(): Promise<void> {
 }
 
 async function hideSplash(): Promise<void> {
+  if (!SplashScreen) return
   try {
     // Give the React tree one frame to paint before fading the splash.
     await new Promise((r) => setTimeout(r, 50))
