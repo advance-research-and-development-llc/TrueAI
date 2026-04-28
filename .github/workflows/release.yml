@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  # Auto-attach APKs whenever a GitHub Release is published (covers cases
+  # where the tag push did not trigger release.yml, e.g. releases created
+  # via the web UI or the release-bump.yml workflow).
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -24,7 +29,7 @@ on:
 # version, the later run waits for the earlier one to finish (rather
 # than both trying to upsert the same GitHub Release at once).
 concurrency:
-  group: release-${{ inputs.version || github.ref }}
+  group: release-${{ inputs.version || github.event.release.tag_name || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +45,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # For workflow_dispatch and workflow_call, check out the explicit
+          # version tag. For release: [published], use the release tag. Fall
+          # back to github.ref for tag-push triggers.
+          ref: ${{ inputs.version || github.event.release.tag_name || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -101,11 +111,14 @@ jobs:
         id: version
         run: |
           # `inputs.version` is populated for both workflow_dispatch and
-          # workflow_call; on a tag push it's empty so we fall back to the
-          # ref name.
+          # workflow_call; for release: [published] use the event tag name;
+          # on a tag push fall back to the ref name.
           INPUT_VERSION="${{ inputs.version }}"
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
           if [ -n "$INPUT_VERSION" ]; then
             echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+          elif [ -n "$RELEASE_TAG" ]; then
+            echo "version=$RELEASE_TAG" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
