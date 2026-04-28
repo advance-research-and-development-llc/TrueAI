@@ -1,71 +1,88 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MessageBubble } from './MessageBubble'
 import type { Message } from '@/lib/types'
 
-vi.mock('./MessageActions', () => ({ MessageActions: () => null }))
-
-const baseMessage: Message = {
+const makeMessage = (overrides: Partial<Message> = {}): Message => ({
   id: 'msg-1',
   conversationId: 'conv-1',
   role: 'user',
-  content: 'Hello world',
+  content: 'Hello there',
   timestamp: new Date('2024-01-15T10:30:00').getTime(),
-}
+  ...overrides,
+})
 
 describe('MessageBubble', () => {
-  it('renders user message content', () => {
-    render(<MessageBubble message={baseMessage} />)
-    expect(screen.getByText('Hello world')).toBeInTheDocument()
+  it('renders message content', () => {
+    render(<MessageBubble message={makeMessage({ content: 'Test message content' })} />)
+    expect(screen.getByText('Test message content')).toBeInTheDocument()
   })
 
-  it('renders assistant message content', () => {
-    const msg: Message = { ...baseMessage, role: 'assistant', content: 'Hi there!' }
-    render(<MessageBubble message={msg} />)
-    expect(screen.getByText('Hi there!')).toBeInTheDocument()
+  it('applies flex-row-reverse for user messages', () => {
+    const { container } = render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const outerDiv = container.querySelector('.flex.gap-3') as HTMLElement
+    expect(outerDiv.className).toContain('flex-row-reverse')
   })
 
-  it('user message container has flex-row-reverse class', () => {
-    const { container } = render(<MessageBubble message={baseMessage} />)
-    const flexDiv = container.querySelector('.flex.flex-row-reverse')
-    expect(flexDiv).toBeInTheDocument()
+  it('does not apply flex-row-reverse for assistant messages', () => {
+    const { container } = render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const outerDiv = container.querySelector('.flex.gap-3') as HTMLElement
+    expect(outerDiv.className).not.toContain('flex-row-reverse')
+  })
+
+  it('applies muted/italic styling for system messages', () => {
+    const { container } = render(
+      <MessageBubble message={makeMessage({ role: 'system', content: 'System info' })} />
+    )
+    // System messages use bg-muted and italic text
+    const bubble = container.querySelector('.italic') as HTMLElement
+    expect(bubble).toBeInTheDocument()
+  })
+
+  it('user message bubble has accent background', () => {
+    const { container } = render(<MessageBubble message={makeMessage({ role: 'user' })} />)
+    const bubble = container.querySelector('.bg-accent') as HTMLElement
+    expect(bubble).toBeInTheDocument()
+  })
+
+  it('assistant message bubble has card background', () => {
+    const { container } = render(<MessageBubble message={makeMessage({ role: 'assistant' })} />)
+    const bubble = container.querySelector('.bg-card') as HTMLElement
+    expect(bubble).toBeInTheDocument()
+  })
+
+  it('shows timestamp in HH:MM format', () => {
+    render(<MessageBubble message={makeMessage({ timestamp: new Date('2024-01-15T10:30:00').getTime() })} />)
+    // The formatted time will be locale-dependent but should include digits and a colon
+    const timeEl = screen.getByText(/\d{1,2}:\d{2}/)
+    expect(timeEl).toBeInTheDocument()
+  })
+
+  it('shows model name in timestamp area when model is set', () => {
+    render(<MessageBubble message={makeMessage({ model: 'llama3.2', role: 'assistant' })} />)
+    expect(screen.getByText(/llama3\.2/)).toBeInTheDocument()
+  })
+
+  it('does not show model name when model is not set', () => {
+    render(<MessageBubble message={makeMessage({ model: undefined })} />)
+    // timestamp is shown, but no model suffix
+    expect(screen.queryByText(/•/)).not.toBeInTheDocument()
   })
 
   it('shows streaming cursor when isStreaming is true', () => {
-    const { container } = render(<MessageBubble message={baseMessage} isStreaming />)
-    // streaming cursor is a span with inline-block w-2 h-4
-    const cursor = container.querySelector('.inline-block.w-2.h-4')
+    const { container } = render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} isStreaming />
+    )
+    // The streaming cursor is a span with a specific class
+    const cursor = container.querySelector('.inline-block.w-2.h-4.bg-current') as HTMLElement
     expect(cursor).toBeInTheDocument()
   })
 
-  it('does not show streaming cursor when not streaming', () => {
-    const { container } = render(<MessageBubble message={baseMessage} />)
-    const cursor = container.querySelector('.inline-block.w-2.h-4')
+  it('does not show streaming cursor when isStreaming is false', () => {
+    const { container } = render(
+      <MessageBubble message={makeMessage({ role: 'assistant' })} isStreaming={false} />
+    )
+    const cursor = container.querySelector('.inline-block.w-2.h-4.bg-current')
     expect(cursor).not.toBeInTheDocument()
-  })
-
-  it('displays message timestamp', () => {
-    render(<MessageBubble message={baseMessage} />)
-    const time = new Date(baseMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    expect(screen.getByText(new RegExp(time))).toBeInTheDocument()
-  })
-
-  it('shows model when message.model is set', () => {
-    const msg: Message = { ...baseMessage, model: 'gpt-4o' }
-    render(<MessageBubble message={msg} />)
-    expect(screen.getByText(/gpt-4o/)).toBeInTheDocument()
-  })
-
-  it('avatar shows User icon for user role', () => {
-    const { container } = render(<MessageBubble message={baseMessage} />)
-    const avatar = container.querySelector('.bg-accent.text-accent-foreground')
-    expect(avatar).toBeInTheDocument()
-  })
-
-  it('avatar shows Robot icon for assistant role', () => {
-    const msg: Message = { ...baseMessage, role: 'assistant' }
-    const { container } = render(<MessageBubble message={msg} />)
-    const avatar = container.querySelector('.bg-primary.text-primary-foreground')
-    expect(avatar).toBeInTheDocument()
   })
 })

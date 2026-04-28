@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { createRef } from 'react'
 import { AnimatedCard } from './AnimatedCard'
 
 describe('AnimatedCard', () => {
@@ -9,29 +8,51 @@ describe('AnimatedCard', () => {
     expect(screen.getByText('Hello Card')).toBeInTheDocument()
   })
 
-  it('accepts ref', () => {
-    const ref = createRef<HTMLDivElement>()
-    render(<AnimatedCard ref={ref}>Content</AnimatedCard>)
-    expect(ref.current).toBeInstanceOf(HTMLDivElement)
-  })
-
   it('applies custom className', () => {
-    const { container } = render(<AnimatedCard className="my-custom">Content</AnimatedCard>)
-    expect(container.firstChild).toHaveClass('my-custom')
+    const { container } = render(<AnimatedCard className="my-custom-class">content</AnimatedCard>)
+    const card = container.firstChild as HTMLElement
+    expect(card.className).toContain('my-custom-class')
   })
 
-  it('renders with hover=false prop', () => {
-    const { container } = render(<AnimatedCard hover={false}>Content</AnimatedCard>)
-    expect(container.firstChild).toBeInTheDocument()
+  it('always applies base styling classes', () => {
+    const { container } = render(<AnimatedCard>content</AnimatedCard>)
+    const card = container.firstChild as HTMLElement
+    expect(card.className).toContain('backdrop-blur-sm')
+    expect(card.className).toContain('bg-card/80')
   })
 
-  it('delay prop accepted without crashing', () => {
-    const { container } = render(<AnimatedCard delay={0.5}>Content</AnimatedCard>)
-    expect(container.firstChild).toBeInTheDocument()
+  it('applies hover shadow class when hover=true (default)', () => {
+    const { container } = render(<AnimatedCard>content</AnimatedCard>)
+    const card = container.firstChild as HTMLElement
+    expect(card.className).toContain('hover:shadow-xl')
   })
 
-  it('renders as a div element', () => {
-    const { container } = render(<AnimatedCard>Div Test</AnimatedCard>)
-    expect(container.querySelector('div')).toBeInTheDocument()
+  it('does not apply hover shadow class when hover=false', () => {
+    const { container } = render(<AnimatedCard hover={false}>content</AnimatedCard>)
+    const card = container.firstChild as HTMLElement
+    expect(card.className).not.toContain('hover:shadow-xl')
+  })
+
+  it('has displayName AnimatedCard', () => {
+    expect(AnimatedCard.displayName).toBe('AnimatedCard')
+  })
+
+  it('forwards ref to underlying div', () => {
+    let ref: HTMLDivElement | null = null
+    render(
+      <AnimatedCard ref={(el) => { ref = el }}>content</AnimatedCard>
+    )
+    expect(ref).toBeInstanceOf(HTMLElement)
+  })
+
+  it('renders multiple children', () => {
+    render(
+      <AnimatedCard>
+        <span>Child 1</span>
+        <span>Child 2</span>
+      </AnimatedCard>
+    )
+    expect(screen.getByText('Child 1')).toBeInTheDocument()
+    expect(screen.getByText('Child 2')).toBeInTheDocument()
   })
 })

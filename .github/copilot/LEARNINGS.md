@@ -16,6 +16,36 @@
 
 ---
 
+## 2026-04-28 — PR #61: test: add mobile component tests + fix swipeable-card opacity bug
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/61](https://github.com/smackypants/trueai-localai/pull/61) · merged f003eabd3736 · author @Copilot_
+
+- `framer-motion` `AnimatePresence` defers DOM removal until exit animations complete. In jsdom there is no animation engine, so elements stay in the DOM after `setShow(false)`. Don't assert element absence after state-driven exit; instead verify side effects (`skipWaiting` called, `reload` called).
+- `window.location.reload` is not configurable in jsdom. Use `vi.stubGlobal('location', { reload: vi.fn() })` and clean up with `vi.unstubAllGlobals()`.
+- `useThrottle` initialises `lastRun = Date.now()` at mount time. With `vi.useFakeTimers()` no real time elapses between `renderHook` and the first invocation, so the throttle blocks the call. Always `vi.advanceTimersByTime(delay + 1)` before the first call in fake-timer throttle tests.
+
+---
+
+## 2026-04-28 — PR #62: feat: mobile debug logger with structured event capture and bug-pattern analysis
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/62](https://github.com/smackypants/trueai-localai/pull/62) · merged 1c4a7020752b · author @Copilot_
+
+- `installMobileDebugLogger()` mirrors the `installPreMountErrorCapture()` pattern: synchronous, returns cleanup, guarded by `_installed` flag, safe against SSR/no-window environments.
+- `PerformanceObserver` with `{ type: 'navigation', buffered: true }` captures slow loads that have already fired before the observer was registered — no need to hook `window.addEventListener('load')` separately.
+- Storing only non-`undefined` data fields via `...(data !== undefined ? { data } : {})` keeps entries compact; JSON serialisation silently drops `undefined` values inside objects anyway.
+
+---
+
+## 2026-04-28 — PR #60: test: add visual/content component test coverage — chat, VirtualList, AnimatedCard, EnhancedLoader (+ accessibility fixes)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/60](https://github.com/smackypants/trueai-localai/pull/60) · merged d66b265e0f26 · author @Copilot_
+
+- **Radix UI portals**: Dialog/Select/Popover content renders outside the `container` returned by `render()`. Always use `document.body.querySelector()` or Testing Library's `screen.*` helpers (which search the whole document) when asserting on portal content — `container.querySelector()` will return null.
+- **Icon-only button accessibility**: Radix `TooltipContent` provides `aria-describedby` (not `aria-labelledby`) on the trigger, so icon-only buttons wrapped in Tooltip have an empty accessible name unless `aria-label` is added explicitly. Add `aria-label` to all icon-only buttons — it fixes both the accessibility gap and enables `getByRole('button', { name: /.../ })` in tests.
+- **Radix Select options in tests**: `SelectItem` options are not in the DOM until the trigger is clicked; portal content may still be inaccessible via `role="option"` in jsdom. Test the selected item's display text via `SelectValue` in the trigger instead of querying the open dropdown.
+
+---
+
 ## 2026-04-28 — PR #59: test: add comprehensive coverage for diagnostics, benchmark, serviceWorker, preloader, and pre-mount error capture
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/59](https://github.com/smackypants/trueai-localai/pull/59) · merged cc08560b489b · author @Copilot_

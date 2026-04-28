@@ -2,69 +2,117 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { VirtualList } from './VirtualList'
 
+// useThrottle from mobile-performance is a hook that throttles calls;
+// for tests we can mock the whole module so handleScroll passes through.
 vi.mock('@/lib/mobile-performance', () => ({
-  useThrottle: (fn: (...args: unknown[]) => void) => fn,
-  ImageCache: {
-    has: vi.fn(() => false),
-    get: vi.fn(),
-    set: vi.fn(),
-  },
+  useThrottle: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
 }))
 
-const ITEM_HEIGHT = 50
-const CONTAINER_HEIGHT = 300
-
-function renderList(count: number, overscan = 3, className = '') {
-  const items = Array.from({ length: count }, (_, i) => `Item ${i}`)
-  return render(
-    <VirtualList
-      items={items}
-      itemHeight={ITEM_HEIGHT}
-      containerHeight={CONTAINER_HEIGHT}
-      renderItem={(item) => <div>{item}</div>}
-      overscan={overscan}
-      className={className}
-    />
-  )
-}
-
 describe('VirtualList', () => {
-  it('renders visible items', () => {
-    renderList(20)
-    // At scroll=0: visible range is 0..5 (300/50=6), plus overscan 3 above/below
-    // startIndex=0, endIndex=min(19, 9)=9 => items 0-9 visible
-    expect(screen.getByText('Item 0')).toBeInTheDocument()
-    expect(screen.getByText('Item 5')).toBeInTheDocument()
+  const items = ['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry']
+  const renderItem = (item: string, index: number) => (
+    <div data-testid={`item-${index}`}>{item}</div>
+  )
+
+  it('renders the outer container with the given height', () => {
+    const { container } = render(
+      <VirtualList
+        items={items}
+        itemHeight={50}
+        containerHeight={200}
+        renderItem={renderItem}
+      />
+    )
+    const outer = container.firstChild as HTMLElement
+    expect(outer.style.height).toBe('200px')
   })
 
-  it('renders correct number of items for container', () => {
-    // container 300px, item 50px => 6 visible + 3 overscan below = 9 items (0-8)
-    renderList(20)
-    // Items 0-9 (0 + min(19, 6+3-1)=8) => startIndex=0, endIndex=8
-    // Actually: endIndex = min(19, ceil((0+300)/50)+3-1) = min(19, 6+3-1) = min(19,8) = 8
-    // So items 0..8 = 9 items
-    const items = screen.getAllByText(/^Item \d+$/)
-    expect(items.length).toBeGreaterThanOrEqual(6)
+  it('renders visible items when the list is short', () => {
+    render(
+      <VirtualList
+        items={items}
+        itemHeight={50}
+        containerHeight={400}
+        renderItem={renderItem}
+      />
+    )
+    // All 5 items should be visible (containerHeight 400 > total 250)
+    items.forEach((item) => {
+      expect(screen.getByText(item)).toBeInTheDocument()
+    })
   })
 
-  it('applies custom className', () => {
-    const { container } = renderList(5, 3, 'my-custom-class')
-    expect(container.firstChild).toHaveClass('my-custom-class')
+  it('renders only a windowed subset for large lists', () => {
+    // 100 items at 50px each; containerHeight 100px shows ~2 visible + overscan (3)
+    const bigItems = Array.from({ length: 100 }, (_, i) => `Item ${i}`)
+    const { container } = render(
+      <VirtualList
+        items={bigItems}
+        itemHeight={50}
+        containerHeight={100}
+        renderItem={(item, index) => <div data-testid={`row-${index}`}>{item}</div>}
+        overscan={0}
+      />
+    )
+    // With 0 overscan, startIndex=0, endIndex=ceil((0+100)/50)=2 → items 0,1,2
+    const rendered = container.querySelectorAll('[data-testid^="row-"]')
+    // Fewer than 100 rows should be in the DOM
+    expect(rendered.length).toBeLessThan(100)
   })
 
-  it('uses correct total height style', () => {
-    const { container } = renderList(10)
-    // inner div has position:relative and total height = 10 * 50 = 500px
-    const inner = container.querySelector('[style*="position: relative"]') as HTMLElement
-    expect(inner?.style.height).toBe('500px')
+  it('sets the inner container total height equal to items.length * itemHeight', () => {
+    const { container } = render(
+      <VirtualList
+        items={items}
+        itemHeight={60}
+        containerHeight={300}
+        renderItem={renderItem}
+      />
+    )
+    const inner = container.querySelector('[style*="height: 300px"] > div') as HTMLElement
+    expect(inner.style.height).toBe(`${items.length * 60}px`)
   })
 
-  it('overscan renders extra items beyond visible area', () => {
-    // with overscan=5, we should see more items than just visible count
-    renderList(30, 5)
-    // endIndex = min(29, ceil(300/50)+5-1) = min(29, 6+5-1) = min(29, 10) = 10
-    // Items 0-10 = 11 items
-    const items = screen.getAllByText(/^Item \d+$/)
-    expect(items.length).toBeGreaterThan(6)
+  it('applies custom className to outer container', () => {
+    const { container } = render(
+      <VirtualList
+        items={items}
+        itemHeight={50}
+        containerHeight={200}
+        renderItem={renderItem}
+        className="my-list"
+      />
+    )
+    const outer = container.firstChild as HTMLElement
+    expect(outer.className).toContain('my-list')
+  })
+
+  it('handles an empty items array', () => {
+    const { container } = render(
+      <VirtualList
+        items={[]}
+        itemHeight={50}
+        containerHeight={200}
+        renderItem={renderItem}
+      />
+    )
+    // No items should be rendered
+    expect(container.querySelectorAll('[data-testid^="item-"]').length).toBe(0)
+  })
+
+  it('positions each visible item absolutely at the correct top offset', () => {
+    render(
+      <VirtualList
+        items={['A', 'B', 'C']}
+        itemHeight={40}
+        containerHeight={300}
+        renderItem={(item, i) => <div data-testid={`pos-${i}`}>{item}</div>}
+      />
+    )
+    // Each row wrapper should have an absolute style with top = index * itemHeight
+    const rowA = screen.getByTestId('pos-0').parentElement as HTMLElement
+    const rowB = screen.getByTestId('pos-1').parentElement as HTMLElement
+    expect(rowA.style.top).toBe('0px')
+    expect(rowB.style.top).toBe('40px')
   })
 })

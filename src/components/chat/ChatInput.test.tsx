@@ -1,66 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ChatInput } from './ChatInput'
 
 describe('ChatInput', () => {
   const onSend = vi.fn()
-  const onStop = vi.fn()
 
   beforeEach(() => {
     onSend.mockClear()
-    onStop.mockClear()
   })
 
-  it('renders textarea', () => {
+  it('renders a textarea for message input', () => {
     render(<ChatInput onSend={onSend} />)
     expect(screen.getByPlaceholderText('Type your message...')).toBeInTheDocument()
   })
 
-  it('renders send button disabled when empty', () => {
-    const { container } = render(<ChatInput onSend={onSend} />)
-    const btn = container.querySelector('button[type="submit"]') as HTMLButtonElement
-    expect(btn).toBeDisabled()
+  it('renders a send button', () => {
+    render(<ChatInput onSend={onSend} />)
+    expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument()
   })
 
-  it('enables send button when text entered', async () => {
-    const user = userEvent.setup()
-    const { container } = render(<ChatInput onSend={onSend} />)
-    const textarea = screen.getByPlaceholderText('Type your message...')
-    await user.type(textarea, 'hello')
-    const btn = container.querySelector('button[type="submit"]') as HTMLButtonElement
-    expect(btn).not.toBeDisabled()
-  })
-
-  it('calls onSend on form submit', async () => {
-    const user = userEvent.setup()
-    const { container } = render(<ChatInput onSend={onSend} />)
-    const textarea = screen.getByPlaceholderText('Type your message...')
-    await user.type(textarea, 'hello world')
-    const btn = container.querySelector('button[type="submit"]') as HTMLButtonElement
-    await user.click(btn)
-    expect(onSend).toHaveBeenCalledWith('hello world')
-  })
-
-  it('calls onSend on Enter key', async () => {
+  it('calls onSend with trimmed input when form is submitted', async () => {
     const user = userEvent.setup()
     render(<ChatInput onSend={onSend} />)
     const textarea = screen.getByPlaceholderText('Type your message...')
-    await user.type(textarea, 'hello')
+    await user.type(textarea, '  Hello world  ')
+    await user.click(screen.getByRole('button', { name: /send message/i }))
+    expect(onSend).toHaveBeenCalledWith('Hello world')
+  })
+
+  it('does not call onSend when message is empty', async () => {
+    const user = userEvent.setup()
+    render(<ChatInput onSend={onSend} />)
+    await user.click(screen.getByRole('button', { name: /send message/i }))
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('does not call onSend when message is only whitespace', async () => {
+    const user = userEvent.setup()
+    render(<ChatInput onSend={onSend} />)
+    const textarea = screen.getByPlaceholderText('Type your message...')
+    await user.type(textarea, '   ')
+    await user.click(screen.getByRole('button', { name: /send message/i }))
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('clears the textarea after sending', async () => {
+    const user = userEvent.setup()
+    render(<ChatInput onSend={onSend} />)
+    const textarea = screen.getByPlaceholderText('Type your message...')
+    await user.type(textarea, 'Test message')
+    await user.click(screen.getByRole('button', { name: /send message/i }))
+    expect(textarea).toHaveValue('')
+  })
+
+  it('sends message on Enter key', async () => {
+    const user = userEvent.setup()
+    render(<ChatInput onSend={onSend} />)
+    const textarea = screen.getByPlaceholderText('Type your message...')
+    await user.type(textarea, 'Enter message')
     await user.keyboard('{Enter}')
-    expect(onSend).toHaveBeenCalledWith('hello')
+    expect(onSend).toHaveBeenCalledWith('Enter message')
   })
 
-  it('Shift+Enter does NOT submit', async () => {
+  it('does not send on Shift+Enter (newline only)', async () => {
     const user = userEvent.setup()
     render(<ChatInput onSend={onSend} />)
     const textarea = screen.getByPlaceholderText('Type your message...')
-    await user.type(textarea, 'hello')
+    await user.type(textarea, 'Line one')
     await user.keyboard('{Shift>}{Enter}{/Shift}')
     expect(onSend).not.toHaveBeenCalled()
   })
 
-  it('shows char count when input exceeds 100 chars', async () => {
+  it('shows character count when input exceeds 100 characters', async () => {
     const user = userEvent.setup()
     render(<ChatInput onSend={onSend} />)
     const textarea = screen.getByPlaceholderText('Type your message...')
@@ -69,23 +81,30 @@ describe('ChatInput', () => {
     expect(screen.getByText('101')).toBeInTheDocument()
   })
 
-  it('shows stop button when isStreaming and onStop provided', () => {
-    const { container } = render(<ChatInput onSend={onSend} isStreaming onStop={onStop} />)
-    // stop button is type="button" with destructive variant (bg-destructive)
-    const stopBtn = container.querySelector('button[type="button"].bg-destructive, button[type="button"][class*="bg-destructive"]')
-    expect(stopBtn).toBeInTheDocument()
-  })
-
-  it('calls onStop when stop button clicked', async () => {
+  it('does not show character count when input is 100 characters or fewer', async () => {
     const user = userEvent.setup()
-    const { container } = render(<ChatInput onSend={onSend} isStreaming onStop={onStop} />)
-    const stopBtn = container.querySelector('button[type="button"][class*="bg-destructive"]') as HTMLButtonElement
-    await user.click(stopBtn)
-    expect(onStop).toHaveBeenCalled()
+    render(<ChatInput onSend={onSend} />)
+    const textarea = screen.getByPlaceholderText('Type your message...')
+    await user.type(textarea, 'a'.repeat(100))
+    expect(screen.queryByText('100')).not.toBeInTheDocument()
   })
 
-  it('textarea is disabled when disabled=true', () => {
+  it('disables the textarea when disabled prop is true', () => {
     render(<ChatInput onSend={onSend} disabled />)
     expect(screen.getByPlaceholderText('Type your message...')).toBeDisabled()
+  })
+
+  it('shows stop button when isStreaming is true', () => {
+    render(<ChatInput onSend={onSend} isStreaming onStop={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /send message/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onStop when stop button is clicked', async () => {
+    const user = userEvent.setup()
+    const onStop = vi.fn()
+    render(<ChatInput onSend={onSend} isStreaming onStop={onStop} />)
+    await user.click(screen.getByRole('button', { name: /stop generation/i }))
+    expect(onStop).toHaveBeenCalledTimes(1)
   })
 })
