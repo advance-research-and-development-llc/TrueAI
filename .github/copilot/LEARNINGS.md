@@ -16,6 +16,16 @@
 
 ---
 
+## 2026-04-28 — PR #62: feat: mobile debug logger with structured event capture and bug-pattern analysis
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/62](https://github.com/smackypants/trueai-localai/pull/62) · merged 1c4a7020752b · author @Copilot_
+
+- `installMobileDebugLogger()` mirrors the `installPreMountErrorCapture()` pattern: synchronous, returns cleanup, guarded by `_installed` flag, safe against SSR/no-window environments.
+- `PerformanceObserver` with `{ type: 'navigation', buffered: true }` captures slow loads that have already fired before the observer was registered — no need to hook `window.addEventListener('load')` separately.
+- Storing only non-`undefined` data fields via `...(data !== undefined ? { data } : {})` keeps entries compact; JSON serialisation silently drops `undefined` values inside objects anyway.
+
+---
+
 ## 2026-04-28 — PR #60: test: add visual/content component test coverage — chat, VirtualList, AnimatedCard, EnhancedLoader (+ accessibility fixes)
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/60](https://github.com/smackypants/trueai-localai/pull/60) · merged d66b265e0f26 · author @Copilot_
