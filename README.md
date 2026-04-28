@@ -73,6 +73,21 @@ See [TOOLNEURON_COMPARISON.md](TOOLNEURON_COMPARISON.md) for detailed competitiv
 
 ## 🎯 Quick Start
 
+### Prerequisites
+
+This project requires Node.js 24. We recommend using nvm (Node Version Manager):
+
+```bash
+# Install nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+
+# Install Node.js 24
+nvm install 24
+nvm use 24
+```
+
+The project includes a `.nvmrc` file, so you can simply run `nvm use` to switch to the correct version.
+
 ### Web Application
 
 1. **Clone and Install**
@@ -91,6 +106,16 @@ See [TOOLNEURON_COMPARISON.md](TOOLNEURON_COMPARISON.md) for detailed competitiv
    ```
 
 ### Android APK
+
+#### Download Pre-built APK
+
+Download the latest release APK from the [GitHub Releases](https://github.com/smackypants/trueai-localai/releases) page:
+- **TrueAI-LocalAI-debug.apk** - Debug version for testing
+- **TrueAI-LocalAI-release-unsigned.apk** - Release version (unsigned)
+
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for installation instructions and release details.
+
+#### Build from Source
 
 1. **Build Android APK**
    ```bash
@@ -177,7 +202,7 @@ npm run lint         # Lint code
 
 ## 🤝 Contributing
 
-This is a Spark template. Customize it for your needs!
+Website: https://advancedtechnologyresearch.com/
 
 ## 📄 License
 

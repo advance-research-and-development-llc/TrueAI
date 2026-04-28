@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useIsMobile } from './use-mobile'
 
 describe('useIsMobile hook', () => {
@@ -7,6 +7,7 @@ describe('useIsMobile hook', () => {
 
   beforeEach(() => {
     matchMediaMock = vi.fn()
+    // @ts-expect-error - matchMedia is a test mock
     window.matchMedia = matchMediaMock
   })
 
@@ -90,7 +91,9 @@ describe('useIsMobile hook', () => {
     })
 
     // Trigger the listener
-    listeners.forEach(listener => listener())
+    act(() => {
+      listeners.forEach(listener => listener())
+    })
 
     await waitFor(() => {
       expect(result.current).toBe(true)

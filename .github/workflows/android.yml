@@ -1,0 +1,53 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build web app (development mode)
+      # The Android CI workflow only assembles `assembleDebug`, so build the
+      # JS in development mode too. This keeps `__APP_DEBUG__` true inside the
+      # debug APK (enabling auto error reporting under the `debugOnly` gate)
+      # and ships unminified React errors with readable stack traces instead
+      # of "Minified React error #185". The release pipelines below
+      # (build-android.yml, release.yml) keep the production bundle.
+      run: npm run build:dev
+
+    - name: Sync Capacitor
+      run: npx cap sync android
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x android/gradlew
+
+    - name: Build with Gradle
+      working-directory: android
+      run: ./gradlew assembleDebug --no-daemon

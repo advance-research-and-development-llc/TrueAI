@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useKV } from '@github/spark/hooks'
 
 export interface UserBehavior {
@@ -25,32 +25,37 @@ export interface ContextualSuggestion {
   dismissed?: boolean
 }
 
+const initialBehavior: UserBehavior = {
+  mostUsedFeatures: {},
+  timePatterns: {
+    morning: [],
+    afternoon: [],
+    evening: [],
+    night: [],
+  },
+  preferredLayouts: {},
+  errorPatterns: [],
+  sessionDuration: [],
+  lastActive: Date.now(),
+}
+
 export function useContextualUI() {
-  const [behavior, setBehavior] = useKV<UserBehavior>('user-behavior', {
-    mostUsedFeatures: {},
-    timePatterns: {
-      morning: [],
-      afternoon: [],
-      evening: [],
-      night: [],
-    },
-    preferredLayouts: {},
-    errorPatterns: [],
-    sessionDuration: [],
-    lastActive: Date.now(),
-  })
+  const [behavior, setBehavior] = useKV<UserBehavior>('user-behavior', initialBehavior)
 
   const [suggestions, setSuggestions] = useState<ContextualSuggestion[]>([])
   const [dismissedSuggestions, setDismissedSuggestions] = useKV<string[]>('dismissed-suggestions', [])
 
   const trackFeatureUsage = (feature: string) => {
-    setBehavior(prev => ({
-      ...prev,
-      mostUsedFeatures: {
-        ...prev.mostUsedFeatures,
-        [feature]: (prev.mostUsedFeatures[feature] || 0) + 1,
-      },
-    }))
+    setBehavior(prev => {
+      const base = prev ?? initialBehavior
+      return {
+        ...base,
+        mostUsedFeatures: {
+          ...base.mostUsedFeatures,
+          [feature]: (base.mostUsedFeatures[feature] || 0) + 1,
+        },
+      }
+    })
   }
 
   const trackTimeOfDay = (feature: string) => {
@@ -62,32 +67,40 @@ export function useContextualUI() {
     else if (hour >= 17 && hour < 22) period = 'evening'
     else period = 'night'
 
-    setBehavior(prev => ({
-      ...prev,
-      timePatterns: {
-        ...prev.timePatterns,
-        [period]: [...new Set([...prev.timePatterns[period], feature])],
-      },
-    }))
+    setBehavior(prev => {
+      const base = prev ?? initialBehavior
+      return {
+        ...base,
+        timePatterns: {
+          ...base.timePatterns,
+          [period]: [...new Set([...base.timePatterns[period], feature])],
+        },
+      }
+    })
   }
 
   const trackError = (error: string) => {
-    setBehavior(prev => ({
-      ...prev,
-      errorPatterns: [...prev.errorPatterns.slice(-10), error],
-    }))
+    setBehavior(prev => {
+      const base = prev ?? initialBehavior
+      return {
+        ...base,
+        errorPatterns: [...base.errorPatterns.slice(-10), error],
+      }
+    })
   }
 
   const trackSessionDuration = (duration: number) => {
-    setBehavior(prev => ({
-      ...prev,
-      sessionDuration: [...prev.sessionDuration.slice(-20), duration],
-      lastActive: Date.now(),
-    }))
+    setBehavior(prev => {
+      const base = prev ?? initialBehavior
+      return {
+        ...base,
+        sessionDuration: [...base.sessionDuration.slice(-20), duration],
+        lastActive: Date.now(),
+      }
+    })
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const generateSuggestions = () => {
+  const generateSuggestions = useCallback((): ContextualSuggestion[] => {
     if (!behavior) return []
 
     const newSuggestions: ContextualSuggestion[] = []
@@ -158,7 +171,7 @@ export function useContextualUI() {
     }
 
     return newSuggestions.filter(s => !dismissedSuggestions?.includes(s.id))
-  }
+  }, [behavior, dismissedSuggestions])
 
   const dismissSuggestion = (suggestionId: string) => {
     setDismissedSuggestions(prev => [...(prev || []), suggestionId])
@@ -166,9 +179,13 @@ export function useContextualUI() {
   }
 
   useEffect(() => {
-    const newSuggestions = generateSuggestions()
-    setSuggestions(newSuggestions)
-  }, [behavior, dismissedSuggestions, generateSuggestions])
+    // Only depend on `generateSuggestions` (which is itself memoized on
+    // `behavior` and `dismissedSuggestions`). Listing `behavior` /
+    // `dismissedSuggestions` here too would be redundant; listing a
+    // non-stable function reference here previously caused an infinite
+    // render loop (React error #185).
+    setSuggestions(generateSuggestions())
+  }, [generateSuggestions])
 
   const getPredictedNextAction = (): string | null => {
     if (!behavior) return null

@@ -10,7 +10,7 @@ interface ResourceTask {
 export class ResourceLoader {
   private static instance: ResourceLoader
   private queue: ResourceTask[] = []
-  private running = false
+  private scheduled = false
   private concurrent = 3
   private activeCount = 0
 
@@ -32,35 +32,30 @@ export class ResourceLoader {
       return priorityOrder[a.priority] - priorityOrder[b.priority]
     })
 
-    if (!this.running) {
-      this.process()
-    }
+    this.scheduleProcess()
   }
 
-  private async process() {
-    if (this.running || this.queue.length === 0) return
+  private scheduleProcess() {
+    if (this.scheduled) return
+    this.scheduled = true
+    setTimeout(() => {
+      this.scheduled = false
+      this.process()
+    }, 0)
+  }
 
-    this.running = true
-
-    while (this.queue.length > 0 || this.activeCount > 0) {
-      while (this.activeCount < this.concurrent && this.queue.length > 0) {
-        const task = this.queue.shift()
-        if (task) {
-          this.activeCount++
-          this.executeTask(task).finally(() => {
-            this.activeCount--
-          })
+  private process() {
+    while (this.activeCount < this.concurrent && this.queue.length > 0) {
+      const task = this.queue.shift()
+      if (!task) break
+      this.activeCount++
+      this.executeTask(task).finally(() => {
+        this.activeCount = Math.max(0, this.activeCount - 1)
+        if (this.queue.length > 0) {
+          this.scheduleProcess()
         }
-      }
-
-      if (this.queue.length === 0 && this.activeCount === 0) {
-        break
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 10))
+      })
     }
-
-    this.running = false
   }
 
   private async executeTask(task: ResourceTask) {
@@ -82,6 +77,8 @@ export class ResourceLoader {
 
   clear() {
     this.queue = []
+    this.scheduled = false
+    this.activeCount = 0
   }
 
   getQueueSize(): number {
@@ -99,7 +96,7 @@ export function preloadCriticalResources(resources: string[]) {
       execute: async () => {
         const link = document.createElement('link')
         link.rel = 'preload'
-        link.as = 'fetch'
+        link.setAttribute('as', 'fetch')
         link.href = src
         document.head.appendChild(link)
       }
@@ -116,7 +113,7 @@ export function preloadFont(fontFamily: string, fontUrl: string) {
     execute: async () => {
       const link = document.createElement('link')
       link.rel = 'preload'
-      link.as = 'font'
+      link.setAttribute('as', 'font')
       link.type = 'font/woff2'
       link.href = fontUrl
       link.crossOrigin = 'anonymous'

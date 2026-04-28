@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { _Progress } from '@/components/ui/progress'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Code, Flask, Package, FileCode, Eye, Download, Trash, Sparkle, CheckCircle, XCircle, Clock, Cube, Lightning } from '@phosphor-icons/react'
@@ -164,7 +164,7 @@ export function AppBuilder({ models: _models }: AppBuilderProps) {
     framework: 'react' as Framework
   })
 
-  const activeProject = projects.find(p => p.id === activeProjectId)
+  const activeProject = projects?.find(p => p.id === activeProjectId)
   const activeFile = activeProject?.files.find(f => f.path === selectedFile)
 
   const createProject = async () => {
@@ -345,7 +345,7 @@ Return ONLY valid JSON in this exact format:
 }`
       }
 
-      const response = await spark.llm(codeGenPrompt, 'gpt-4o', true)
+      const response = await spark.llm(codeGenPrompt, 'gpt-4o')
       const result = JSON.parse(response)
 
       if (!result.files || !Array.isArray(result.files)) {
@@ -373,16 +373,16 @@ Return ONLY valid JSON in this exact format:
       
       const previewUrl = generatePreviewUrl(tempProject)
 
-      setProjects(prev => 
-        prev.map(p => 
-          p.id === projectId 
-            ? { 
-                ...p, 
-                files, 
+      setProjects(prev =>
+        (prev || []).map(p =>
+          p.id === projectId
+            ? {
+                ...p,
+                files,
                 status: 'ready',
                 previewUrl,
                 updatedAt: Date.now()
-              } 
+              }
             : p
         )
       )
@@ -401,7 +401,7 @@ Return ONLY valid JSON in this exact format:
       console.error('Code generation error:', error)
       
       setProjects(prev => 
-        prev.map(p => 
+        (prev || []).map(p => 
           p.id === projectId 
             ? { 
                 ...p, 
@@ -422,7 +422,7 @@ Return ONLY valid JSON in this exact format:
   }
 
   const buildProject = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project) return
 
     const frameworkConfig = getFrameworkConfig(project.framework)
@@ -435,7 +435,7 @@ Return ONLY valid JSON in this exact format:
     ]
 
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { ...p, status: 'building', buildLog: ['Starting build process...'] } 
           : p
@@ -452,7 +452,7 @@ Return ONLY valid JSON in this exact format:
     for (const step of buildSteps) {
       await new Promise(resolve => setTimeout(resolve, 400))
       setProjects(prev => 
-        prev.map(p => 
+        (prev || []).map(p => 
           p.id === projectId 
             ? { ...p, buildLog: [...(p.buildLog || []), step] } 
             : p
@@ -461,7 +461,7 @@ Return ONLY valid JSON in this exact format:
     }
 
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { 
               ...p, 
@@ -481,11 +481,11 @@ Return ONLY valid JSON in this exact format:
   }
 
   const testProject = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project) return
 
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { ...p, status: 'testing' } 
           : p
@@ -532,7 +532,7 @@ Return ONLY valid JSON in this exact format:
     ]
 
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { 
               ...p, 
@@ -560,13 +560,13 @@ Return ONLY valid JSON in this exact format:
   }
 
   const deleteProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     
     if (project?.previewUrl) {
       URL.revokeObjectURL(project.previewUrl)
     }
     
-    setProjects(prev => prev.filter(p => p.id !== projectId))
+    setProjects(prev => (prev || []).filter(p => p.id !== projectId))
     
     if (activeProjectId === projectId) {
       setActiveProjectId(null)
@@ -614,7 +614,7 @@ Return ONLY valid JSON in this exact format:
   }
 
   const updateLivePreview = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project || project.files.length === 0) return
 
     if (project.previewUrl) {
@@ -624,7 +624,7 @@ Return ONLY valid JSON in this exact format:
     const newPreviewUrl = generatePreviewUrl(project)
     
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { ...p, previewUrl: newPreviewUrl } 
           : p
@@ -643,7 +643,7 @@ Return ONLY valid JSON in this exact format:
 
   useEffect(() => {
     return () => {
-      projects.forEach(project => {
+      projects?.forEach(project => {
         if (project.previewUrl) {
           URL.revokeObjectURL(project.previewUrl)
         }
@@ -653,7 +653,7 @@ Return ONLY valid JSON in this exact format:
   }, [])
 
   const downloadProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project) return
 
     const htmlFile = project.files.find(f => f.path === 'index.html')
@@ -691,8 +691,8 @@ Return ONLY valid JSON in this exact format:
   const saveProjectDetails = () => {
     if (!activeProjectId) return
 
-    setProjects(prev =>
-      prev.map(p =>
+    setProjects(prev => 
+        (prev || []).map(p =>
         p.id === activeProjectId
           ? {
               ...p,
@@ -722,8 +722,8 @@ Return ONLY valid JSON in this exact format:
   const saveFileEdit = () => {
     if (!activeProjectId || !selectedFile) return
 
-    setProjects(prev =>
-      prev.map(p =>
+    setProjects(prev => 
+        (prev || []).map(p =>
         p.id === activeProjectId
           ? {
               ...p,
@@ -763,8 +763,8 @@ Refinement request: "${refinePrompt}"
 
 Based on the original prompt and the refinement request, modify the existing ${activeProject.framework} application to incorporate the requested changes. Keep the existing structure and only change what's necessary.`
 
-    setProjects(prev =>
-      prev.map(p =>
+    setProjects(prev => 
+        (prev || []).map(p =>
         p.id === projectId
           ? { ...p, status: 'creating', prompt: refinementPrompt }
           : p
@@ -783,7 +783,7 @@ Based on the original prompt and the refinement request, modify the existing ${a
   }
 
   const duplicateProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project) return
 
     const newProject: AppProject = {
@@ -805,11 +805,11 @@ Based on the original prompt and the refinement request, modify the existing ${a
   }
 
   const regenerateCode = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
+    const project = projects?.find(p => p.id === projectId)
     if (!project) return
 
     setProjects(prev => 
-      prev.map(p => 
+        (prev || []).map(p => 
         p.id === projectId 
           ? { ...p, status: 'creating', files: [] } 
           : p
@@ -2483,18 +2483,40 @@ Based on the original prompt and the refinement request, modify the existing ${a
     
     function render() {
       const container = document.getElementById('todos');
+      // Clear container safely
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+
       if (todos.length === 0) {
-        container.innerHTML = '<div class="empty">No tasks yet. Add one above!</div>';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty';
+        emptyDiv.textContent = 'No tasks yet. Add one above!';
+        container.appendChild(emptyDiv);
         return;
       }
-      
-      container.innerHTML = todos.map(todo => \`
-        <div class="todo \${todo.completed ? 'completed' : ''}">
-          <input type="checkbox" \${todo.completed ? 'checked' : ''} onchange="toggleTodo(\${todo.id})" />
-          <span>\${todo.text}</span>
-          <button onclick="deleteTodo(\${todo.id})">Delete</button>
-        </div>
-      \`).join('');
+
+      todos.forEach(todo => {
+        const todoDiv = document.createElement('div');
+        todoDiv.className = 'todo' + (todo.completed ? ' completed' : '');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = todo.completed;
+        checkbox.addEventListener('change', () => toggleTodo(todo.id));
+
+        const span = document.createElement('span');
+        span.textContent = todo.text;
+
+        const button = document.createElement('button');
+        button.textContent = 'Delete';
+        button.addEventListener('click', () => deleteTodo(todo.id));
+
+        todoDiv.appendChild(checkbox);
+        todoDiv.appendChild(span);
+        todoDiv.appendChild(button);
+        container.appendChild(todoDiv);
+      });
     }
     
     document.getElementById('todoInput').addEventListener('keypress', (e) => {
@@ -2652,7 +2674,15 @@ Based on the original prompt and the refinement request, modify the existing ${a
     
     function calculate() {
       try {
-        const result = eval(display);
+        // Use Function constructor instead of eval for safer calculation
+        // Validate input first
+        if (!/^[0-9+\\-*/.()\\s]+$/.test(display)) {
+          throw new Error('Invalid expression');
+        }
+        const result = new Function('return (' + display + ')')();
+        if (typeof result !== 'number' || !isFinite(result)) {
+          throw new Error('Invalid result');
+        }
         display = String(result);
         updateDisplay();
       } catch {
@@ -2859,17 +2889,32 @@ Based on the original prompt and the refinement request, modify the existing ${a
       stopwatchTime = 0;
       laps = [];
       document.getElementById('stopwatch-display').textContent = '00:00:00';
-      document.getElementById('laps').innerHTML = '';
+      const lapsContainer = document.getElementById('laps');
+      while (lapsContainer.firstChild) {
+        lapsContainer.removeChild(lapsContainer.firstChild);
+      }
     }
-    
+
     function renderLaps() {
       const container = document.getElementById('laps');
-      container.innerHTML = laps.map((lap, i) => \`
-        <div class="lap">
-          <span>Lap \${i + 1}</span>
-          <span>\${formatTime(lap)}</span>
-        </div>
-      \`).join('');
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+
+      laps.forEach((lap, i) => {
+        const lapDiv = document.createElement('div');
+        lapDiv.className = 'lap';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = 'Lap ' + (i + 1);
+
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = formatTime(lap);
+
+        lapDiv.appendChild(labelSpan);
+        lapDiv.appendChild(timeSpan);
+        container.appendChild(lapDiv);
+      });
     }
     
     function startTimer() {
@@ -3043,11 +3088,25 @@ Based on the original prompt and the refinement request, modify the existing ${a
       activeNoteId = id;
       const note = notes.find(n => n.id === id);
       if (!note) return;
-      
-      document.getElementById('editor').innerHTML = \`
-        <input type="text" value="\${note.title}" oninput="updateNoteTitle(event.target.value)" placeholder="Note title..." />
-        <textarea oninput="updateNoteContent(event.target.value)" placeholder="Start writing...">\${note.content}</textarea>
-      \`;
+
+      const editor = document.getElementById('editor');
+      while (editor.firstChild) {
+        editor.removeChild(editor.firstChild);
+      }
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = note.title;
+      input.placeholder = 'Note title...';
+      input.addEventListener('input', (e) => updateNoteTitle(e.target.value));
+
+      const textarea = document.createElement('textarea');
+      textarea.value = note.content;
+      textarea.placeholder = 'Start writing...';
+      textarea.addEventListener('input', (e) => updateNoteContent(e.target.value));
+
+      editor.appendChild(input);
+      editor.appendChild(textarea);
       renderNotes();
     }
     
@@ -3069,17 +3128,35 @@ Based on the original prompt and the refinement request, modify the existing ${a
     
     function renderNotes() {
       const container = document.getElementById('noteList');
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+
       if (notes.length === 0) {
-        container.innerHTML = '<div class="empty">No notes yet</div>';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty';
+        emptyDiv.textContent = 'No notes yet';
+        container.appendChild(emptyDiv);
         return;
       }
-      
-      container.innerHTML = notes.map(note => \`
-        <div class="note-item \${note.id === activeNoteId ? 'active' : ''}" onclick="selectNote(\${note.id})">
-          <div class="note-title">\${note.title}</div>
-          <div class="note-preview">\${note.content || 'Empty note'}</div>
-        </div>
-      \`).join('');
+
+      notes.forEach(note => {
+        const noteItem = document.createElement('div');
+        noteItem.className = 'note-item' + (note.id === activeNoteId ? ' active' : '');
+        noteItem.addEventListener('click', () => selectNote(note.id));
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'note-title';
+        titleDiv.textContent = note.title;
+
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'note-preview';
+        previewDiv.textContent = note.content || 'Empty note';
+
+        noteItem.appendChild(titleDiv);
+        noteItem.appendChild(previewDiv);
+        container.appendChild(noteItem);
+      });
     }
   </script>
 </body>
@@ -3535,14 +3612,14 @@ Based on the original prompt and the refinement request, modify the existing ${a
           <h3 className="font-semibold mb-3 text-sm">Projects</h3>
           <ScrollArea className="h-[600px]">
             <div className="space-y-2">
-              {projects.length === 0 && (
+              {(projects || []).length === 0 && (
                 <div className="text-center py-8 text-sm text-muted-foreground">
                   <Code size={32} className="mx-auto mb-2 opacity-50" />
                   <p>No projects yet</p>
                   <p className="text-xs mt-1">Create your first app</p>
                 </div>
               )}
-              {projects.map(project => (
+              {(projects || []).map(project => (
                 <motion.div
                   key={project.id}
                   initial={{ opacity: 0, y: 10 }}
