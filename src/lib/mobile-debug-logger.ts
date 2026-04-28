@@ -278,7 +278,7 @@ export const KNOWN_BUG_PATTERNS: BugPattern[] = [
     category: 'performance',
     messagePatterns: [
       /out of memory/i,
-      /\boom\b/i,
+      /\bOOM\b/i,
       /memory.*exceed/i,
       /heap.*limit/i,
       /quota.*exceeded/i,

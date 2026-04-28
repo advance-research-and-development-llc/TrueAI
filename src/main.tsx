@@ -30,11 +30,11 @@ installPreMountErrorCapture()
 //    lifecycle, plugin errors) are captured from the very first moment.
 installMobileDebugLogger()
 
-// 2) Schedule a Spark-load check so that if the runtime never initializes
+// 3) Schedule a Spark-load check so that if the runtime never initializes
 //    (common cause of a blank Android APK), we surface a dedicated message.
 scheduleSparkLoadCheck()
 
-// 3) Dynamically import the Spark side-effect module so a load failure is
+// 4) Dynamically import the Spark side-effect module so a load failure is
 //    catchable by our handlers (a top-level static import would propagate as
 //    an unrecoverable module-evaluation error).
 import('@github/spark/spark')
