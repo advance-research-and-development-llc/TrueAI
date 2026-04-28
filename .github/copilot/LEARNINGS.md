@@ -16,6 +16,16 @@
 
 ---
 
+## 2026-04-28 — PR #56: fix(ci): update release.yml to auto-attach APKs to latest release
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/56](https://github.com/smackypants/trueai-localai/pull/56) · merged 37d13754d055 · author @Copilot_
+
+- `release.yml`'s `workflow_dispatch` trigger did not specify `ref:` in the `actions/checkout` step, so manual runs checked out `HEAD` instead of the intended tag. Always resolve the target tag explicitly before checkout when a workflow can be triggered by multiple event types.
+- The `release: [published]` event is a reliable safety-net trigger for attaching release artifacts; the `push: tags: v*` event can be silently skipped when the tag is pushed by another workflow (e.g. `release-bump.yml`) rather than by a direct git push.
+- For `workflow_dispatch` inputs that have a natural default (e.g., "latest release"), marking them `required: false` with auto-detection via `gh release view` improves usability significantly.
+
+---
+
 ## 2026-04-28 — PR #55: test: add coverage for serviceWorker and preMountErrorCapture (0% → meaningful coverage)
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/55](https://github.com/smackypants/trueai-localai/pull/55) · merged 15cee64fa912 · author @Copilot_
