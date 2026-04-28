@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-28 — PR #48: fix(tests): resolve TypeScript compilation errors blocking Android CI builds
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/48](https://github.com/smackypants/trueai-localai/pull/48) · merged 1181f387b8dc · author @Claude_
+
+- (No explicit lessons recorded.) PR title: _fix(tests): resolve TypeScript compilation errors blocking Android CI builds_.
+
+---
+
 ## 2026-04-28 — PR #46: Round-3 follow-up prompt: address out-of-scope review findings on agent-tools, workflow event types, and executeWorkflow deps
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/46](https://github.com/smackypants/trueai-localai/pull/46) · merged b8eb382477a7 · author @Copilot_
