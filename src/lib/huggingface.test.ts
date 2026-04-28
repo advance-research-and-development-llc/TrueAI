@@ -45,9 +45,11 @@ describe('huggingface helpers', () => {
       })
     })
 
-    it('always includes a Llama-family model', () => {
-      const models = getPopularGGUFModels().join(' ').toLowerCase()
-      expect(models).toContain('llama')
+    it('returns identifiers in owner/repo form', () => {
+      const models = getPopularGGUFModels()
+      models.forEach(id => {
+        expect(id.split('/').length).toBe(2)
+      })
     })
   })
 })
