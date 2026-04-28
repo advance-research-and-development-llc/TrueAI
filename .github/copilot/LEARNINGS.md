@@ -16,6 +16,15 @@
 
 ---
 
+## 2026-04-28 — PR #59: test: add comprehensive coverage for diagnostics, benchmark, serviceWorker, preloader, and pre-mount error capture
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/59](https://github.com/smackypants/trueai-localai/pull/59) · merged cc08560b489b · author @Copilot_
+
+- When testing `preMountErrorCapture` renderFallback via event dispatch, `vi.doMock('./diagnostics', factory)` inside `it()` bodies does NOT reliably intercept the module when `preMountErrorCapture` is freshly imported with `vi.resetModules()` — the mock hangs/times out. The correct pattern is a **separate test file** with `vi.mock('./diagnostics', factory)` at the top level (gets hoisted), combined with per-test `vi.resetModules()` + dynamic `await import('./preMountErrorCapture')` to reset module-level flags (`installed`, `reactMounted`, `fallbackShown`).
+- When testing `PromiseRejectionEvent`, always call `.catch(() => {})` on the rejected promise passed to the constructor — otherwise the test environment emits a spurious "Unhandled error" even though the test itself passes.
+
+---
+
 ## 2026-04-28 — PR #58: fix: 19 bugs — tab switching, SW updates, agent tools, workflow builder, chat, cost, offline queue, analytics, perf hooks
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/58](https://github.com/smackypants/trueai-localai/pull/58) · merged 0adad30cb130 · author @Copilot_
