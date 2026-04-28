@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-28 — PR #44: chore(release): bump to v7.0.0
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/44](https://github.com/smackypants/trueai-localai/pull/44) · merged a09fd7c84fb7 · author @Copilot_
+
+- When prepping a release via PR (rather than the one-shot `release-bump.yml`), run `npm install --package-lock-only` after editing `package.json` so the lockfile's top-level `version` stays in sync — `npm ci` doesn't require it, but reviewers will flag the drift.
+
+---
+
 ## 2026-04-28 — PR #43: fix(build): drop unused @ts-expect-error unblocking Android build pipeline
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/43](https://github.com/smackypants/trueai-localai/pull/43) · merged b8f3af227479 · author @Copilot_
