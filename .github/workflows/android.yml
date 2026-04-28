@@ -33,8 +33,14 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Build web app
-      run: npm run build
+    - name: Build web app (development mode)
+      # The Android CI workflow only assembles `assembleDebug`, so build the
+      # JS in development mode too. This keeps `__APP_DEBUG__` true inside the
+      # debug APK (enabling auto error reporting under the `debugOnly` gate)
+      # and ships unminified React errors with readable stack traces instead
+      # of "Minified React error #185". The release pipelines below
+      # (build-android.yml, release.yml) keep the production bundle.
+      run: npm run build:dev
 
     - name: Sync Capacitor
       run: npx cap sync android

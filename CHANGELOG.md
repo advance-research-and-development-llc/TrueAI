@@ -1,5 +1,84 @@
 # Changelog - TrueAI LocalAI
 
+## Version 4.0.0 - React #185 fix, error reporting, GitHub integration (2026-04-28)
+
+Major release built around the in-app crash report
+(`Minified React error #185`) and the surrounding hardening.
+
+### 🐛 Bug Fixes
+
+- **React error #185 (infinite render loop) crashing the app on launch.**
+  `useContextualUI` re-created `generateSuggestions` every render; an effect
+  depending on that fresh function called `setSuggestions(generateSuggestions())`
+  every render → infinite loop. The function is now wrapped in `useCallback`
+  keyed on `behavior` + `dismissedSuggestions`, and the effect depends only on
+  the stable callback. Verified end-to-end in a real headless Chrome — the
+  app now mounts and renders ~29 KB of UI instead of crashing.
+- **`indexedDBCache` re-running effects every render in `App.tsx`.** Two
+  effects depended on the entire `indexedDBCache` object literal (a fresh
+  reference every render), so they fired each render and repeatedly invoked
+  `cacheConversation` / re-scheduled sync timers. Now depend only on stable
+  callbacks + `isInitialized`.
+- **`runtime.config.json` was not shipped in the production bundle.** The
+  file lived at the repo root; nothing copied it into `dist/`, so the SPA
+  fallback returned `index.html` for `/runtime.config.json` and the runtime
+  config silently no-op'd. Moved to `public/runtime.config.json` so Vite
+  ships it (and `cap sync` carries it into the APK at
+  `assets/public/runtime.config.json`).
+
+### 🚀 New Features
+
+- **Automatic error reporting & submission for Android debug.** New
+  `errorReporting` block in `runtime.config.json` (autoSubmit, endpoint,
+  debugOnly, androidOnly, timeoutMs, github). When enabled, both the React
+  `ErrorFallback` and the pre-mount fallback POST the diagnostic report to
+  the configured endpoint with a 5 s timeout, gated by `__APP_DEBUG__` (true
+  only in debug bundles) and Capacitor Android. Same-fingerprint dedupe
+  prevents an error loop from spamming the endpoint. Status surfaced in the
+  UI without breaking existing manual Copy/Share/Reload buttons.
+- **Persistent in-app error log** (`localStorage` ring buffer, capped at 50,
+  collapses identical consecutive entries). Every captured error is logged
+  automatically. New "Download Error Log" button in both fallback UIs
+  exports a JSON file the user (or a coding agent) can attach to issues.
+- **GitHub integration: file pre-populated issues from the in-app error UI.**
+  New `errorReporting.github` block (`owner`/`repo`/`labels`). When set, a
+  "Report on GitHub" button appears in both fallback UIs; clicking it opens
+  `https://github.com/<owner>/<repo>/issues/new` in a new tab pre-filled
+  with title and a markdown body containing the diagnostic report (no
+  GitHub token required). Body length is capped well under GitHub's URL
+  limit, with a truncation note pointing at the downloadable error log.
+
+### 🛠️ Build / CI
+
+- **Android debug APK now ships an unminified, debug JS bundle.** Added
+  `npm run build:dev` (= `vite build --mode development`). `package.json`
+  `android:build` and `.github/workflows/android.yml` (both debug-only) now
+  use it so debug APKs get readable React stack traces and `__APP_DEBUG__`
+  is `true` (auto error reporting can fire under the `debugOnly` gate).
+  Release pipelines (`build-android.yml`, `release.yml`) keep the
+  production bundle.
+- **CodeQL workflow no longer fails when Code Scanning is disabled in repo
+  settings.** Marked the analyze step `continue-on-error: true` (with a
+  comment). Analysis still runs on every push/PR; once the repo enables
+  Settings → Security → Code Scanning, the upload begins working
+  automatically.
+- **Build-time `__APP_DEBUG__` define** in `vite.config.ts`. End-to-end
+  verified: dev bundle compiles to `!0`, prod bundle to `!1`.
+
+### 🧪 Tests
+
+- **172 of 172 tests pass** (was 141 — added 31 new tests covering
+  `loadErrorReportingConfig`, `submitDiagnosticReport`, the persistent
+  error log, and `buildGitHubIssueUrl`).
+
+### 📦 Versioning
+
+- `package.json` `3.0.0` → `4.0.0`
+- Android `versionCode` `4` → `5`, `versionName` `3.0.0` → `4.0.0`
+  (clean install-over-update from any prior release).
+
+---
+
 ## Version 3.0.0 - Consolidated Fixes & Optimizations (2026-04-28)
 
 This is a major release that rolls up all fixes and optimizations shipped
