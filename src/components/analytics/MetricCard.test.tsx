@@ -62,9 +62,9 @@ describe('MetricCard', () => {
       />
     )
     expect(screen.getByText('+12%')).toBeInTheDocument()
-    // The trend text should have green colour class
+    // The trend text uses Tailwind green class (text-green-500)
     const trendSpan = screen.getByText('+12%')
-    expect(trendSpan.className).toContain('green')
+    expect(trendSpan.className).toContain('text-green-500')
   })
 
   it('renders down trend arrow and red text when trend is down', () => {
@@ -78,7 +78,7 @@ describe('MetricCard', () => {
       />
     )
     const trendSpan = screen.getByText('-3%')
-    expect(trendSpan.className).toContain('red')
+    expect(trendSpan.className).toContain('text-red-500')
   })
 
   it('renders neutral trend with muted text', () => {
@@ -104,7 +104,7 @@ describe('MetricCard', () => {
       />
     )
     // No ArrowUp/ArrowDown/Minus icons rendered
-    expect(container.querySelectorAll('svg').length).toBe(0)
+    expect(container.querySelectorAll('svg')).toHaveLength(0)
   })
 
   it('defaults to neutral trend when trend prop is not provided', () => {
