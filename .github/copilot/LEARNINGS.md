@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-28 — PR #54: chore(release): bump version to 8.0.0
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/54](https://github.com/smackypants/trueai-localai/pull/54) · merged 2659c7bdf0e1 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _chore(release): bump version to 8.0.0_.
+
+---
+
 ## 2026-04-28 — PR #52: fix: resolve all lint warnings and lockfile sync issue
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/52](https://github.com/smackypants/trueai-localai/pull/52) · merged c680591b2dd0 · author @Copilot_
