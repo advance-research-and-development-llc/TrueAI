@@ -1,5 +1,27 @@
 # Changelog - TrueAI LocalAI
 
+## Version 7.0.0 - Release housekeeping (2026-04-28)
+
+Maintenance release. No functional code changes versus v6.0.0; this
+release exists to roll the published version forward so it lines up
+with the next batch of work tracked off `main`.
+
+### 🧰 Maintenance
+
+- Bumped `package.json` to `7.0.0`.
+- Bumped Android `versionCode` to `9` and `versionName` to `7.0.0`.
+- Added a Fastlane changelog entry under
+  `fastlane/metadata/android/en-US/changelogs/9.txt`.
+
+### ✅ Validated
+
+- `npm run lint` clean.
+- `npm test` — 414/414 tests pass.
+- `npm run build:dev` succeeds (same build the Android debug CI uses).
+- No new dependencies; existing CVE-pinned overrides
+  (`path-to-regexp`, `postcss`, `lodash`, `brace-expansion@1`)
+  preserved.
+
 ## Version 6.0.0 - Local runtime, native mobile layer & security hardening (2026-04-28)
 
 First release that ships the post-v5.1.0 architecture work as a real
