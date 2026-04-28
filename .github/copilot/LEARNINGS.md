@@ -16,6 +16,15 @@
 
 ---
 
+## 2026-04-28 — PR #55: test: add coverage for serviceWorker and preMountErrorCapture (0% → meaningful coverage)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/55](https://github.com/smackypants/trueai-localai/pull/55) · merged 15cee64fa912 · author @Copilot_
+
+- jsdom 29 partially implements `navigator.serviceWorker` — `'serviceWorker' in navigator` is always `true`, but methods like `getRegistrations()` may hang; always stub with a full mock including `getRegistrations: vi.fn().mockResolvedValue([])` when testing SW-adjacent code
+- Module-level state in error-capture modules survives `vi.resetModules()` window listeners — avoid dispatching global `ErrorEvent` / `PromiseRejectionEvent` across module-isolation boundaries; test DOM quiescence via timer advancement instead
+
+---
+
 ## 2026-04-28 — PR #54: chore(release): bump version to 8.0.0
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/54](https://github.com/smackypants/trueai-localai/pull/54) · merged 2659c7bdf0e1 · author @Copilot_
