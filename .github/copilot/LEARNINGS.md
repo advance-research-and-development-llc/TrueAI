@@ -16,6 +16,34 @@
 
 ---
 
+## 2026-04-28 — PR #44: chore(release): bump to v7.0.0
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/44](https://github.com/smackypants/trueai-localai/pull/44) · merged a09fd7c84fb7 · author @Copilot_
+
+- When prepping a release via PR (rather than the one-shot `release-bump.yml`), run `npm install --package-lock-only` after editing `package.json` so the lockfile's top-level `version` stays in sync — `npm ci` doesn't require it, but reviewers will flag the drift.
+
+---
+
+## 2026-04-28 — PR #43: fix(build): drop unused @ts-expect-error unblocking Android build pipeline
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/43](https://github.com/smackypants/trueai-localai/pull/43) · merged b8f3af227479 · author @Copilot_
+
+- A single TS2578 silently breaks the whole Android toolchain because every `android:*` script chains through `build:dev` / `build`. `npm test` alone won't catch it — vitest's transpiler is more permissive than `tsc -b`. Validate Android changes with `npm run build:dev`.
+- When a `@ts-expect-error` becomes unused after upstream type changes, delete it; don't reintroduce a wrong cast to keep the directive "valid".
+
+---
+
+## 2026-04-28 — PR #42: Real workflow execution + replace simulated agent-tools with real I/O or fail-closed
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/42](https://github.com/smackypants/trueai-localai/pull/42) · merged b28b2c2b1ca8 · author @Copilot_
+
+- Simulated agent-tools weren't just "fake" — they actively misled the agent loop's final-summary LLM call into summarising plausible-looking lies. Fail-closed is strictly better than fabricated success when no provider is configured.
+- Workflow execution belongs in a pure `runWorkflow(workflow, deps)` module, not inline in `App.tsx`. The React wrapper becomes a state-persistence + cost-tracking shim and the engine gets full unit coverage without a render harness.
+- `api_caller` needs HTTPS-only even in a local-first app — the tool explicitly hits the network and `http://localhost` is one prompt-injection away from SSRF against developer/native services.
+- The existing `Agent` type uses `systemPrompt` (not `instructions`); `WorkflowAgent` mirrors that name 1:1 to keep the mapping obvious.
+
+---
+
 ## 2026-04-28 — PR #41: Add tests for under-covered LLM runtime, native, and hook modules
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/41](https://github.com/smackypants/trueai-localai/pull/41) · merged e538fb68e678 · author @Copilot_

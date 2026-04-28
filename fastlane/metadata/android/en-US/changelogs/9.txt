@@ -1,0 +1,5 @@
+v7.0.0 — Maintenance release. No functional code changes vs. v6.0.0;
+rolls the published version forward to align with the next batch of
+work tracked off main. Lint, full test suite (414/414), and the
+Android dev build all pass. CVE-pinned dependency overrides
+preserved.
