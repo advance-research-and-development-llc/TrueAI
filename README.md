@@ -174,6 +174,32 @@ src/
 - **Optimized Forms**: Mobile-friendly inputs
 - **Safe Areas**: Notch support
 
+### Native Capabilities (Android APK)
+
+The Android build uses Capacitor 8 first-party plugins to provide a fully
+native experience. All integrations live behind a single abstraction
+(`src/lib/native/`) so call sites work identically on web and native.
+
+| Capability | Native plugin | Web fallback |
+| --- | --- | --- |
+| Secure credential storage (LLM API keys) | `@capacitor/preferences` (app-private SharedPreferences) | IndexedDB-only (never localStorage) |
+| Network reachability | `@capacitor/network` (OS connectivity manager) | `navigator.onLine` + `online`/`offline` events |
+| Clipboard | `@capacitor/clipboard` | `navigator.clipboard.writeText` + `execCommand('copy')` |
+| Share sheet | `@capacitor/share` | Web Share API → clipboard |
+| Haptic feedback | `@capacitor/haptics` | `navigator.vibrate` |
+| App lifecycle (back button, resume) | `@capacitor/app` | `visibilitychange` event |
+| Status bar | `@capacitor/status-bar` | n/a |
+| Splash screen | `@capacitor/splash-screen` | n/a |
+| Keyboard handling | `@capacitor/keyboard` | n/a |
+| Local notifications (agent completion) | `@capacitor/local-notifications` | `Notification` API |
+| File save (chat exports) | `@capacitor/filesystem` (Documents directory) | Blob + anchor download |
+
+The Android back button is wired to a global handler stack: open
+dialogs/sheets register a handler with `pushBackHandler(...)`; otherwise
+the WebView navigates back, and on the home view the app minimises rather
+than exits, mirroring standard Android behaviour. The offline action queue
+auto-flushes when the app returns to the foreground via `onAppResume`.
+
 ## 🛠️ Development
 
 ### Available Scripts

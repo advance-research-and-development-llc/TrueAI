@@ -11,8 +11,18 @@
  */
 
 import { kvStore } from './kv-store'
+import { secureStorage } from '@/lib/native/secure-storage'
 
 export const LLM_RUNTIME_CONFIG_KEY = '__llm_runtime_config__'
+/**
+ * The API key is stored separately from the rest of the config because it
+ * is sensitive material. On native it lives in Capacitor Preferences
+ * (app-private SharedPreferences); on web it goes through `kvStore`'s
+ * IDB-only `setSecure` path so it never reaches localStorage. The main
+ * config blob (URLs, model names, sampling defaults) is intentionally
+ * non-sensitive and uses the regular KV storage.
+ */
+export const LLM_RUNTIME_API_KEY_KEY = '__llm_runtime_api_key__'
 
 export type LLMProvider =
   | 'ollama'
@@ -111,7 +121,23 @@ async function loadRuntimeConfigJson(): Promise<Partial<LLMRuntimeConfig> | null
 async function loadStoredConfig(): Promise<Partial<LLMRuntimeConfig> | null> {
   try {
     const stored = await kvStore.get<Partial<LLMRuntimeConfig>>(LLM_RUNTIME_CONFIG_KEY)
+    // Defensive: if a legacy record contains an apiKey field (e.g. from a
+    // previous version that stored everything together), strip it here so
+    // we never re-publish sensitive material via the non-secure path.
+    if (stored && 'apiKey' in stored) {
+      const { apiKey: _legacy, ...rest } = stored
+      return rest as Partial<LLMRuntimeConfig>
+    }
     return stored ?? null
+  } catch {
+    return null
+  }
+}
+
+async function loadStoredApiKey(): Promise<string | null> {
+  try {
+    const v = await secureStorage.get(LLM_RUNTIME_API_KEY_KEY)
+    return v ?? null
   } catch {
     return null
   }
@@ -136,7 +162,9 @@ export function ensureLLMRuntimeConfigLoaded(): Promise<LLMRuntimeConfig> {
   configLoadPromise = (async () => {
     const fileCfg = await loadRuntimeConfigJson()
     const storedCfg = await loadStoredConfig()
+    const apiKey = await loadStoredApiKey()
     const merged = mergeConfig(mergeConfig(DEFAULT_LLM_RUNTIME_CONFIG, fileCfg), storedCfg)
+    if (apiKey != null) merged.apiKey = apiKey
     cachedConfig = merged
     for (const cb of subscribers) {
       try {
@@ -157,7 +185,17 @@ export async function updateLLMRuntimeConfig(
   const current = await ensureLLMRuntimeConfigLoaded()
   const next = mergeConfig(current, patch)
   cachedConfig = next
-  await kvStore.set(LLM_RUNTIME_CONFIG_KEY, next)
+  // Split sensitive material out of the main blob: apiKey goes through
+  // secureStorage (Capacitor Preferences on native, IDB-only on web);
+  // everything else goes via kvStore. This keeps the API key off the
+  // localStorage fallback path even when IDB is unavailable.
+  const { apiKey, ...nonSensitive } = next
+  await kvStore.set(LLM_RUNTIME_CONFIG_KEY, nonSensitive)
+  if (apiKey && apiKey.length > 0) {
+    await secureStorage.set(LLM_RUNTIME_API_KEY_KEY, apiKey)
+  } else {
+    await secureStorage.remove(LLM_RUNTIME_API_KEY_KEY)
+  }
   for (const cb of subscribers) {
     try {
       cb(next)
