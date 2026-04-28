@@ -10,6 +10,7 @@
         "dev": "vite",
         "kill": "fuser -k 5000/tcp",
         "build": "tsc -b && vite build",
+        "build:dev": "tsc -b && vite build --mode development",
         "lint": "eslint .",
         "optimize": "vite optimize",
         "preview": "vite preview",
