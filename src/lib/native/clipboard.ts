@@ -5,8 +5,18 @@
  * so callers can show success/failure toasts uniformly.
  */
 
-import { Clipboard } from '@capacitor/clipboard'
 import { isNative } from './platform'
+
+let Clipboard: any = null
+let capacitorAvailable = false
+
+try {
+  const clipboardModule = await import('@capacitor/clipboard')
+  Clipboard = clipboardModule.Clipboard
+  capacitorAvailable = true
+} catch {
+  console.debug('[native/clipboard] @capacitor/clipboard not available, using web fallback')
+}
 
 async function copyViaWeb(text: string): Promise<boolean> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -35,7 +45,7 @@ async function copyViaWeb(text: string): Promise<boolean> {
 }
 
 export async function copyText(text: string): Promise<boolean> {
-  if (isNative()) {
+  if (isNative() && capacitorAvailable && Clipboard) {
     try {
       await Clipboard.write({ string: text })
       return true
@@ -48,7 +58,7 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 export async function readText(): Promise<string | undefined> {
-  if (isNative()) {
+  if (isNative() && capacitorAvailable && Clipboard) {
     try {
       const { value } = await Clipboard.read()
       return value

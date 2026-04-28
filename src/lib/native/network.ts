@@ -8,8 +8,23 @@
  * window events.
  */
 
-import { Network, type ConnectionStatus } from '@capacitor/network'
 import { isNative } from './platform'
+
+let Network: any = null
+let capacitorAvailable = false
+
+try {
+  const networkModule = await import('@capacitor/network')
+  Network = networkModule.Network
+  capacitorAvailable = true
+} catch {
+  console.debug('[native/network] @capacitor/network not available, using web fallback')
+}
+
+type ConnectionStatus = {
+  connected: boolean
+  connectionType: string
+}
 
 export interface NetworkStatus {
   connected: boolean
@@ -37,9 +52,14 @@ let initialized = false
 let nativeListenerHandle: { remove: () => Promise<void> } | null = null
 
 async function refreshNative(): Promise<NetworkStatus> {
-  const s = fromCapacitor(await Network.getStatus())
-  cachedStatus = s
-  return s
+  if (!capacitorAvailable || !Network) return fromBrowser()
+  try {
+    const s = fromCapacitor(await Network.getStatus())
+    cachedStatus = s
+    return s
+  } catch {
+    return fromBrowser()
+  }
 }
 
 function notifyAll(status: NetworkStatus) {
@@ -56,10 +76,10 @@ function notifyAll(status: NetworkStatus) {
 async function ensureInitialized(): Promise<void> {
   if (initialized) return
   initialized = true
-  if (isNative()) {
+  if (isNative() && capacitorAvailable && Network) {
     try {
       await refreshNative()
-      const handle = await Network.addListener('networkStatusChange', (s) => {
+      const handle = await Network.addListener('networkStatusChange', (s: ConnectionStatus) => {
         notifyAll(fromCapacitor(s))
       })
       nativeListenerHandle = handle
