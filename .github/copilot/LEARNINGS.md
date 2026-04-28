@@ -16,6 +16,17 @@
 
 ---
 
+## 2026-04-28 — PR #42: Real workflow execution + replace simulated agent-tools with real I/O or fail-closed
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/42](https://github.com/smackypants/trueai-localai/pull/42) · merged b28b2c2b1ca8 · author @Copilot_
+
+- Simulated agent-tools weren't just "fake" — they actively misled the agent loop's final-summary LLM call into summarising plausible-looking lies. Fail-closed is strictly better than fabricated success when no provider is configured.
+- Workflow execution belongs in a pure `runWorkflow(workflow, deps)` module, not inline in `App.tsx`. The React wrapper becomes a state-persistence + cost-tracking shim and the engine gets full unit coverage without a render harness.
+- `api_caller` needs HTTPS-only even in a local-first app — the tool explicitly hits the network and `http://localhost` is one prompt-injection away from SSRF against developer/native services.
+- The existing `Agent` type uses `systemPrompt` (not `instructions`); `WorkflowAgent` mirrors that name 1:1 to keep the mapping obvious.
+
+---
+
 ## 2026-04-28 — PR #41: Add tests for under-covered LLM runtime, native, and hook modules
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/41](https://github.com/smackypants/trueai-localai/pull/41) · merged e538fb68e678 · author @Copilot_
