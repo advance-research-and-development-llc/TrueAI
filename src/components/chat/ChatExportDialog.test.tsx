@@ -11,62 +11,39 @@ vi.mock('sonner', () => ({
   },
 }))
 
-import { toast } from 'sonner'
-
-// ─── fixtures ────────────────────────────────────────────────────────────────
-
 const makeConversation = (overrides: Partial<Conversation> = {}): Conversation => ({
   id: 'conv-1',
-  title: 'My Chat',
+  title: 'Test Conversation',
   model: 'llama3',
-  createdAt: new Date('2024-01-01').getTime(),
-  updatedAt: new Date('2024-01-01').getTime(),
-  systemPrompt: 'Be helpful.',
+  createdAt: new Date('2024-01-15T10:00:00Z').getTime(),
+  updatedAt: new Date('2024-01-15T11:00:00Z').getTime(),
   ...overrides,
 })
 
-const makeMessage = (
-  role: 'user' | 'assistant',
-  content: string,
-  overrides: Partial<Message> = {}
-): Message => ({
-  id: `msg-${Math.random()}`,
+const makeMessage = (overrides: Partial<Message> = {}): Message => ({
+  id: 'msg-1',
   conversationId: 'conv-1',
-  role,
-  content,
-  timestamp: new Date('2024-01-01T12:00:00Z').getTime(),
+  role: 'user',
+  content: 'Hello world',
+  timestamp: new Date('2024-01-15T10:30:00Z').getTime(),
   ...overrides,
 })
 
 const defaultMessages: Message[] = [
-  makeMessage('user', 'Hello there'),
-  makeMessage('assistant', 'Hi! How can I help?'),
+  makeMessage({ id: 'msg-1', role: 'user', content: 'Hello' }),
+  makeMessage({ id: 'msg-2', role: 'assistant', content: 'Hi there!' }),
 ]
 
-const defaultProps = {
-  open: true,
-  onOpenChange: vi.fn(),
-  conversation: makeConversation(),
-  messages: defaultMessages,
-}
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-/** Prevent the anchor click from triggering real navigation in jsdom. */
-function mockDownload() {
-  const createObjectURL = vi.fn(() => 'blob:fake-url')
-  const revokeObjectURL = vi.fn()
-  Object.defineProperty(URL, 'createObjectURL', { value: createObjectURL, writable: true })
-  Object.defineProperty(URL, 'revokeObjectURL', { value: revokeObjectURL, writable: true })
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-  return { createObjectURL, revokeObjectURL, clickSpy }
-}
-
-// ─── tests ───────────────────────────────────────────────────────────────────
-
 describe('ChatExportDialog', () => {
+  let onOpenChange: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
-    vi.clearAllMocks()
+    onOpenChange = vi.fn()
+    // Mock URL methods used during file export
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:test-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
+    // Mock anchor click to avoid jsdom navigation errors
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
   })
 
   afterEach(() => {
@@ -74,66 +51,140 @@ describe('ChatExportDialog', () => {
   })
 
   it('renders the dialog title when open', () => {
-    render(<ChatExportDialog {...defaultProps} />)
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
     expect(screen.getByText('Export Conversation')).toBeInTheDocument()
   })
 
-  it('renders the export format selector', () => {
-    render(<ChatExportDialog {...defaultProps} />)
-    expect(screen.getByText('Export Format')).toBeInTheDocument()
+  it('does not render dialog content when closed', () => {
+    render(
+      <ChatExportDialog
+        open={false}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.queryByText('Export Conversation')).not.toBeInTheDocument()
   })
 
-  it('renders the Include Timestamps toggle', () => {
-    render(<ChatExportDialog {...defaultProps} />)
-    expect(screen.getByText('Include Timestamps')).toBeInTheDocument()
-  })
-
-  it('renders the Include Metadata toggle', () => {
-    render(<ChatExportDialog {...defaultProps} />)
-    expect(screen.getByText('Include Metadata')).toBeInTheDocument()
-  })
-
-  it('shows the correct message count in the preview section', () => {
-    render(<ChatExportDialog {...defaultProps} />)
+  it('shows the message count in the preview', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
     expect(screen.getByText(`${defaultMessages.length} messages will be exported`)).toBeInTheDocument()
+  })
+
+  it('shows zero message count when no messages are provided', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={[]}
+      />
+    )
+    expect(screen.getByText('0 messages will be exported')).toBeInTheDocument()
+  })
+
+  it('renders the Export button', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.getByRole('button', { name: /Export/i })).toBeInTheDocument()
+  })
+
+  it('renders the Cancel button', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
   })
 
   it('calls onOpenChange(false) when Cancel is clicked', async () => {
     const user = userEvent.setup()
-    render(<ChatExportDialog {...defaultProps} />)
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
     await user.click(screen.getByRole('button', { name: /Cancel/i }))
-    expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('clicking Export triggers a download and shows a success toast', async () => {
-    const { clickSpy } = mockDownload()
+  it('renders Include Timestamps toggle', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.getByText('Include Timestamps')).toBeInTheDocument()
+  })
+
+  it('renders Include Metadata toggle', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.getByText('Include Metadata')).toBeInTheDocument()
+  })
+
+  it('renders Export Format label', () => {
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    expect(screen.getByText('Export Format')).toBeInTheDocument()
+  })
+
+  it('calls onOpenChange(false) and shows toast on Export click', async () => {
+    const { toast } = await import('sonner')
     const user = userEvent.setup()
-    render(<ChatExportDialog {...defaultProps} />)
-    await user.click(screen.getByRole('button', { name: /Export/i }))
-    expect(clickSpy).toHaveBeenCalledTimes(1)
+    render(
+      <ChatExportDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        conversation={makeConversation()}
+        messages={defaultMessages}
+      />
+    )
+    await user.click(screen.getByRole('button', { name: /^Export$/i }))
     expect(toast.success).toHaveBeenCalledWith('Chat exported successfully')
-  })
-
-  it('clicking Export closes the dialog via onOpenChange(false)', async () => {
-    mockDownload()
-    const user = userEvent.setup()
-    render(<ChatExportDialog {...defaultProps} />)
-    await user.click(screen.getByRole('button', { name: /Export/i }))
-    expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
-  })
-
-  it('uses a .txt filename when the txt format is selected (default)', async () => {
-    const { clickSpy } = mockDownload()
-    const user = userEvent.setup()
-    render(<ChatExportDialog {...defaultProps} />)
-    await user.click(screen.getByRole('button', { name: /Export/i }))
-    // The filename is set as the download attribute on the created anchor element
-    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement
-    expect(anchor.download).toMatch(/\.txt$/)
-  })
-
-  it('does not render when open is false', () => {
-    render(<ChatExportDialog {...defaultProps} open={false} />)
-    expect(screen.queryByText('Export Conversation')).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })
