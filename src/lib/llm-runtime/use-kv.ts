@@ -26,7 +26,7 @@ export function useKV<T>(
   // hook does. This lets components that re-mount mid-session render the
   // stored value on the very first frame instead of flashing the default.
   const peeked = kvStore.peek<T>(key)
-  const [value, setValue] = useState<T | undefined>(peeked !== undefined ? peeked : initialValue)
+  const [value, setValue] = useState<T | undefined>(peeked ?? initialValue)
   // Pin the initial value across re-renders so the hydration effect is
   // stable even if the caller passes a new object literal each render.
   const initialRef = useRef(initialValue)

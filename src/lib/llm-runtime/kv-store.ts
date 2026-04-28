@@ -222,6 +222,12 @@ function notify(key: string, value: unknown): void {
 export interface KvStore {
   get<T = unknown>(key: string): Promise<T | undefined>
   set(key: string, value: unknown): Promise<void>
+  /**
+   * Like `set`, but persists ONLY to IndexedDB. Falls back to in-memory
+   * only (no localStorage write) when IDB is unavailable. Use for
+   * sensitive material such as API keys.
+   */
+  setSecure(key: string, value: unknown): Promise<void>
   delete(key: string): Promise<void>
   keys(): Promise<string[]>
   /**
@@ -252,6 +258,27 @@ export const kvStore: KvStore = {
     memoryCache.set(key, value)
     hydratedKeys.add(key)
     notify(key, value)
+    await idbSet(key, value)
+  },
+
+  /**
+   * Persist a value, but ONLY to IndexedDB — never the localStorage
+   * fallback. Use this for sensitive material (API keys, tokens) so a
+   * device without IDB simply forgets the value on reload rather than
+   * writing it to the lower-trust, world-readable localStorage origin
+   * partition. Mitigates CodeQL js/clear-text-storage-of-sensitive-data
+   * for the localStorage path.
+   */
+  async setSecure(key: string, value: unknown): Promise<void> {
+    memoryCache.set(key, value)
+    hydratedKeys.add(key)
+    notify(key, value)
+    const db = await openDb()
+    if (!db) {
+      // No IDB available — refuse to persist. The value still lives in the
+      // in-memory cache for the lifetime of this page load.
+      return
+    }
     await idbSet(key, value)
   },
 

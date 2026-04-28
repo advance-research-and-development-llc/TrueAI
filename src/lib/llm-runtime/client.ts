@@ -11,6 +11,7 @@ import {
   getLLMRuntimeConfig,
   type LLMRuntimeConfig,
 } from './config'
+import { joinUrl } from './url'
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -20,12 +21,6 @@ interface ChatMessage {
 interface ChatCompletionResponse {
   choices?: Array<{ message?: { content?: string } }>
   error?: { message?: string } | string
-}
-
-function joinUrl(base: string, path: string): string {
-  const b = base.replace(/\/+$/, '')
-  const p = path.replace(/^\/+/, '')
-  return `${b}/${p}`
 }
 
 /**
