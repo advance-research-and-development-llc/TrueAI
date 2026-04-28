@@ -563,7 +563,7 @@ function App() {
 
     const startTime = Date.now()
     const userMessage: Message = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${crypto.randomUUID()}`,
       conversationId: activeConversationId,
       role: 'user',
       content,
@@ -604,7 +604,7 @@ assistant:`
       const response = await spark.llm(prompt, conversation?.model || 'gpt-4o-mini')
 
       const assistantMessage: Message = {
-        id: `msg-${Date.now() + 1}`,
+        id: `msg-${crypto.randomUUID()}`,
         conversationId: activeConversationId,
         role: 'assistant',
         content: response,
