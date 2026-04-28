@@ -16,6 +16,42 @@
 
 ---
 
+## 2026-04-28 — PR #54: chore(release): bump version to 8.0.0
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/54](https://github.com/smackypants/trueai-localai/pull/54) · merged 2659c7bdf0e1 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _chore(release): bump version to 8.0.0_.
+
+---
+
+## 2026-04-28 — PR #52: fix: resolve all lint warnings and lockfile sync issue
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/52](https://github.com/smackypants/trueai-localai/pull/52) · merged c680591b2dd0 · author @Copilot_
+
+- When Capacitor plugin modules are lazily imported via `try/catch` dynamic imports, type the holding variable with `import type { Plugin } from '@capacitor/plugin'` + `| null` instead of `any`. For enum-valued variables (e.g. `Style`, `KeyboardResize`), use `typeof import('@capacitor/status-bar').Style | null` — this gives full enum-member access (`Style.Dark`) without losing type safety.
+- A stale `packages/spark-tools` entry with `"extraneous": true` in `package-lock.json` is a pre-existing artefact from when a workspace package was removed; `npm install --package-lock-only` preserves it and `npm ci` ignores it safely.
+
+---
+
+## 2026-04-28 — PR #53: feat(ci): add Full APK Release workflow (bump → signed APKs → GitHub Release → Play/F-Droid)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/53](https://github.com/smackypants/trueai-localai/pull/53) · merged 4c5117cba9ef · author @Copilot_
+
+- When a new release workflow reuses `release-bump.yml` via `workflow_call`, the tag push from the bump job also triggers `release.yml`'s `on: push: tags: v*` listener. That's harmless because `softprops/action-gh-release` upserts — document this in the orchestrator's header comment so future agents don't treat it as a duplicate-run bug.
+- Always `chmod 600` decoded keystore files immediately after writing them to `$RUNNER_TEMP` — default permissions on runner temp are world-readable, exposing signing keys to any co-located process.
+- For a production-only signing workflow, treat a missing `ANDROID_KEYSTORE_BASE64` secret as a hard failure (`exit 1`), not a warning — silently falling through to unsigned artifacts defeats the purpose of the workflow.
+
+---
+
+## 2026-04-28 — PR #50: Fix Android and CI builds: lock file sync + Node.js 24 action upgrades
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/50](https://github.com/smackypants/trueai-localai/pull/50) · merged c01b1cef5a97 · author @Copilot_
+
+- `package-lock.json` can go out of sync when a new transitive dependency (`react-is@17.0.2` required by `jest-diff`) is added without regenerating the lock file. Always run `npm install --package-lock-only` under Node 24/npm 11 to keep it in sync after any dependency changes.
+- `actions/checkout@v4`, `actions/setup-java@v4`, and `android-actions/setup-android@v3` use the Node.js 20 action runtime which is deprecated. Use `@v5`, `@v5`, and `@v4` respectively for Node.js 24 compatibility.
+
+---
+
 ## 2026-04-28 — PR #51: fix: resolve package-lock.json sync issue blocking all CI builds for v7.3.0 release
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/51](https://github.com/smackypants/trueai-localai/pull/51) · merged e374cb1adfc7 · author @Claude_
