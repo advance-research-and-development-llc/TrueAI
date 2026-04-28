@@ -305,7 +305,10 @@ export function loadErrorReportingConfig(): Promise<ErrorReportingConfig> {
         endpoint: typeof er.endpoint === 'string' ? er.endpoint : defaultErrorReportingConfig.endpoint,
         debugOnly: typeof er.debugOnly === 'boolean' ? er.debugOnly : defaultErrorReportingConfig.debugOnly,
         androidOnly: typeof er.androidOnly === 'boolean' ? er.androidOnly : defaultErrorReportingConfig.androidOnly,
-        timeoutMs: typeof er.timeoutMs === 'number' && er.timeoutMs > 0 ? er.timeoutMs : defaultErrorReportingConfig.timeoutMs,
+        timeoutMs:
+          typeof er.timeoutMs === 'number' && er.timeoutMs > 0
+            ? er.timeoutMs
+            : defaultErrorReportingConfig.timeoutMs,
         github: {
           owner: typeof gh.owner === 'string' ? gh.owner : defaultErrorReportingConfig.github.owner,
           repo: typeof gh.repo === 'string' ? gh.repo : defaultErrorReportingConfig.github.repo,
@@ -387,6 +390,9 @@ export async function submitDiagnosticReport(report: DiagnosticReport): Promise<
   const controller = typeof AbortController === 'function' ? new AbortController() : null
   const timer = controller
     ? setTimeout(() => {
+        // abort() can throw "InvalidStateError" if the request already
+        // completed and the controller was disposed; the abort is purely
+        // best-effort here so swallowing the error is intentional.
         try { controller.abort() } catch { /* ignore */ }
       }, config.timeoutMs)
     : null
@@ -520,6 +526,9 @@ export function downloadErrorLog(filename = `trueai-errors-${Date.now()}.json`):
     document.body.removeChild(a)
     // Revoke on next tick so the browser has time to start the download.
     setTimeout(() => {
+      // revokeObjectURL can throw on some older WebView implementations if
+      // the URL has already been collected; the cleanup is best-effort so
+      // we deliberately swallow the error.
       try { URL.revokeObjectURL(url) } catch { /* ignore */ }
     }, 0)
     return entries.length
