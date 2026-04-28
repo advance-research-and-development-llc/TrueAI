@@ -47,6 +47,10 @@ export function useTabPreloader(
     })
   }, [setMetrics])
 
+  // The `priority` parameter is preserved to keep the public hook API stable
+  // for external callers (e.g., handleTabHover passes 'high'). Internally
+  // every call now executes — concurrency is allowed so adjacent tabs can
+  // preload in parallel — so the value itself is no longer consulted here.
   const preloadTab = useCallback(async (tabName: string, _priority: 'high' | 'low' = 'low') => {
     // Skip if this exact tab is already being preloaded; otherwise allow
     // concurrent dynamic imports so adjacent tabs (left + right) can be
