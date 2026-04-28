@@ -11,6 +11,7 @@ import {
   register,
   unregister,
   registerBackgroundSync,
+  registerPeriodicSync,
 } from './serviceWorker'
 import { getNetworkStatus, __resetNetworkForTests } from './native/network'
 
@@ -132,7 +133,7 @@ describe('onOnlineStatusChange', () => {
 // skipWaiting
 // ─────────────────────────────────────────────────────────────────────────────
 describe('skipWaiting', () => {
-  it('does not throw when service worker has no controller', () => {
+  it('does not throw when called with no arguments and no waiting SW', () => {
     const restore = stubServiceWorker(makeMockSW({ controller: null }))
     try {
       expect(() => skipWaiting()).not.toThrow()
@@ -141,15 +142,19 @@ describe('skipWaiting', () => {
     }
   })
 
-  it('posts SKIP_WAITING to the controller when one exists', () => {
+  it('posts SKIP_WAITING to the waiting SW when a registration is provided', () => {
     const postMessage = vi.fn()
-    const restore = stubServiceWorker(makeMockSW({ controller: { postMessage } }))
-    try {
-      skipWaiting()
-      expect(postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
-    } finally {
-      restore()
-    }
+    const mockRegistration = {
+      waiting: { postMessage },
+    } as unknown as ServiceWorkerRegistration
+    // No need to stub navigator.serviceWorker — registration is passed directly.
+    expect(() => skipWaiting(mockRegistration)).not.toThrow()
+    expect(postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
+  })
+
+  it('does not throw when registration has no waiting SW', () => {
+    const mockRegistration = { waiting: null } as unknown as ServiceWorkerRegistration
+    expect(() => skipWaiting(mockRegistration)).not.toThrow()
   })
 })
 
@@ -507,6 +512,119 @@ describe('registerBackgroundSync', () => {
     const restore = stubServiceWorker(makeMockSW())
     try {
       expect(await registerBackgroundSync()).toBe(false)
+    } finally {
+      restore()
+    }
+  })
+
+  it('returns true when the sync tag is successfully registered', async () => {
+    const syncRegister = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('ServiceWorkerRegistration', {
+      prototype: { sync: {} }, // presence of 'sync' enables the code path
+    })
+    const mockReady = Promise.resolve({ sync: { register: syncRegister } })
+    const restore = stubServiceWorker({ ...makeMockSW(), ready: mockReady })
+    try {
+      const result = await registerBackgroundSync('my-sync-tag')
+      expect(result).toBe(true)
+      expect(syncRegister).toHaveBeenCalledWith('my-sync-tag')
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('returns false when sync.register rejects', async () => {
+    const syncRegister = vi.fn().mockRejectedValue(new Error('sync failed'))
+    vi.stubGlobal('ServiceWorkerRegistration', { prototype: { sync: {} } })
+    const mockReady = Promise.resolve({ sync: { register: syncRegister } })
+    const restore = stubServiceWorker({ ...makeMockSW(), ready: mockReady })
+    try {
+      expect(await registerBackgroundSync()).toBe(false)
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// registerPeriodicSync
+// ─────────────────────────────────────────────────────────────────────────────
+describe('registerPeriodicSync', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns false when PeriodicSync is not supported (no periodicSync on prototype)', async () => {
+    vi.stubGlobal('ServiceWorkerRegistration', { prototype: {} })
+    const restore = stubServiceWorker(makeMockSW())
+    try {
+      expect(await registerPeriodicSync()).toBe(false)
+    } finally {
+      restore()
+    }
+  })
+
+  it('returns false when the permission is denied', async () => {
+    vi.stubGlobal('ServiceWorkerRegistration', { prototype: { periodicSync: {} } })
+    const periodicSyncRegister = vi.fn()
+    const mockReady = Promise.resolve({ periodicSync: { register: periodicSyncRegister } })
+    const restore = stubServiceWorker({ ...makeMockSW(), ready: mockReady })
+
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: 'denied' }),
+      },
+    })
+
+    try {
+      const result = await registerPeriodicSync()
+      expect(result).toBe(false)
+      expect(periodicSyncRegister).not.toHaveBeenCalled()
+    } finally {
+      restore()
+    }
+  })
+
+  it('returns true when the permission is granted and registration succeeds', async () => {
+    vi.stubGlobal('ServiceWorkerRegistration', { prototype: { periodicSync: {} } })
+    const periodicSyncRegister = vi.fn().mockResolvedValue(undefined)
+    const mockReady = Promise.resolve({ periodicSync: { register: periodicSyncRegister } })
+    const restore = stubServiceWorker({ ...makeMockSW(), ready: mockReady })
+
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: 'granted' }),
+      },
+    })
+
+    try {
+      const result = await registerPeriodicSync('test-tag', 3600000)
+      expect(result).toBe(true)
+      expect(periodicSyncRegister).toHaveBeenCalledWith('test-tag', { minInterval: 3600000 })
+    } finally {
+      restore()
+    }
+  })
+
+  it('returns false when periodicSync.register rejects', async () => {
+    vi.stubGlobal('ServiceWorkerRegistration', { prototype: { periodicSync: {} } })
+    const periodicSyncRegister = vi.fn().mockRejectedValue(new Error('periodic sync failed'))
+    const mockReady = Promise.resolve({ periodicSync: { register: periodicSyncRegister } })
+    const restore = stubServiceWorker({ ...makeMockSW(), ready: mockReady })
+
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: {
+        query: vi.fn().mockResolvedValue({ state: 'granted' }),
+      },
+    })
+
+    try {
+      expect(await registerPeriodicSync()).toBe(false)
     } finally {
       restore()
     }
