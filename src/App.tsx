@@ -179,9 +179,24 @@ const TabErrorBoundary = ({ children, tabName }: { children: React.ReactNode; ta
   )
 }
 
+const TAB_ORDER = ['chat', 'agents', 'workflows', 'models', 'analytics', 'builder'] as const
+type TabName = (typeof TAB_ORDER)[number]
+const DEFAULT_TAB: TabName = 'chat'
+const isTabName = (value: unknown): value is TabName =>
+  typeof value === 'string' && (TAB_ORDER as readonly string[]).includes(value)
+
 function App() {
   const isMobile = useIsMobile()
-  const [activeTab, setActiveTab] = useState('chat')
+  // Persist the active tab in the KV store so the tabs interface restores
+  // correctly across reloads. Validate against TAB_ORDER so a stale or
+  // unknown stored value can't leave the Tabs component with no matching
+  // panel (which would render as "no tab content").
+  const [persistedActiveTab, setPersistedActiveTab] = useKV<string>('active-tab', DEFAULT_TAB)
+  const activeTab = useMemo<TabName>(
+    () => (isTabName(persistedActiveTab) ? persistedActiveTab : DEFAULT_TAB),
+    [persistedActiveTab]
+  )
+  const setActiveTab = setPersistedActiveTab
   const performanceOptimization = useAutoPerformanceOptimization()
   const dynamicUI = useDynamicUI()
   const contextualUI = useContextualUI()
@@ -325,7 +340,7 @@ function App() {
     [agentRuns, activeAgentRunId]
   )
 
-  const tabOrder = useMemo(() => ['chat', 'agents', 'workflows', 'models', 'analytics', 'builder'], [])
+  const tabOrder = useMemo(() => [...TAB_ORDER], [])
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handlePreloadTab = useCallback(async (tabName: string) => {
@@ -370,7 +385,7 @@ function App() {
     setTimeout(() => {
       setIsTabSwitching(false)
     }, 150)
-  }, [contextualUI, dynamicUI])
+  }, [contextualUI, dynamicUI, setActiveTab])
 
   const navigateToTab = useCallback((direction: 'left' | 'right') => {
     if (isTabSwitching) return
@@ -978,7 +993,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
   const handleSelectMessage = useCallback((conversationId: string, _messageId: string) => {
     setActiveConversationId(conversationId)
     setActiveTab('chat')
-  }, [])
+  }, [setActiveTab])
 
   const filteredAndSortedConversations = useMemo(() => {
     let filtered = conversations || []
