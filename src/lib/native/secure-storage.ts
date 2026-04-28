@@ -1,16 +1,31 @@
 /**
  * Secure storage for sensitive credentials (e.g. LLM API keys).
  *
- * - **Native (Android/iOS)**: Capacitor Preferences. On Android these are
- *   stored in app-private SharedPreferences (per-app sandbox, not readable
- *   by other apps without root). Not OS-keystore-encrypted by default —
- *   for that we'd need a 3rd-party plugin — but always strictly better
- *   than browser localStorage.
+ * Threat model — what this DOES protect against:
+ *   - Other apps on the same Android device reading the value (per-app
+ *     SharedPreferences sandbox; requires root to bypass).
+ *   - Casual inspection of browser DevTools' localStorage (we only ever
+ *     write to IndexedDB on web, which is at least origin-partitioned and
+ *     not surfaced in the simple "Local Storage" panel).
+ *
+ * What this does NOT protect against:
+ *   - A rooted/compromised Android device. We do not encrypt with the
+ *     Android Keystore; that would require a 3rd-party plugin and key
+ *     migration on app upgrade. Storage is plain text on disk.
+ *   - Any JavaScript running in the same web origin (XSS, malicious
+ *     extension). Web IndexedDB is readable by any same-origin script.
+ *   - Network-level interception (see the API key warning in the
+ *     Settings panel for the HTTP-vs-HTTPS issue at request time).
+ *
+ * - **Native (Android/iOS)**: Capacitor Preferences (app-private
+ *   SharedPreferences on Android, NSUserDefaults on iOS). Not OS-keystore-
+ *   encrypted, but always strictly better than browser localStorage.
  * - **Web**: written ONLY to IndexedDB via the local `kvStore`. We
- *   deliberately skip the localStorage fallback path for sensitive values
- *   so a device without IDB simply forgets the key on reload rather than
- *   persisting it to the lower-trust localStorage origin partition. This
- *   mitigates the CodeQL `js/clear-text-storage-of-sensitive-data` alert.
+ *   deliberately skip the localStorage fallback path for sensitive
+ *   values so a device without IDB simply forgets the key on reload
+ *   rather than persisting it to the lower-trust localStorage origin
+ *   partition. This mitigates the CodeQL
+ *   `js/clear-text-storage-of-sensitive-data` alert.
  *
  * Callers should treat secure storage as best-effort: values may not
  * survive a reload on highly restricted browsers, and should be cheap to

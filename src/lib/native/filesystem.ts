@@ -18,16 +18,16 @@ export interface SaveTextFileResult {
 
 function sanitiseFilename(name: string): string {
   // Replace any character outside the safe set with `_`, neutralise any
-  // `..` parent-directory traversal sequences, collapse leading dots, and
-  // trim to a sane length. Falls back to a literal `file` when the input
-  // sanitises to nothing meaningful.
+  // `..` parent-directory traversal sequences, strip leading dots/
+  // underscores, and trim to a sane length. Falls back to a literal
+  // `file` when the input has no alphanumeric content to anchor on.
   const cleaned = name
     .replace(/[^A-Za-z0-9._-]+/g, '_')
     .replace(/\.{2,}/g, '_')
     .replace(/^[._]+/, '')
     .replace(/_+/g, '_')
     .slice(0, 120)
-  if (!cleaned || /^[._]+$/.test(cleaned)) return 'file'
+  if (!/[A-Za-z0-9]/.test(cleaned)) return 'file'
   return cleaned
 }
 

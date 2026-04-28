@@ -234,6 +234,14 @@ export function LLMRuntimeSettings() {
             Sent as <code>Authorization: Bearer &lt;key&gt;</code>. Stored locally; never
             transmitted anywhere except your configured server.
           </p>
+          {draft.apiKey.length > 0 && draft.baseUrl.startsWith('http://') && (
+            <p className="text-xs text-amber-500" role="alert">
+              ⚠ Your endpoint uses plain HTTP. The API key will be transmitted
+              unencrypted on every request — only safe for trusted local
+              networks (e.g. <code>localhost</code>). Use HTTPS for any remote
+              server.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -298,9 +306,13 @@ export function LLMRuntimeSettings() {
               min={1}
               step={1}
               value={draft.maxTokens}
-              onChange={(e) =>
-                setDraft({ ...draft, maxTokens: Math.max(1, Number(e.target.value) || 1) })
-              }
+              onChange={(e) => {
+                const parsed = Number(e.target.value)
+                setDraft({
+                  ...draft,
+                  maxTokens: Number.isFinite(parsed) && parsed >= 1 ? parsed : 1,
+                })
+              }}
             />
           </div>
         </div>

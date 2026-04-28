@@ -83,10 +83,8 @@ export async function llm(
     config = getLLMRuntimeConfig()
   }
 
-  const model = (modelName && modelName.trim().length > 0
-    ? modelName
-    : config.defaultModel
-  ).trim()
+  const trimmedModelName = modelName?.trim() ?? ''
+  const model = trimmedModelName.length > 0 ? trimmedModelName : config.defaultModel
   const messages: ChatMessage[] = []
   if (options.system && options.system.length > 0) {
     messages.push({ role: 'system', content: options.system })
