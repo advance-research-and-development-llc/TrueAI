@@ -115,6 +115,27 @@ Download the latest release APK from the [GitHub Releases](https://github.com/sm
 
 See [RELEASE_NOTES.md](RELEASE_NOTES.md) for installation instructions and release details.
 
+#### Install via F-Droid
+
+TrueAI LocalAI is also distributed via [F-Droid](https://f-droid.org/),
+the FOSS Android catalog.
+
+* **Self-hosted F-Droid repository** (ships every release first):
+
+  ```
+  https://smackypants.github.io/trueai-localai/fdroid/repo
+  ```
+
+  Add this URL to the F-Droid client (Settings → Repositories → Add).
+  The repository fingerprint and a QR code are attached to each
+  [GitHub Release](https://github.com/smackypants/trueai-localai/releases).
+
+* **Upstream F-Droid catalog** (after the upstream MR merges):
+  https://f-droid.org/packages/com.trueai.localai/
+
+See [FDROID.md](FDROID.md) for full details, the build recipe, and the
+F-Droid suitability audit.
+
 #### Build from Source
 
 1. **Build Android APK**
@@ -145,7 +166,7 @@ See [BACKGROUND_SYNC.md](BACKGROUND_SYNC.md) for complete documentation.
 - **Icons**: Phosphor Icons
 - **Animations**: Framer Motion
 - **Build**: Vite 7
-- **State**: React Hooks + Spark KV
+- **State**: React Hooks + on-device IndexedDB KV (drop-in replacement for Spark KV)
 - **Offline**: Service Workers + Background Sync API
 
 ### Project Structure
@@ -174,6 +195,32 @@ src/
 - **Optimized Forms**: Mobile-friendly inputs
 - **Safe Areas**: Notch support
 
+### Native Capabilities (Android APK)
+
+The Android build uses Capacitor 8 first-party plugins to provide a fully
+native experience. All integrations live behind a single abstraction
+(`src/lib/native/`) so call sites work identically on web and native.
+
+| Capability | Native plugin | Web fallback |
+| --- | --- | --- |
+| Secure credential storage (LLM API keys) | `@capacitor/preferences` (app-private SharedPreferences) | IndexedDB-only (never localStorage) |
+| Network reachability | `@capacitor/network` (OS connectivity manager) | `navigator.onLine` + `online`/`offline` events |
+| Clipboard | `@capacitor/clipboard` | `navigator.clipboard.writeText` + `execCommand('copy')` |
+| Share sheet | `@capacitor/share` | Web Share API → clipboard |
+| Haptic feedback | `@capacitor/haptics` | `navigator.vibrate` |
+| App lifecycle (back button, resume) | `@capacitor/app` | `visibilitychange` event |
+| Status bar | `@capacitor/status-bar` | n/a |
+| Splash screen | `@capacitor/splash-screen` | n/a |
+| Keyboard handling | `@capacitor/keyboard` | n/a |
+| Local notifications (agent completion) | `@capacitor/local-notifications` | `Notification` API |
+| File save (chat exports) | `@capacitor/filesystem` (Documents directory) | Blob + anchor download |
+
+The Android back button is wired to a global handler stack: open
+dialogs/sheets register a handler with `pushBackHandler(...)`; otherwise
+the WebView navigates back, and on the home view the app minimises rather
+than exits, mirroring standard Android behaviour. The offline action queue
+auto-flushes when the app returns to the foreground via `onAppResume`.
+
 ## 🛠️ Development
 
 ### Available Scripts
@@ -191,21 +238,71 @@ npm run lint         # Lint code
 - Vite 7
 - Service Workers
 - Background Sync API
-- Spark Runtime SDK
+- On-device LLM runtime (OpenAI-compatible: Ollama, llama.cpp, LM Studio, OpenAI)
+
+## 🧠 LLM Runtime (on-device / user-hosted)
+
+The app no longer depends on the GitHub Spark hosted LLM/KV runtime. All
+`spark.llm` / `spark.llmPrompt` / `spark.kv` / `useKV` call sites resolve to
+local shims under `src/lib/llm-runtime/`:
+
+- **Chat & agents** call any OpenAI-compatible `POST {baseUrl}/chat/completions`
+  endpoint.
+- **State (`useKV`)** is persisted in IndexedDB (with a `localStorage`
+  fallback for restricted WebViews).
+
+### Configuring an LLM endpoint
+
+Open **Settings → LLM Runtime** in the app and pick a provider preset, or
+edit the base URL directly. Suggested setups:
+
+| Provider | Base URL | Default model |
+| --- | --- | --- |
+| Ollama | `http://localhost:11434/v1` | `llama3.2` |
+| llama.cpp `llama-server` | `http://localhost:8080/v1` | (server-loaded model) |
+| LM Studio | `http://localhost:1234/v1` | (server-loaded model) |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+
+The "Test connection" button probes `{baseUrl}/models` and lists the models
+your server reports — handy on Android, where `localhost` is the device
+itself; point the app at your LAN IP (e.g. `http://192.168.1.10:11434/v1`)
+to talk to a server on another machine.
+
+Defaults can also be baked into the APK by editing the `llm` block in
+`public/runtime.config.json` before building.
 
 ## 🔐 Security
 
-- No external API calls (fully local)
+- No external API calls by default (fully local; only talks to the LLM endpoint you configure)
 - Secure service worker implementation
-- Local data storage via Spark KV
+- Local data storage via on-device IndexedDB
 - No telemetry or tracking
 
 ## 🤝 Contributing
 
 Website: https://advancedtechnologyresearch.com/
 
+**Direct push and merge access to this repository is restricted to the
+project owner and authorized agent / bot identities** (Copilot coding
+agent, `github-actions[bot]`, Dependabot). This is enforced server-side by
+GitHub Rulesets — see [`.github/rulesets/`](.github/rulesets/README.md).
+
+If you are not an authorized contributor, you may still propose changes by
+**forking** this repository and opening a pull request. Forks **must
+retain** the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files unmodified
+and must give visible credit to the original author. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the full policy, including which
+PRs are auto-rejected and how the bug-fix automation flow works.
+
+For private security reports, see [`SECURITY.md`](SECURITY.md).
+
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details. Mandatory attribution
+terms for forks and derivative works are described in [NOTICE](NOTICE).
 
-Template resources from GitHub are licensed under MIT, Copyright GitHub, Inc.
+Copyright (c) 2024-2026 smackypants / **Advanced Technology Research** — [https://advancedtechnologyresearch.com/](https://advancedtechnologyresearch.com/)
+
+This entire project, including all source code, design, documentation, and assets, is the work of and is fully credited and copyrighted to smackypants / Advanced Technology Research, except where otherwise noted below.
+
+Portions of this project were originally derived from a GitHub Spark template, Copyright (c) GitHub, Inc., also licensed under the MIT License.

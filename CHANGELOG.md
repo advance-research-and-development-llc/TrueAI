@@ -1,5 +1,199 @@
 # Changelog - TrueAI LocalAI
 
+## Version 7.0.0 - Release housekeeping (2026-04-28)
+
+Maintenance release. No functional code changes versus v6.0.0; this
+release exists to roll the published version forward so it lines up
+with the next batch of work tracked off `main`.
+
+### 🧰 Maintenance
+
+- Bumped `package.json` to `7.0.0`.
+- Bumped Android `versionCode` to `9` and `versionName` to `7.0.0`.
+- Added a Fastlane changelog entry under
+  `fastlane/metadata/android/en-US/changelogs/9.txt`.
+
+### ✅ Validated
+
+- `npm run lint` clean.
+- `npm test` — 414/414 tests pass.
+- `npm run build:dev` succeeds (same build the Android debug CI uses).
+- No new dependencies; existing CVE-pinned overrides
+  (`path-to-regexp`, `postcss`, `lodash`, `brace-expansion@1`)
+  preserved.
+
+## Version 6.0.0 - Local runtime, native mobile layer & security hardening (2026-04-28)
+
+First release that ships the post-v5.1.0 architecture work as a real
+APK. The previous *published* GitHub Release was **v4.0.0**; v5.0.0
+and v5.1.0 were prepared in source but never tagged, so this release
+also rolls up everything from those entries (see below). Bumped to a
+major version because the LLM runtime substrate and the mobile
+capability layer both change shape.
+
+### 🚀 Major Changes
+
+- **GitHub Spark hosted runtime replaced with local shims.** The
+  `@github/spark/hooks` (`useKV`) and `@github/spark/spark`
+  (`spark.llm` / `spark.llmPrompt` / `spark.kv`) imports are now
+  aliased via `vite.config.ts` to local implementations under
+  `src/lib/llm-runtime/` (`kv-store`, `client`, `config`, `use-kv`,
+  `install`). The app no longer depends on Spark's hosted backend.
+- **Pluggable LLM runtime config.** Provider / `baseUrl` / `apiKey` /
+  `defaultModel` / sampling defaults are layered: hard-coded defaults
+  < `public/runtime.config.json` `llm` block < KV key
+  `__llm_runtime_config__` written by Settings → LLM Runtime UI.
+- **Full Capacitor native-mobile capability layer.** New
+  `src/lib/native/` modules — `platform`, `secure-storage`, `network`,
+  `clipboard`, `share`, `haptics`, `app-lifecycle`, `notifications`,
+  `filesystem` — each branching on `isNative()` with web fallbacks,
+  bootstrapped via side-effect import of `@/lib/native/install` in
+  `main.tsx`.
+- **Secure credential storage on device.** The LLM API key is now
+  persisted separately under `__llm_runtime_api_key__` via
+  `secureStorage` (Capacitor Preferences on native, IndexedDB-only on
+  web) — never via the localStorage fallback. The main config blob
+  excludes `apiKey`.
+
+### 🔒 Security
+
+- **`kvStore.setSecure()` no longer leaks credentials.** Rewrote
+  `setSecure()` to do its own inline IndexedDB write rather than
+  delegating to `idbSet` (which falls through to localStorage on IDB
+  transaction failure). Regression test added in
+  `src/lib/llm-runtime/kv-store.test.ts`.
+- **Vite bumped to ^7.3.2** to pick up the `server.fs.deny` bypass and
+  dev-server WebSocket arbitrary-file-read CVE patches.
+- **Transitive CVE pins via npm `overrides`:** `path-to-regexp`
+  ^8.4.0, `postcss` ^8.5.10, `lodash` ^4.17.24, `brace-expansion@1`
+  ^1.1.13.
+- **Filename sanitiser hardened** and security docs expanded per code
+  review.
+
+### 🐛 Rolled-up Fixes (from un-published v5.0.0 / v5.1.0)
+
+- **Active tab persists across reloads** with a validated `TabName`
+  guard (`useKV<string>('active-tab', DEFAULT_TAB)`); renamed/removed
+  tabs fall back to the default cleanly.
+- **Rapid tab switches no longer blocked** — the `useMemo` throttle
+  around the active-tab guard was dropped.
+- **App Builder reachable from the Android mobile bottom nav.**
+- **UI aspect-ratio compatibility on Android phones (PR #28).** Layout
+  no longer overflows or crops on common phone aspect ratios;
+  safe-area insets, tab bar, and main content reflow correctly.
+- **Strict-typecheck errors in `diagnostics` resolved.**
+- **`build:dev` script restored** (unblocks Android CI + local debug
+  APK).
+- **Tab preloader** — parallel adjacent preloads unblocked, trackers
+  deferred off the click path.
+- **Favicon + apple-touch-icon** links added to `index.html`.
+
+### 🔧 Build / CI / Tooling
+
+- **`package-lock.json` regenerated under Node 24 / npm 11** so all
+  optional native-binary entries (`lightningcss-*`, `@rollup/rollup-*`,
+  `fsevents`) are recorded. Without this, `npm ci` fails on the Node-24
+  CI runners with "Missing: … from lock file" and every Android
+  workflow (including `release.yml`) errors before it can build the
+  APK. Verified clean: `npm ci` succeeds, **0 vulnerabilities**.
+- **All Android workflows (`android.yml`, `build-android.yml`,
+  `release.yml`) pinned to Node 24, Temurin JDK 21, and
+  `android-actions/setup-android@v3`.** Capacitor 8 / `capacitor-android`
+  is compiled with `--release 21`.
+- **`release.yml` builds and attaches both** `TrueAI-LocalAI-debug.apk`
+  **and** `TrueAI-LocalAI-release-unsigned.apk` on any `v*` tag push,
+  with `permissions: contents: write` so the release can be created
+  and assets uploaded.
+
+### 📦 Versioning
+
+- `package.json`: `5.1.0` → `6.0.0`
+- `package-lock.json` root: synced to `6.0.0`
+- Android `versionName`: `5.1.0` → `6.0.0`
+- Android `versionCode`: `7` → `8` (so the new APK installs cleanly
+  as an update)
+
+### 📦 Publishing
+
+Push the `v6.0.0` tag (or run *Create Release with APK* via
+`workflow_dispatch` with version `v6.0.0`) to trigger
+`.github/workflows/release.yml`, which builds and attaches both
+`TrueAI-LocalAI-debug.apk` and `TrueAI-LocalAI-release-unsigned.apk`
+to the GitHub Release.
+
+---
+
+## Version 5.1.0 - Post-v5.0.0 fixes & UI integration polish (2026-04-28)
+
+Consolidates every fix landed after the v5.0.0 cut so the released
+APK actually carries them. No breaking changes; safe in-place update
+over v5.0.0.
+
+### 🐛 Bug Fixes
+
+- **Active tab now persists across reloads with a validated guard.**
+  `activeTab` is stored via `useKV<string>('active-tab', DEFAULT_TAB)`
+  and validated against the known `TabName` set on read, so renamed
+  or removed tabs fall back to the default cleanly instead of
+  rendering an empty/invalid panel.
+- **Rapid tab switches no longer get blocked.** The previous
+  `useMemo`/throttle around the active-tab guard was dropped per
+  review; switching is now instantaneous.
+- **Builder is reachable from the mobile bottom nav.** The Android
+  bottom navigation was missing the App Builder entry — added so
+  phone users can reach it without opening the side menu.
+- **UI aspect-ratio compatibility on Android phones (PR #28).** Layout
+  no longer overflows or crops on common phone aspect ratios; safe-area
+  insets, tab bar, and main content all reflow correctly across narrow
+  and tall viewports.
+- **Strict-typecheck errors in `diagnostics` resolved.** Pre-existing
+  `tsc --strict` warnings cleaned up so `npm run build` (which runs
+  `tsc -b`) is warning-free.
+
+### 🔧 Build / CI / Tooling
+
+- **`package-lock.json` regenerated.** The lockfile had drifted out of
+  sync with `package.json` (`brace-expansion@2.0.2` vs `5.0.5`,
+  `qs@6.14.2` vs `6.15.1`), causing `npm ci` — and therefore every
+  Android CI workflow — to fail. Lockfile is now clean: `npm ci`
+  succeeds with **0 vulnerabilities**.
+- **Capacitor sync verified.** `npx cap sync android` runs cleanly on
+  Node 24 and produces no source-tree diffs (web assets land in the
+  gitignored `android/app/src/main/assets/public/`, repopulated on
+  every CI build).
+- **Android workflows confirmed consistent.** `android.yml`,
+  `build-android.yml`, and `release.yml` all use Node 24, Temurin
+  JDK 21, and `android-actions/setup-android@v3`. `release.yml`
+  attaches both `TrueAI-LocalAI-debug.apk` and
+  `TrueAI-LocalAI-release-unsigned.apk` to the GitHub Release on any
+  `v*` tag push.
+
+### 📦 Versioning
+
+- `package.json`: `5.0.0` → `5.1.0`
+- `package-lock.json` root: synced to `5.1.0`
+- Android `versionName`: `5.0.0` → `5.1.0`
+- Android `versionCode`: `6` → `7` (so the new APK installs cleanly
+  as an update over v5.0.0)
+
+### ✅ Verified
+
+- `npm ci` — clean, 0 vulnerabilities
+- `npm run lint` — 0 errors, 0 warnings
+- `npm test` — **172 / 172 passing** (12 test files)
+- `npm run build` — succeeds (`tsc -b && vite build`)
+- `npx cap sync android` — clean
+
+### 📦 Publishing
+
+Push the `v5.1.0` tag (or run *Create Release with APK* via
+`workflow_dispatch` with version `v5.1.0`) to trigger
+`.github/workflows/release.yml`, which builds and attaches both
+`TrueAI-LocalAI-debug.apk` and `TrueAI-LocalAI-release-unsigned.apk`
+to the GitHub Release.
+
+---
+
 ## Version 5.0.0 - Release republish (2026-04-28)
 
 A version-only release that republishes the v4.0.0 codebase under a new

@@ -57,8 +57,10 @@ import { emptyStateChat, emptyStateAgents, emptyStateWorkflow } from '@/assets/i
 import { analytics } from '@/lib/analytics'
 import { defaultProfilesByTaskType } from '@/lib/performance-profiles'
 import type { Message, Conversation, Agent, AgentRun, AgentTool, ModelConfig, FineTuningDataset, FineTuningJob, QuantizationJob, HarnessManifest, HuggingFaceModel, GGUFModel, PerformanceProfile, TaskType, AppSettings, AgentFeedback, AgentLearningMetrics, LearningInsight, AgentVersion, LearningSession } from '@/lib/types'
-import type { Workflow, WorkflowTemplate, CostEntry, Budget } from '@/lib/workflow-types'
+import type { Workflow, WorkflowTemplate, WorkflowExecution, CostEntry, Budget } from '@/lib/workflow-types'
 import { AgentLearningEngine } from '@/lib/agent-learning'
+import { toolExecutor } from '@/lib/agent-tools'
+import { runWorkflow, type WorkflowRunStep } from '@/lib/workflow-runtime'
 import { PrefetchManager } from '@/components/PrefetchManager'
 import { PrefetchStatusIndicator } from '@/components/PrefetchIndicator'
 
@@ -225,6 +227,7 @@ function App() {
   const [agentVersions, setAgentVersions] = useKV<AgentVersion[]>('agent-versions', [])
   const [_learningSessions, setLearningSessions] = useKV<LearningSession[]>('learning-sessions', [])
   const [workflows, setWorkflows] = useKV<Workflow[]>('workflows', [])
+  const [_workflowExecutions, setWorkflowExecutions] = useKV<WorkflowExecution[]>('workflow-executions', [])
   const [costEntries, setCostEntries] = useKV<CostEntry[]>('cost-entries', [])
   const [budgets, setBudgets] = useKV<Budget[]>('budgets', [])
   
@@ -368,13 +371,7 @@ function App() {
   const tabPreloader = useTabPreloader(tabOrder, activeTab, handlePreloadTab)
 
   const handleTabChange = useCallback((newTab: string) => {
-    contextualUI.trackFeatureUsage(newTab)
-    contextualUI.trackTimeOfDay(newTab)
-    dynamicUI.trackTabUsage(newTab)
-
-    // Mark a brief "switching" window for any UI that depends on it, but do
-    // NOT use it to block the tab change itself — blocking caused rapid taps
-    // to be silently dropped, which presented as "tab content doesn't render".
+    // Switch the active tab synchronously so the click feels instant.
     setIsTabSwitching(true)
     startTransition(() => {
       setActiveTab(newTab)
@@ -382,6 +379,28 @@ function App() {
     setTimeout(() => {
       setIsTabSwitching(false)
     }, 150)
+
+    // Defer behavior-tracking (3 useKV-backed writes that hit the network)
+    // out of the click path so it never blocks the tab switch. Falls back to
+    // setTimeout where requestIdleCallback isn't available (Safari/WebView).
+    const runTrackers = () => {
+      try {
+        contextualUI.trackFeatureUsage(newTab)
+        contextualUI.trackTimeOfDay(newTab)
+        dynamicUI.trackTabUsage(newTab)
+      } catch {
+        // Tracking is best-effort; never fail a tab switch on an analytics error.
+      }
+    }
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void
+    }
+    const w = window as IdleWindow
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(runTrackers, { timeout: 1000 })
+    } else {
+      setTimeout(runTrackers, 0)
+    }
   }, [contextualUI, dynamicUI, setActiveTab])
 
   const navigateToTab = useCallback((direction: 'left' | 'right') => {
@@ -492,6 +511,51 @@ function App() {
     })
   }, [newConversationForm, setConversations])
 
+  /**
+   * Records a cost entry for an LLM call and decrements active budgets.
+   * Called automatically from chat (`sendMessage`) and agent runs (`runAgent`).
+   * Token counts use a `chars / 4` heuristic — the same estimate used by the
+   * analytics layer — when the LLM runtime doesn't report token usage.
+   */
+  const trackCost = useCallback((tokensIn: number, tokensOut: number, model: string, resource: 'conversation' | 'agent' | 'workflow', resourceId: string, resourceName: string) => {
+    const MODEL_COSTS: Record<string, { input: number; output: number }> = {
+      'gpt-4o': { input: 0.01 / 1000, output: 0.03 / 1000 },
+      'gpt-4o-mini': { input: 0.0015 / 1000, output: 0.006 / 1000 },
+      'gpt-4-turbo': { input: 0.01 / 1000, output: 0.03 / 1000 },
+      'gpt-3.5-turbo': { input: 0.0005 / 1000, output: 0.0015 / 1000 },
+    }
+
+    const costs = MODEL_COSTS[model] || MODEL_COSTS['gpt-4o-mini']
+    const cost = (tokensIn * costs.input) + (tokensOut * costs.output)
+
+    const entry: CostEntry = {
+      id: `cost-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: Date.now(),
+      model,
+      tokensIn,
+      tokensOut,
+      cost,
+      resource,
+      resourceId,
+      resourceName
+    }
+
+    setCostEntries(prev => [entry, ...(prev || [])])
+
+    setBudgets(prev => (prev || []).map(budget => {
+      if (budget.enabled) {
+        const newSpent = budget.spent + cost
+        if (newSpent >= budget.amount * (budget.alertThreshold / 100) && budget.spent < budget.amount * (budget.alertThreshold / 100)) {
+          toast.warning(`Budget "${budget.name}" is ${budget.alertThreshold}% spent!`)
+        }
+        return { ...budget, spent: newSpent }
+      }
+      return budget
+    }))
+
+    return cost
+  }, [setCostEntries, setBudgets])
+
   const sendMessage = useCallback(async (content: string) => {
     if (!activeConversationId || !content.trim()) return
 
@@ -555,12 +619,17 @@ assistant:`
       ))
 
       const responseTime = Date.now() - startTime
+      const tokensIn = Math.ceil(prompt.length / 4)
+      const tokensOut = Math.ceil(response.length / 4)
+      const modelId = conversation?.model || 'gpt-4o-mini'
+      trackCost(tokensIn, tokensOut, modelId, 'conversation', activeConversationId, conversation?.title || 'Conversation')
+
       analytics.track('chat_message_received', 'chat', 'receive_response', {
         duration: responseTime,
         metadata: {
           model: conversation?.model,
           responseLength: response.length,
-          tokenCount: Math.ceil(response.length / 4)
+          tokenCount: tokensOut
         }
       })
     } catch (error) {
@@ -572,7 +641,7 @@ assistant:`
     } finally {
       setIsStreaming(false)
     }
-  }, [activeConversationId, conversations, messages, setMessages, setConversations])
+  }, [activeConversationId, conversations, messages, setMessages, setConversations, trackCost])
 
   const createAgent = useCallback(() => {
     const now = Date.now()
@@ -629,6 +698,8 @@ assistant:`
 
     try {
       const steps: AgentRun['steps'] = []
+      let tokensIn = 0
+      let tokensOut = 0
 
       const planningPrompt = spark.llmPrompt`You are an AI agent with the following goal: "${agent.goal}"
 
@@ -637,6 +708,8 @@ Available tools: ${agent.tools.join(', ')}
 Create a brief plan (2-3 sentences) for how you would accomplish this goal using the available tools.`
 
       const planResponse = await spark.llm(planningPrompt, agent.model)
+      tokensIn += Math.ceil(planningPrompt.length / 4)
+      tokensOut += Math.ceil(planResponse.length / 4)
       
       steps.push({
         id: `step-${Date.now()}`,
@@ -659,17 +732,17 @@ Use the ${tool} tool to help achieve the goal: "${agent.goal}"
 Describe what input you would give to the ${tool} tool (one sentence).`
 
         const toolInput = await spark.llm(toolPrompt, agent.model)
-        
-        let toolOutput = ''
-        if (tool === 'calculator') {
-          toolOutput = 'Result: 42'
-        } else if (tool === 'datetime') {
-          toolOutput = `Current time: ${new Date().toLocaleString()}`
-        } else if (tool === 'memory') {
-          toolOutput = 'Memory stored successfully'
-        } else if (tool === 'web_search') {
-          toolOutput = 'Search completed - 5 relevant results found'
-        }
+        tokensIn += Math.ceil(toolPrompt.length / 4)
+        tokensOut += Math.ceil(toolInput.length / 4)
+
+        // Execute the tool through the real AgentToolExecutor. Tools that
+        // require a third-party provider (web_search, image_generator,
+        // translator) honestly fail-closed in this local-first runtime;
+        // file_reader and api_caller perform real I/O; the rest run
+        // pure-JS logic. See src/lib/agent-tools.ts.
+        const toolStart = Date.now()
+        const toolResult = await toolExecutor.executeTool(tool, toolInput)
+        const toolDuration = Date.now() - toolStart
 
         steps.push({
           id: `step-${Date.now()}`,
@@ -677,20 +750,24 @@ Describe what input you would give to the ${tool} tool (one sentence).`
           content: `Executing ${tool}`,
           toolName: tool,
           toolInput,
-          toolOutput,
-          timestamp: Date.now()
+          toolOutput: toolResult.output,
+          timestamp: Date.now(),
+          duration: toolDuration,
+          success: toolResult.success,
         })
 
         setAgentRuns(prev => (prev || []).map(r => 
           r.id === runId ? { ...r, steps: [...steps] } : r
         ))
 
-        await new Promise(resolve => setTimeout(resolve, 800))
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
 
       const finalPrompt = spark.llmPrompt`Based on your plan and the tool results, provide a final summary (2-3 sentences) of what was accomplished for the goal: "${agent.goal}"`
 
       const finalResult = await spark.llm(finalPrompt, agent.model)
+      tokensIn += Math.ceil(finalPrompt.length / 4)
+      tokensOut += Math.ceil(finalResult.length / 4)
 
       steps.push({
         id: `step-${Date.now()}`,
@@ -699,13 +776,17 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         timestamp: Date.now()
       })
 
+      const costEstimate = trackCost(tokensIn, tokensOut, agent.model, 'agent', agentId, agent.name)
+
       setAgentRuns(prev => (prev || []).map(r => 
         r.id === runId ? { 
           ...r, 
           steps,
           status: 'completed',
           completedAt: Date.now(),
-          result: finalResult
+          result: finalResult,
+          tokensUsed: tokensIn + tokensOut,
+          costEstimate,
         } : r
       ))
 
@@ -745,7 +826,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
         metadata: { agentId, error: String(error) }
       })
     }
-  }, [agents, setAgents, setAgentRuns])
+  }, [agents, setAgents, setAgentRuns, trackCost])
 
   const handleProvideFeedback = useCallback((agentId: string) => {
     const recentRun = agentRuns?.filter(r => r.agentId === agentId && r.status === 'completed')
@@ -1273,12 +1354,101 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       return
     }
 
+    const startTime = Date.now()
+    const executionId = `wfexec-${startTime}-${Math.random().toString(36).slice(2, 8)}`
+    const initialExecution: WorkflowExecution = {
+      id: executionId,
+      workflowId: workflow.id,
+      startedAt: startTime,
+      status: 'running',
+      results: {},
+    }
+    setWorkflowExecutions(prev => [initialExecution, ...(prev || [])])
+
     toast.info(`Executing workflow: ${workflow.name}`)
     analytics.track('workflow_executed', 'workflow', 'execute_workflow', {
       label: workflow.name,
-      metadata: { workflowId: id }
+      metadata: { workflowId: id, executionId }
     })
-  }, [workflows])
+
+    try {
+      // Resolve `agent` workflow nodes against the user's saved agents.
+      const resolveAgent = (agentId: string) => {
+        const a = agents?.find(x => x.id === agentId)
+        if (!a) return undefined
+        return { id: a.id, name: a.name, goal: a.goal, systemPrompt: a.systemPrompt, model: a.model }
+      }
+
+      // Stream live progress into the persisted execution record so
+      // the UI can subscribe via the `workflow-executions` KV.
+      const onStep = (step: WorkflowRunStep) => {
+        setWorkflowExecutions(prev => (prev || []).map(e =>
+          e.id === executionId
+            ? { ...e, currentNodeId: step.nodeId, results: { ...e.results, [step.nodeId]: step.output } }
+            : e,
+        ))
+      }
+
+      const result = await runWorkflow(workflow, {
+        toolExecutor,
+        resolveAgent,
+        defaultModel: appSettings?.defaultTemperature !== undefined
+          ? (agents?.[0]?.model ?? 'gpt-4o-mini')
+          : 'gpt-4o-mini',
+        onStep,
+      })
+
+      // Cost tracking — tokens may be 0 if the workflow had no agent
+      // nodes, in which case trackCost still records a zero entry to
+      // make the run discoverable in the cost dashboard.
+      const primaryModel = result.modelsUsed[0] ?? 'gpt-4o-mini'
+      if (result.tokensIn > 0 || result.tokensOut > 0) {
+        trackCost(result.tokensIn, result.tokensOut, primaryModel, 'workflow', workflow.id, workflow.name)
+      }
+
+      setWorkflowExecutions(prev => (prev || []).map(e =>
+        e.id === executionId
+          ? {
+              ...e,
+              status: result.status === 'completed' ? 'completed' : 'error',
+              completedAt: Date.now(),
+              currentNodeId: undefined,
+              results: result.results,
+              error: result.error,
+            }
+          : e,
+      ))
+
+      if (result.status === 'completed') {
+        toast.success(`Workflow "${workflow.name}" completed`)
+        analytics.track('workflow_completed', 'workflow', 'complete_workflow', {
+          label: workflow.name,
+          duration: Date.now() - startTime,
+          metadata: { workflowId: id, executionId, stepsCount: result.steps.length },
+        })
+      } else {
+        toast.error(`Workflow failed: ${result.error ?? 'unknown error'}`)
+        analytics.track('workflow_failed', 'workflow', 'workflow_error', {
+          label: workflow.name,
+          duration: Date.now() - startTime,
+          metadata: { workflowId: id, executionId, error: result.error },
+        })
+      }
+    } catch (error) {
+      setWorkflowExecutions(prev => (prev || []).map(e =>
+        e.id === executionId
+          ? { ...e, status: 'error', completedAt: Date.now(), error: error instanceof Error ? error.message : String(error) }
+          : e,
+      ))
+      toast.error('Workflow execution failed')
+      console.error(error)
+      analytics.track('workflow_failed', 'workflow', 'workflow_error', {
+        label: workflow.name,
+        duration: Date.now() - startTime,
+        metadata: { workflowId: id, executionId, error: String(error) },
+      })
+    }
+  }, [workflows, agents, appSettings, setWorkflowExecutions, trackCost])
 
   const useWorkflowTemplate = useCallback((template: WorkflowTemplate) => {
     const newWorkflow: Workflow = {
@@ -1294,43 +1464,6 @@ Describe what input you would give to the ${tool} tool (one sentence).`
       label: template.name
     })
   }, [setWorkflows])
-
-  const _trackCost = useCallback((tokensIn: number, tokensOut: number, model: string, resource: 'conversation' | 'agent' | 'workflow', resourceId: string, resourceName: string) => {
-    const MODEL_COSTS: Record<string, { input: number; output: number }> = {
-      'gpt-4o': { input: 0.01 / 1000, output: 0.03 / 1000 },
-      'gpt-4o-mini': { input: 0.0015 / 1000, output: 0.006 / 1000 },
-      'gpt-4-turbo': { input: 0.01 / 1000, output: 0.03 / 1000 },
-      'gpt-3.5-turbo': { input: 0.0005 / 1000, output: 0.0015 / 1000 },
-    }
-
-    const costs = MODEL_COSTS[model] || MODEL_COSTS['gpt-4o-mini']
-    const cost = (tokensIn * costs.input) + (tokensOut * costs.output)
-
-    const entry: CostEntry = {
-      id: `cost-${Date.now()}`,
-      timestamp: Date.now(),
-      model,
-      tokensIn,
-      tokensOut,
-      cost,
-      resource,
-      resourceId,
-      resourceName
-    }
-
-    setCostEntries(prev => [entry, ...(prev || [])])
-
-    setBudgets(prev => (prev || []).map(budget => {
-      if (budget.enabled) {
-        const newSpent = budget.spent + cost
-        if (newSpent >= budget.amount * (budget.alertThreshold / 100) && budget.spent < budget.amount * (budget.alertThreshold / 100)) {
-          toast.warning(`Budget "${budget.name}" is ${budget.alertThreshold}% spent!`)
-        }
-        return { ...budget, spent: newSpent }
-      }
-      return budget
-    }))
-  }, [setCostEntries, setBudgets])
 
   const createBudget = useCallback((budgetData: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => {
     const budget: Budget = {
