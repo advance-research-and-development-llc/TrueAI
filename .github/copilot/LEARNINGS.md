@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-28 — PR #46: Round-3 follow-up prompt: address out-of-scope review findings on agent-tools, workflow event types, and executeWorkflow deps
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/46](https://github.com/smackypants/trueai-localai/pull/46) · merged b8eb382477a7 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _Round-3 follow-up prompt: address out-of-scope review findings on agent-tools, workflow event types, and executeWorkflow deps_.
+
+---
+
 ## 2026-04-28 — PR #44: chore(release): bump to v7.0.0
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/44](https://github.com/smackypants/trueai-localai/pull/44) · merged a09fd7c84fb7 · author @Copilot_
