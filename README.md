@@ -261,9 +261,24 @@ Defaults can also be baked into the APK by editing the `llm` block in
 
 Website: https://advancedtechnologyresearch.com/
 
+**Direct push and merge access to this repository is restricted to the
+project owner and authorized agent / bot identities** (Copilot coding
+agent, `github-actions[bot]`, Dependabot). This is enforced server-side by
+GitHub Rulesets — see [`.github/rulesets/`](.github/rulesets/README.md).
+
+If you are not an authorized contributor, you may still propose changes by
+**forking** this repository and opening a pull request. Forks **must
+retain** the [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) files unmodified
+and must give visible credit to the original author. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the full policy, including which
+PRs are auto-rejected and how the bug-fix automation flow works.
+
+For private security reports, see [`SECURITY.md`](SECURITY.md).
+
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details. Mandatory attribution
+terms for forks and derivative works are described in [NOTICE](NOTICE).
 
 Copyright (c) 2024-2026 smackypants / **Advanced Technology Research** — [https://advancedtechnologyresearch.com/](https://advancedtechnologyresearch.com/)
 
