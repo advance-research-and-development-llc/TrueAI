@@ -356,21 +356,21 @@ function App() {
   const tabPreloader = useTabPreloader(tabOrder, activeTab, handlePreloadTab)
 
   const handleTabChange = useCallback((newTab: string) => {
-    if (isTabSwitching) return
-    
-    setIsTabSwitching(true)
     contextualUI.trackFeatureUsage(newTab)
     contextualUI.trackTimeOfDay(newTab)
     dynamicUI.trackTabUsage(newTab)
-    
+
+    // Mark a brief "switching" window for any UI that depends on it, but do
+    // NOT use it to block the tab change itself — blocking caused rapid taps
+    // to be silently dropped, which presented as "tab content doesn't render".
+    setIsTabSwitching(true)
     startTransition(() => {
       setActiveTab(newTab)
-      
-      setTimeout(() => {
-        setIsTabSwitching(false)
-      }, 150)
     })
-  }, [isTabSwitching, contextualUI, dynamicUI])
+    setTimeout(() => {
+      setIsTabSwitching(false)
+    }, 150)
+  }, [contextualUI, dynamicUI])
 
   const navigateToTab = useCallback((direction: 'left' | 'right') => {
     if (isTabSwitching) return
@@ -2689,6 +2689,13 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                 icon: <ChartBar weight="fill" size={22} />,
                 active: activeTab === 'analytics',
                 onClick: () => handleTabChange('analytics')
+              },
+              {
+                id: 'builder',
+                label: 'Build',
+                icon: <Cube weight="fill" size={22} />,
+                active: activeTab === 'builder',
+                onClick: () => handleTabChange('builder')
               }
             ]}
           />
