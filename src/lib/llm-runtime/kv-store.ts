@@ -268,18 +268,32 @@ export const kvStore: KvStore = {
    * writing it to the lower-trust, world-readable localStorage origin
    * partition. Mitigates CodeQL js/clear-text-storage-of-sensitive-data
    * for the localStorage path.
+   *
+   * Note: this method MUST NOT delegate to `idbSet`, which falls through
+   * to localStorage on transaction failure. We do an inline IDB write
+   * with no fallback so a failed write simply leaves the value in the
+   * in-memory cache for this page load.
    */
   async setSecure(key: string, value: unknown): Promise<void> {
     memoryCache.set(key, value)
     hydratedKeys.add(key)
     notify(key, value)
     const db = await openDb()
-    if (!db) {
-      // No IDB available — refuse to persist. The value still lives in the
-      // in-memory cache for the lifetime of this page load.
-      return
-    }
-    await idbSet(key, value)
+    if (!db) return
+    const serialised = JSON.stringify(value)
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite')
+        tx.objectStore(STORE_NAME).put(serialised, key)
+        tx.oncomplete = () => resolve()
+        // Critical: on error/abort we resolve WITHOUT a localStorage
+        // fallback so sensitive material never lands in localStorage.
+        tx.onerror = () => resolve()
+        tx.onabort = () => resolve()
+      } catch {
+        resolve()
+      }
+    })
   },
 
   async delete(key: string): Promise<void> {

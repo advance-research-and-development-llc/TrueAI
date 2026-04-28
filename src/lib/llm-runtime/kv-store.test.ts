@@ -59,4 +59,51 @@ describe('kvStore', () => {
     await kvStore.set('topic', 'after-unsub')
     expect(observed).toEqual(['one', 'two', undefined])
   })
+
+  it('setSecure does not write to localStorage even on IDB transaction failure', async () => {
+    // Force the IDB write to throw — secure values must NEVER fall through
+    // to localStorage. This is a regression test for the prior bug where
+    // setSecure delegated to idbSet (which has a localStorage fallback).
+    const realIDB = window.indexedDB
+    const fakeRequest = {
+      result: {
+        transaction: () => {
+          throw new Error('simulated idb failure')
+        },
+      },
+      onsuccess: null as null | (() => void),
+      onerror: null,
+      onupgradeneeded: null,
+    }
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: {
+        open: () => {
+          // Synchronously fire onsuccess so openDb resolves quickly.
+          setTimeout(() => fakeRequest.onsuccess?.(), 0)
+          return fakeRequest
+        },
+      },
+    })
+    try {
+      __resetKvStoreForTests()
+      window.localStorage.clear()
+      await kvStore.setSecure('api-key', 'super-secret-value')
+      // Scan every localStorage entry for the secret.
+      let leaked = false
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i)
+        const v = k ? window.localStorage.getItem(k) : null
+        if (v && v.includes('super-secret-value')) leaked = true
+      }
+      expect(leaked).toBe(false)
+    } finally {
+      Object.defineProperty(window, 'indexedDB', {
+        configurable: true,
+        writable: true,
+        value: realIDB,
+      })
+    }
+  })
 })
