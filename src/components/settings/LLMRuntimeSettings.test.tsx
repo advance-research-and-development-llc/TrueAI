@@ -20,9 +20,9 @@ vi.mock('@/lib/llm-runtime/config', () => {
   }
   return {
     DEFAULT_LLM_RUNTIME_CONFIG,
-    ensureLLMRuntimeConfigLoaded: (...args: unknown[]) => mockEnsureLoaded(...args),
-    subscribeToLLMRuntimeConfig: (...args: unknown[]) => mockSubscribe(...args),
-    updateLLMRuntimeConfig: (...args: unknown[]) => mockUpdate(...args),
+    ensureLLMRuntimeConfigLoaded: mockEnsureLoaded,
+    subscribeToLLMRuntimeConfig: mockSubscribe,
+    updateLLMRuntimeConfig: mockUpdate,
   }
 })
 
