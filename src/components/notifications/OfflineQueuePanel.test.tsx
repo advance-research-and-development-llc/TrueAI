@@ -89,11 +89,7 @@ describe('OfflineQueuePanel', () => {
 
   it('calls sync and shows success toast', async () => {
     const syncMock = vi.fn().mockResolvedValue({ success: true, syncedCount: 5, failedCount: 0 })
-    mockUseOfflineQueue.mockReturnValue(makeHook({ isOnline: true, pendingCount: 5, syncMock }))
-    // Override sync directly
-    const hook = makeHook({ isOnline: true, pendingCount: 5 })
-    hook.sync = syncMock
-    mockUseOfflineQueue.mockReturnValue(hook)
+    mockUseOfflineQueue.mockReturnValue(makeHook({ isOnline: true, pendingCount: 5, sync: syncMock }))
     render(<OfflineQueuePanel />)
     fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
     await waitFor(() => expect(syncMock).toHaveBeenCalledOnce())

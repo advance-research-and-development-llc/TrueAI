@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const { mockUsePrefetch } = vi.hoisted(() => ({
   mockUsePrefetch: vi.fn(),
@@ -8,6 +8,9 @@ const { mockUsePrefetch } = vi.hoisted(() => ({
 vi.mock('@/hooks/use-prefetch', () => ({
   usePrefetch: mockUsePrefetch,
 }))
+
+// Mock the dynamic import targets so the component's setTimeout callback resolves cleanly
+vi.mock('@/components/agent/AgentCard', () => ({ default: () => null }))
 
 import { PrefetchManager, PrefetchIndicator } from './PrefetchManager'
 
@@ -23,6 +26,10 @@ describe('PrefetchManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUsePrefetch.mockReturnValue(makeHook())
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders nothing (returns null)', () => {
@@ -62,9 +69,10 @@ describe('PrefetchManager', () => {
       makeHook({ getTopPrefetchCandidates, isPrefetched, markAsPrefetched })
     )
     render(<PrefetchManager currentTab="chat" />)
-    // Component schedules a 500ms timeout for prefetching candidates
     expect(getTopPrefetchCandidates).toHaveBeenCalledWith('chat')
-    vi.useRealTimers()
+    // Advance past the 500ms timer so the mocked import resolves and markAsPrefetched fires
+    await act(async () => { vi.advanceTimersByTime(600) })
+    expect(markAsPrefetched).toHaveBeenCalledWith('agents')
   })
 
   it('skips prefetch if tab is already prefetched', async () => {
@@ -78,7 +86,6 @@ describe('PrefetchManager', () => {
     render(<PrefetchManager currentTab="chat" />)
     await act(async () => { vi.advanceTimersByTime(600) })
     expect(markAsPrefetched).not.toHaveBeenCalled()
-    vi.useRealTimers()
   })
 })
 

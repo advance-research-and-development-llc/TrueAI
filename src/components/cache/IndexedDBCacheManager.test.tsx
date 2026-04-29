@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const { mockUseIndexedDBCache } = vi.hoisted(() => ({
   mockUseIndexedDBCache: vi.fn(),
@@ -38,10 +38,15 @@ const makeHook = (overrides = {}) => ({
 })
 
 describe('IndexedDBCacheManager', () => {
+  let confirmSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default: confirm returns true
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+
+  afterEach(() => {
+    confirmSpy.mockRestore()
   })
 
   it('renders heading', () => {
