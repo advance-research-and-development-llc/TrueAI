@@ -16,6 +16,30 @@
 
 ---
 
+## 2026-04-29 — PR #63: Add comprehensive component test coverage (847 → 1086 tests)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/63](https://github.com/smackypants/trueai-localai/pull/63) · merged 0521fbf8a6a9 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _Add comprehensive component test coverage (847 → 1086 tests)_.
+
+---
+
+## 2026-04-29 — PR #65: test: add 56 new tests across 7 previously untested components
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/65](https://github.com/smackypants/trueai-localai/pull/65) · merged 0b674e7ed132 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _test: add 56 new tests across 7 previously untested components_.
+
+---
+
+## 2026-04-28 — PR #64: test: add coverage for 6 untested components (58 new tests)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/64](https://github.com/smackypants/trueai-localai/pull/64) · merged 491aa7334c34 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _test: add coverage for 6 untested components (58 new tests)_.
+
+---
+
 ## 2026-04-28 — PR #61: test: add mobile component tests + fix swipeable-card opacity bug
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/61](https://github.com/smackypants/trueai-localai/pull/61) · merged f003eabd3736 · author @Copilot_
