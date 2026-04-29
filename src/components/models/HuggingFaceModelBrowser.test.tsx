@@ -14,7 +14,7 @@ vi.mock('@/lib/huggingface', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
 
 import { HuggingFaceModelBrowser } from './HuggingFaceModelBrowser'
