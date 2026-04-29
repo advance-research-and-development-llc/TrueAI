@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-29 — PR #109: Repair the failing test suite (1778/1778 green) so coverage runs again
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/109](https://github.com/smackypants/trueai-localai/pull/109) · merged 107ebbb4698c · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _Repair the failing test suite (1778/1778 green) so coverage runs again_.
+
+---
+
 ## 2026-04-29 — PR #104: Improve test coverage for HuggingFace + KV store utilities; stabilize brittle model component tests
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/104](https://github.com/smackypants/trueai-localai/pull/104) · merged f1abb64f12f2 · author @Codex_
