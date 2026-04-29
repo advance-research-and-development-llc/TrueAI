@@ -173,7 +173,7 @@ describe('LLMRuntimeSettings', () => {
   })
 
   it('shows HTTP API key warning when apiKey set and URL is http://', async () => {
-    const user = userEvent.setup()
+    const _user = userEvent.setup()
     mockEnsureLoaded.mockResolvedValue({
       ...defaultConfig,
       apiKey: 'sk-test-key',

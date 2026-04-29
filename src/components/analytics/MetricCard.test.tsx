@@ -52,7 +52,7 @@ describe('MetricCard', () => {
   })
 
   it('renders up trend arrow and green text when trend is up', () => {
-    const { container } = render(
+    const { container: _container } = render(
       <MetricCard
         title="Revenue"
         value={100}
