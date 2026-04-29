@@ -17,7 +17,7 @@ vi.mock('@/lib/mobile-performance', () => ({
   },
   ImageCache: { has: vi.fn(() => false), get: vi.fn(), set: vi.fn() },
   useIntersectionObserver: vi.fn(() => true),
-  useThrottle: (fn: Function) => fn
+  useThrottle: (fn: (...args: unknown[]) => unknown) => fn
 }))
 
 vi.mock('@/lib/resource-loader', () => ({

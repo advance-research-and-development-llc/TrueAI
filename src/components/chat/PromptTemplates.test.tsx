@@ -126,12 +126,12 @@ describe('PromptTemplates', () => {
 
     render(<PromptTemplates {...defaultProps} />)
 
-    const deleteButtons = screen.getAllByRole('button', { name: '' }).filter(
+    const _deleteButtons = screen.getAllByRole('button', { name: '' }).filter(
       btn => btn.querySelector('svg')
     )
     // Find delete buttons by their container structure — there are 3 icon buttons per card
     // (favorite, edit, delete). Click the last one on the first card which is delete.
-    const cardActionButtons = screen.getAllByRole('button', { name: '' })
+    const _cardActionButtons = screen.getAllByRole('button', { name: '' })
     // We need to click the Trash icon button. Use a more targeted selector.
     const trashButtons = document.querySelectorAll('button.hover\\:bg-destructive')
     if (trashButtons.length > 0) {
