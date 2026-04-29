@@ -113,11 +113,17 @@ jobs:
 
           with open('/tmp/capacitor-unguarded.txt', 'w') as f:
               f.write('\n'.join(unguarded[:50]))
+          # Write the true total count to a separate file so the shell step
+          # can report the real number even though the display is capped at 50.
+          with open('/tmp/capacitor-total-count.txt', 'w') as f:
+              f.write(str(len(unguarded)))
           print(f'Unguarded Capacitor calls: {len(unguarded)}')
           PYEOF
 
           COUNT=0
-          if [ -f /tmp/capacitor-unguarded.txt ]; then
+          if [ -f /tmp/capacitor-total-count.txt ]; then
+            COUNT=$(cat /tmp/capacitor-total-count.txt | tr -d ' \n')
+          elif [ -f /tmp/capacitor-unguarded.txt ]; then
             COUNT=$(wc -l < /tmp/capacitor-unguarded.txt | tr -d ' ')
           fi
           # Create empty file if python3 block did not create it

@@ -102,9 +102,9 @@ jobs:
             --repo "$REPO" \
             --label "copilot-fix,security" \
             --state open \
-            --json number,title \
-            --jq --arg n "alert #${ALERT_NUMBER}" \
-              '[.[] | select(.title | contains($n))] | .[0].number // empty' \
+            --search "\"alert #${ALERT_NUMBER}\"" \
+            --json number \
+            --jq '.[0].number // empty' \
             2>/dev/null || echo "")
 
           if [ -n "$EXISTING" ]; then
