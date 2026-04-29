@@ -1,272 +1,142 @@
-# Test Coverage Analysis Summary
+# Test Coverage Summary
 
-## Overview
-This document summarizes the test coverage analysis performed on the trueai-localai codebase and the comprehensive test suite that was added.
+> **Status:** living document, refreshed alongside PRs that add tests.
+> Numbers below come from `npm run test:coverage` (vitest + v8).
 
-## Initial State
-- **Total source files**: 198 TypeScript/React files
-- **Existing tests**: 0
-- **Test coverage**: 0%
+## Current snapshot
 
-## Testing Infrastructure Setup
+_As of 2026-04-29 (post Phase 1)._
 
-### Installed Dependencies
-- `vitest` - Modern, fast test runner with native ESM support
-- `@vitest/ui` - Web-based UI for test visualization
-- `@vitest/coverage-v8` - Code coverage reporting
-- `@testing-library/react` - React testing utilities
-- `@testing-library/jest-dom` - Custom matchers for DOM assertions
-- `@testing-library/user-event` - User interaction simulation
-- `jsdom` - DOM implementation for testing
-- `happy-dom` - Alternative fast DOM implementation
+| Metric | Value | Δ vs. baseline |
+|---|---|---|
+| Test files | **112** | +1 |
+| Tests | **1323** | +6 |
+| Statements | **46.1%** | +0.4 pp |
+| Branches | **37.9%** | +0.2 pp |
+| Functions | **39.4%** | +0.1 pp |
+| Lines | **47.2%** | +0.4 pp |
 
-### Configuration Files Created
-1. **vitest.config.ts** - Main test configuration with coverage settings
-2. **src/test/setup.ts** - Global test setup and mocks
+`src/lib/native/install.ts` went from **0% → 91.1% lines** in this slice
+(remaining gap: `try/catch` debug-log fallbacks for missing optional
+Capacitor modules, which are mocked as present in the test). `src/lib/native`
+overall: **56.0% → 67.4% lines**.
 
-### Package.json Scripts Added
-```json
-{
-  "test": "vitest",
-  "test:ui": "vitest --ui",
-  "test:coverage": "vitest run --coverage"
-}
-```
+`npm test` and `npm run test:coverage` both pass cleanly. Coverage reports
+are written to `coverage/` (`text`, `json`, `html`, `lcov`).
 
-## Test Files Created
+## Testing infrastructure
 
-### 1. Utility Functions (`src/lib/utils.test.ts`)
-**Tests**: 8
-**Coverage**: Comprehensive testing of the `cn()` utility function
+- **Runner:** Vitest 4 (`npm test`, `npm run test:ui`, `npm run test:coverage`)
+- **Environment:** jsdom 29 (`vitest.config.ts`)
+- **Libraries:** `@testing-library/react`, `@testing-library/user-event`,
+  `@testing-library/jest-dom`, `fake-indexeddb`, `happy-dom`
+- **Coverage provider:** `@vitest/coverage-v8`
+- **Global setup:** [`src/test/setup.ts`](src/test/setup.ts) mocks
+  `matchMedia`, `IntersectionObserver`, `ResizeObserver`, and the global
+  `spark` shim. **`indexedDB` is intentionally NOT mocked** — see the
+  comment block in `setup.ts` for the rationale; tests that need IDB
+  install their own.
 
-Test cases:
-- Basic class name merging
-- Conditional classes
-- Undefined and null handling
-- Empty inputs
-- Tailwind class conflict resolution
-- Array of classes
-- Object notation
-- Complex mixed inputs
+## Conventions enforced across tests
 
-### 2. Analytics Service (`src/lib/analytics.test.ts`)
-**Tests**: 20
-**Coverage**: 84.47% statements, 68.91% branches
+These are codified in [`.github/copilot/LEARNINGS.md`](.github/copilot/LEARNINGS.md)
+and as agent memories. New tests must follow them:
 
-Test suites:
-- **track()**: Event tracking with various parameters
-- **getEvents()**: Event filtering by type, category, userId, and date range
-- **getSessions()**: Session management
-- **getMetrics()**: Comprehensive metrics calculation including:
-  - Total events and sessions
-  - Active users
-  - Error rates
-  - Event grouping
-  - Chat metrics
-  - Agent metrics
-  - Model metrics
-- **clearData()**: Data cleanup
+- Query DOM via stable `data-slot` attributes (button, switch, checkbox,
+  card, skeleton, progress, …) instead of Tailwind class selectors.
+- Add `aria-label` to icon-only `<Button>` triggers; query with
+  `getByRole('button', { name: /…/ })`. Radix `Tooltip` adds
+  `aria-describedby`, **not** an accessible name.
+- Radix `Dialog` / `Select` / `Popover` / `DropdownMenu` content renders
+  in a portal — query via `screen.*` or `document.body.querySelector`.
+- With `vi.useFakeTimers()`, **do not** pass `advanceTimers:` to
+  `userEvent.setup()`. Advance manually with
+  `await act(async () => { vi.advanceTimersByTime(ms) })` and use
+  `fireEvent.click()` afterwards.
+- For `vi.mock` factories that need module-level vars, use `vi.hoisted()`.
+- When stubbing `URL.createObjectURL`, `navigator.serviceWorker`, or
+  `window.location`, capture the original property descriptor and restore
+  it in `afterEach` / `finally`.
+- `framer-motion`'s `AnimatePresence` defers DOM removal until exit
+  animations finish. In jsdom, assert side effects (e.g. `reload` was
+  called) instead of element absence after `setShow(false)`.
+- Modules with module-level state and `installed` guards
+  (`preMountErrorCapture`, `mobile-debug-logger`, `native/install`) are
+  tested via top-level `vi.mock` + per-test `vi.resetModules()` + dynamic
+  `import()`. `vi.doMock` inside `it()` bodies is unreliable for these.
 
-### 3. IndexedDB Manager (`src/lib/indexeddb.test.ts`)
-**Note**: Complex async tests removed due to timeout issues in CI environment.
-**Recommendation**: Add integration tests for IndexedDB in a browser environment.
+## Coverage by area (top level)
 
-Key areas that need testing:
-- Database initialization
-- Conversation caching
-- Message caching
-- Cache retrieval
-- Cache deletion
-- Size calculation
-- Cleanup operations
+Numbers below are line coverage (`% Lines`) from the latest
+`npm run test:coverage` run.
 
-### 4. Offline Queue (`src/lib/offline-queue.test.ts`)
-**Note**: Removed due to Service Worker API mocking complexity.
-**Recommendation**: Test in browser environment or with proper Service Worker mocking library.
+| Area | Lines | Notes |
+|---|---|---|
+| `src/lib` | **86.1%** | Business logic — strongest coverage area. |
+| `src/lib/llm-runtime` | 74.5% | `kv-store.ts` has fallback paths still uncovered. |
+| `src/lib/native` | **67.4%** *(post Phase 1)* | `install.ts` newly covered (was 0% → 91.1%). |
+| `src/hooks` | **91.5%** | Strongest per-area coverage. |
+| `src/components/chat` | 72.0% | Some message-bubble + export-dialog branches still uncovered. |
+| `src/components/cost` | 80.9% | |
+| `src/components/notifications` | 41.9% | `NotificationCenter`, `OfflineQueuePanel`, `CacheManager`, `PerformanceIndicator` untested. |
+| `src/components/settings` | 15.0% | Most settings panels untested. |
+| `src/components/agent` | low | Only `AgentCard`, `AgentQuickActions`, `AgentStepView` covered. |
+| `src/components/analytics` | mid | Charts covered; dashboards / panels untested. |
+| `src/components/models` | 6.7% | Most model panels untested. |
+| `src/components/builder` | 0% | Largest untested area; needs decomposition before unit tests. |
+| `src/components/cache` | 0% | |
+| `src/components/harness` | 0% | |
+| `src/components/workflow` | 0% | High-risk per LEARNINGS PR #58. |
+| `src/components/ui` | 22.8% | shadcn primitives — only the value-add wrappers warrant tests. |
+| `src/App.tsx` / `App-Enhanced.tsx` / `main.tsx` / root `ErrorFallback.tsx` | 0% | App shell — Phase 2 target. |
 
-Key areas that need testing:
-- Queue initialization
-- Action enqueueing
-- Sync operations
-- Retry logic
-- Failed action handling
-- Queue management
+## Phased roadmap (in progress)
 
-### 5. Custom Hooks (`src/hooks/use-mobile.test.ts`)
-**Tests**: 6
-**Coverage**: Testing responsive design hook
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Capture baseline coverage | ✅ done |
+| 1 | Cover the last `src/lib/**` gap (`native/install.ts`) | ✅ done |
+| 2 | App shell — `App.tsx`, `App-Enhanced.tsx`, `main.tsx`, root `ErrorFallback.tsx` | ⏳ planned |
+| 3.1 | Workflow components | ⏳ planned |
+| 3.2 | Agent components (11) | ⏳ planned |
+| 3.3 | Analytics components (7) | ⏳ planned |
+| 3.4 | Models components (10) | ⏳ planned |
+| 3.5 | Settings components (7) | ⏳ planned |
+| 3.6 | Notifications components (4) | ⏳ planned |
+| 3.7 | Cache, Harness, root-level Performance / Prefetch | ⏳ planned |
+| 4 | Builder — smoke tests + decomposition tracking issue | ⏳ planned |
+| 5 | Selective UI primitives (value-add wrappers only) | ⏳ planned |
+| 6 | Coverage thresholds in `vitest.config.ts` | ⏳ planned |
 
-Test cases:
-- Desktop width detection
-- Mobile width detection
-- Window resize handling
-- Breakpoint validation (768px)
-- Event listener cleanup
+Each phase is intentionally one PR-sized batch — matches the merge cadence
+of PRs #59 – #66 in `.github/copilot/LEARNINGS.md`.
 
-### 6. Theme Hook (`src/hooks/use-theme.test.ts`)
-**Note**: Removed due to complexity with mocking Spark's useKV hook.
-**Recommendation**: Create integration tests or use actual Spark test utilities.
+## Out of scope (deliberately not tested)
 
-### 7. React Components (`src/components/ErrorFallback.test.tsx`)
-**Tests**: 10
-**Coverage**: Complete testing of error boundary fallback UI
+- Pure type files: `src/lib/types.ts`, `lib/workflow-types.ts`,
+  `lib/app-builder-types.ts`, `vite-end.d.ts`, `*-variants.ts`.
+- Re-export barrels: `src/components/ui/index.ts`, `src/lib/native/index.ts`.
+- Vendored shadcn primitives that are pure prop-forwarding wrappers around
+  Radix (e.g. `accordion`, `aspect-ratio`, `collapsible`, `hover-card`,
+  `popover`, `separator`, `scroll-area`, `tooltip`, `sheet`, `drawer`,
+  `menubar`, `navigation-menu`, `context-menu`, `breadcrumb`,
+  `pagination`, `sonner`). These are upstream-tested.
 
-Test cases:
-- Error message rendering
-- Custom component names
-- Error details expansion
-- Stack trace display
-- Rendering without errors
-- Reset button functionality
-- Conditional rendering
-- Icon rendering
-- Styling validation
-- Stack trace truncation
+## Running tests
 
-## Current Test Results
-
-### Summary
-- **Test Files**: 4 passed
-- **Total Tests**: 43 passed
-- **Test Duration**: ~7 seconds
-- **Overall Coverage**: 83.15%
-
-### Detailed Coverage
-```
-File               | % Stmts | % Branch | % Funcs | % Lines
--------------------|---------|----------|---------|----------
-All files          |   83.15 |    71.42 |   79.22 |   82.09
- components/ui     |      40 |    66.66 |      25 |      40
-  button.tsx       |     100 |    66.66 |     100 |     100
-  card.tsx         |   14.28 |      100 |   14.28 |   14.28
- lib               |   84.56 |    68.91 |   84.37 |   83.68
-  analytics.ts     |   84.47 |    68.91 |   84.12 |   83.57
-```
-
-## Areas with Missing or Insufficient Tests
-
-### High Priority
-1. **IndexedDB Manager** (`src/lib/indexeddb.ts`)
-   - Complex async database operations
-   - Requires browser environment or sophisticated mocking
-   - Recommendation: Integration tests with real IndexedDB
-
-2. **Offline Queue** (`src/lib/offline-queue.ts`)
-   - Service Worker integration
-   - Background sync API
-   - Recommendation: E2E tests in actual browser
-
-3. **Workflow Components** (`src/components/workflow/`)
-   - WorkflowBuilder.tsx
-   - WorkflowTemplates.tsx
-   - Recommendation: Component integration tests
-
-4. **Agent Components** (`src/components/agent/`)
-   - Complex state management
-   - Recommendation: Component + hook integration tests
-
-5. **Chat Components** (`src/components/chat/`)
-   - Real-time messaging
-   - Recommendation: Integration tests with mock WebSocket
-
-### Medium Priority
-6. **Performance Hooks**
-   - `use-performance-monitor.ts`
-   - `use-auto-performance.ts`
-   - `use-performance-optimization.ts`
-
-7. **Data Prefetching**
-   - `use-prefetch.ts`
-   - `use-data-prefetcher.ts`
-   - `use-tab-preloader.ts`
-
-8. **UI Components** (`src/components/ui/`)
-   - Most UI components lack tests
-   - 147 component files total
-
-### Low Priority
-9. **Type Definitions**
-   - No tests needed for pure type files
-   - `lib/types.ts`, `lib/workflow-types.ts`, etc.
-
-10. **Configuration Files**
-   - `lib/framework-configs.ts`
-   - `lib/performance-profiles.ts`
-
-## Recommendations
-
-### Short Term (High Impact)
-1. **Add component tests** for the most-used UI components:
-   - Button, Card, Input, Select, Dialog
-   - Use visual regression testing tools like Chromatic
-
-2. **Add hook tests** for critical custom hooks:
-   - useIndexedDBCache
-   - useOptimizedTabs
-   - usePerformanceMonitor
-
-3. **Add integration tests** for:
-   - Analytics tracking flow
-   - Offline/online sync behavior
-   - Theme switching
-
-### Medium Term
-4. **Set up E2E testing** with Playwright or Cypress:
-   - User workflows
-   - Offline functionality
-   - Performance monitoring
-
-5. **Add visual regression tests**:
-   - Component library
-   - Theme variations
-   - Mobile responsiveness
-
-### Long Term
-6. **Implement continuous coverage tracking**:
-   - Set minimum coverage thresholds (e.g., 80%)
-   - Block PRs that decrease coverage
-   - Track coverage trends over time
-
-7. **Add performance benchmarking**:
-   - Track test execution times
-   - Monitor bundle size impact
-   - Performance regression tests
-
-## Running Tests
-
-### Run all tests
 ```bash
+# All tests (watch by default)
 npm test
-```
 
-### Run tests in watch mode
-```bash
-npm test -- --watch
-```
+# One-shot run
+npx vitest run
 
-### Run tests with UI
-```bash
-npm run test:ui
-```
-
-### Generate coverage report
-```bash
+# With coverage report
 npm run test:coverage
+
+# Web UI
+npm run test:ui
+
+# Targeted file
+npx vitest run src/lib/native/install.test.ts
 ```
-
-### Run specific test file
-```bash
-npm test -- src/lib/analytics.test.ts
-```
-
-## Conclusion
-
-This test infrastructure provides a solid foundation for the trueai-localai project. With **83.15% overall coverage** and **43 passing tests**, the most critical utility functions, services, and components now have comprehensive test coverage.
-
-The testing framework is configured and ready for expansion. Priority should be given to adding tests for:
-1. Complex async operations (IndexedDB, offline queue)
-2. React components (especially workflow and agent components)
-3. Integration tests for key user flows
-4. E2E tests for critical paths
-
-The test suite is fast (~7 seconds), maintainable, and follows best practices for modern React/TypeScript applications.
