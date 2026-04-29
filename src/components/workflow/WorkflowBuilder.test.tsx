@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { WorkflowBuilder } from './WorkflowBuilder'
 import type { Agent, Workflow } from '@/lib/types'
 
-const toastMock = vi.hoisted(() => ({
+const mockToast = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
 }))
 
 vi.mock('sonner', () => ({
-  toast: toastMock,
+  toast: mockToast,
 }))
 
 vi.mock('@xyflow/react', async () => {
@@ -152,7 +152,7 @@ describe('WorkflowBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: /save workflow/i }))
 
-    expect(toastMock.error).toHaveBeenCalledWith('Workflow name is required')
+    expect(mockToast.error).toHaveBeenCalledWith('Workflow name is required')
     expect(onSaveWorkflow).not.toHaveBeenCalled()
   })
 
@@ -189,7 +189,7 @@ describe('WorkflowBuilder', () => {
         updatedAt: 1_700_000_123_000,
       })
     )
-    expect(toastMock.success).toHaveBeenCalledWith('Workflow saved successfully')
+    expect(mockToast.success).toHaveBeenCalledWith('Workflow saved successfully')
   })
 
   it('loads, executes, deletes, and saves an existing workflow', async () => {

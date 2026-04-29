@@ -243,8 +243,12 @@ export function WorkflowBuilder({
     setEdges(loadedEdges)
   }
 
-  const newWorkflow = () => {
+  const newWorkflow = ({ clearMetadata = false }: { clearMetadata?: boolean } = {}) => {
     setSelectedWorkflow(null)
+    if (clearMetadata) {
+      setWorkflowName('')
+      setWorkflowDescription('')
+    }
     setNodes([
       {
         id: 'start-1',
@@ -408,10 +412,7 @@ export function WorkflowBuilder({
               <Button
                   onClick={() => {
                     onDeleteWorkflow(selectedWorkflow.id)
-                    setSelectedWorkflow(null)
-                    setWorkflowName('')
-                    setWorkflowDescription('')
-                    newWorkflow()
+                    newWorkflow({ clearMetadata: true })
                   }}
                 variant="destructive"
                 className="w-full"
@@ -490,7 +491,7 @@ export function WorkflowBuilder({
             <Button variant="outline" onClick={() => setNewWorkflowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={newWorkflow}>Create</Button>
+            <Button onClick={() => newWorkflow()}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
