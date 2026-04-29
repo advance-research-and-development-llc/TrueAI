@@ -39,43 +39,53 @@ const mockAgent: Agent = {
 describe('AgentScheduler', () => {
   it('renders heading', () => {
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    expect(screen.getByText(/schedule/i)).toBeInTheDocument()
+    expect(screen.getByText('Schedule Agent')).toBeInTheDocument()
   })
 
   it('renders Enable Schedule switch', () => {
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    // Switch is a Radix Switch
     const switches = document.querySelectorAll('[data-slot="switch"]')
     expect(switches.length).toBeGreaterThan(0)
   })
 
-  it('shows "Scheduling disabled" when not enabled', () => {
+  it('shows "enable scheduling" message when not enabled', () => {
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    expect(screen.getByText(/scheduling disabled/i)).toBeInTheDocument()
+    expect(screen.getByText(/enable scheduling to configure/i)).toBeInTheDocument()
+  })
+
+  it('shows time input and Save button when enabled', () => {
+    render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
+    // Toggle the switch to enable scheduling
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
+    expect(screen.getByDisplayValue('09:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save schedule/i })).toBeInTheDocument()
   })
 
   it('calls onUpdateSchedule with agent id when Save clicked', () => {
     const onUpdateSchedule = vi.fn()
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={onUpdateSchedule} />)
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    // Enable first
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
+    fireEvent.click(screen.getByRole('button', { name: /save schedule/i }))
     expect(onUpdateSchedule).toHaveBeenCalledOnce()
     expect(onUpdateSchedule.mock.calls[0][0]).toBe('agent-1')
   })
 
   it('shows success toast when saved', () => {
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    // Enable first
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
+    fireEvent.click(screen.getByRole('button', { name: /save schedule/i }))
     expect(toast.success).toHaveBeenCalledWith('Schedule updated successfully')
   })
 
-  it('renders time input', () => {
+  it('renders frequency selector when enabled', () => {
     render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    expect(screen.getByDisplayValue('09:00')).toBeInTheDocument()
-  })
-
-  it('renders frequency selector', () => {
-    render(<AgentScheduler agent={mockAgent} onUpdateSchedule={vi.fn()} />)
-    // Select trigger should be present
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
     expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
 })

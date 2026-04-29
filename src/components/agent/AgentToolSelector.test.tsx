@@ -55,9 +55,11 @@ describe('AgentToolSelector', () => {
 
   it('renders category group headers', () => {
     render(<AgentToolSelector selectedTools={[]} onToggleTool={vi.fn()} />)
-    // At least one category should appear
+    // Category badges appear as exact text matches in badge elements
+    const allBadges = document.querySelectorAll('[data-slot="badge"]')
+    const badgeTexts = Array.from(allBadges).map(b => b.textContent?.trim())
     const categories = ['computation', 'data', 'analysis', 'generation', 'communication']
-    const found = categories.filter(c => screen.queryByText(new RegExp(c, 'i')))
-    expect(found.length).toBeGreaterThan(0)
+    const foundCategories = categories.filter(c => badgeTexts.includes(c))
+    expect(foundCategories.length).toBeGreaterThan(0)
   })
 })

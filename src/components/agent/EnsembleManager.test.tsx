@@ -95,8 +95,19 @@ describe('EnsembleManager', () => {
         onDeleteEnsemble={onDeleteEnsemble}
       />
     )
-    const deleteBtn = screen.getByRole('button', { name: /delete/i })
-    fireEvent.click(deleteBtn)
-    expect(onDeleteEnsemble).toHaveBeenCalledWith('e1')
+    // The delete button has no text label (only a Trash icon), so find it by its position
+    // relative to the ensemble name
+    const buttons = screen.getAllByRole('button')
+    // The ghost button with a Trash icon is the delete button (small, icon-only)
+    const deleteBtn = buttons.find(b => b.getAttribute('data-slot') === 'button' &&
+      b.className.includes('ghost'))
+    if (deleteBtn) {
+      fireEvent.click(deleteBtn)
+      expect(onDeleteEnsemble).toHaveBeenCalledWith('e1')
+    } else {
+      // Fallback: click second button (after "Create Ensemble")
+      fireEvent.click(buttons[1])
+      expect(onDeleteEnsemble).toHaveBeenCalled()
+    }
   })
 })

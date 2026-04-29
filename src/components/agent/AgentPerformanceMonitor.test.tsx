@@ -27,18 +27,19 @@ const makeRun = (overrides: Partial<AgentRun> = {}): AgentRun => ({
 describe('AgentPerformanceMonitor', () => {
   it('renders heading', () => {
     render(<AgentPerformanceMonitor agent={mockAgent} runs={[]} />)
-    expect(screen.getByText(/performance/i)).toBeInTheDocument()
+    expect(screen.getByText('Performance Metrics')).toBeInTheDocument()
   })
 
   it('shows 0 total runs when no runs', () => {
     render(<AgentPerformanceMonitor agent={mockAgent} runs={[]} />)
-    expect(screen.getByText('0')).toBeInTheDocument()
+    // Total Runs cell should be 0
+    expect(screen.getByText('Total Runs').closest('div')!.nextElementSibling?.textContent).toBe('0')
   })
 
   it('shows correct total run count', () => {
     const runs = [makeRun(), makeRun(), makeRun()]
     render(<AgentPerformanceMonitor agent={mockAgent} runs={runs} />)
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('Total Runs').closest('div')!.nextElementSibling?.textContent).toBe('3')
   })
 
   it('calculates success rate from completed runs', () => {
@@ -48,17 +49,19 @@ describe('AgentPerformanceMonitor', () => {
       makeRun({ status: 'error' }),
     ]
     render(<AgentPerformanceMonitor agent={mockAgent} runs={runs} />)
-    // 2/3 = 66.7%
-    expect(screen.getByText(/66\.7%|67%/i)).toBeInTheDocument()
+    // 2/3 = 66.7% — may appear twice (metric + progress bar), use getAllByText
+    const matches = screen.getAllByText('66.7%')
+    expect(matches.length).toBeGreaterThan(0)
   })
 
-  it('shows 0% success rate when all runs errored', () => {
+  it('shows 0.0% success rate when all runs errored', () => {
     const runs = [
       makeRun({ status: 'error' }),
       makeRun({ status: 'error' }),
     ]
     render(<AgentPerformanceMonitor agent={mockAgent} runs={runs} />)
-    expect(screen.getByText(/0%|0\.0%/)).toBeInTheDocument()
+    const matches = screen.getAllByText('0.0%')
+    expect(matches.length).toBeGreaterThan(0)
   })
 
   it('only counts runs for the current agent', () => {
@@ -68,11 +71,11 @@ describe('AgentPerformanceMonitor', () => {
     ]
     render(<AgentPerformanceMonitor agent={mockAgent} runs={runs} />)
     // Only 1 run for agent-1
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('Total Runs').closest('div')!.nextElementSibling?.textContent).toBe('1')
   })
 
   it('renders without crashing when runs is empty', () => {
     render(<AgentPerformanceMonitor agent={mockAgent} runs={[]} />)
-    expect(screen.getByText('Test Agent')).toBeInTheDocument()
+    expect(screen.getByText('Performance Metrics')).toBeInTheDocument()
   })
 })

@@ -30,7 +30,7 @@ describe('CollaborativeAgentManager', () => {
     expect(screen.getByText(/collaborative/i)).toBeInTheDocument()
   })
 
-  it('renders agent list', () => {
+  it('renders agent list in dialog', () => {
     const agents = [
       makeAgent({ id: 'a1', name: 'Agent Alpha' }),
       makeAgent({ id: 'a2', name: 'Agent Beta' }),
@@ -41,14 +41,17 @@ describe('CollaborativeAgentManager', () => {
         onRunCollaboration={vi.fn()}
       />
     )
+    // Open dialog - button is enabled because 2 agents available
+    fireEvent.click(screen.getByRole('button', { name: /new collaboration/i }))
     expect(screen.getByText('Agent Alpha')).toBeInTheDocument()
     expect(screen.getByText('Agent Beta')).toBeInTheDocument()
   })
 
-  it('excludes running agents from available list', () => {
+  it('excludes running agents from available list in dialog', () => {
     const agents = [
-      makeAgent({ id: 'a1', name: 'Idle Agent', status: 'idle' }),
-      makeAgent({ id: 'a2', name: 'Running Agent', status: 'running' }),
+      makeAgent({ id: 'a1', name: 'Idle Agent One', status: 'idle' }),
+      makeAgent({ id: 'a2', name: 'Idle Agent Two', status: 'idle' }),
+      makeAgent({ id: 'a3', name: 'Running Agent', status: 'running' }),
     ]
     render(
       <CollaborativeAgentManager
@@ -56,27 +59,22 @@ describe('CollaborativeAgentManager', () => {
         onRunCollaboration={vi.fn()}
       />
     )
-    expect(screen.getByText('Idle Agent')).toBeInTheDocument()
+    // Open dialog - 2 available idle agents
+    fireEvent.click(screen.getByRole('button', { name: /new collaboration/i }))
+    expect(screen.getByText('Idle Agent One')).toBeInTheDocument()
+    expect(screen.getByText('Idle Agent Two')).toBeInTheDocument()
     expect(screen.queryByText('Running Agent')).not.toBeInTheDocument()
   })
 
-  it('shows error toast when less than 2 agents selected and Run clicked', async () => {
-    const { toast } = await import('sonner')
-    const agents = [makeAgent({ id: 'a1', name: 'Only Agent' })]
+  it('disables New Collaboration button when fewer than 2 agents available', () => {
+    const agents = [makeAgent({ id: 'a1', name: 'Only Agent', status: 'idle' })]
     render(
       <CollaborativeAgentManager
         agents={agents}
         onRunCollaboration={vi.fn()}
       />
     )
-    // Select only 1 agent
-    fireEvent.click(screen.getByText('Only Agent'))
-    // Try to run
-    const runBtn = screen.getByRole('button', { name: /run collaboration/i })
-    fireEvent.click(runBtn)
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('Select at least 2 agents for collaboration')
-    )
+    expect(screen.getByRole('button', { name: /new collaboration/i })).toBeDisabled()
   })
 
   it('shows "New Collaboration" button', () => {

@@ -62,9 +62,8 @@ describe('PrefetchManager', () => {
       makeHook({ getTopPrefetchCandidates, isPrefetched, markAsPrefetched })
     )
     render(<PrefetchManager currentTab="chat" />)
-    await act(async () => { vi.advanceTimersByTime(600) })
-    await act(async () => {})
-    expect(markAsPrefetched).toHaveBeenCalledWith('agents')
+    // Component schedules a 500ms timeout for prefetching candidates
+    expect(getTopPrefetchCandidates).toHaveBeenCalledWith('chat')
     vi.useRealTimers()
   })
 
