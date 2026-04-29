@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-29 — PR #68: test(native): cover install.ts and refresh TEST_COVERAGE_SUMMARY (Phase 0+1)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/68](https://github.com/smackypants/trueai-localai/pull/68) · merged 14c43821ea9d · author @Copilot_
+
+- `src/lib/native/install.ts` self-installs at import. Tests must use top-level `vi.mock` + `vi.hoisted` for per-test mocks, plus per-test `vi.resetModules()` + dynamic `import()` to reset the `installed` flag. Async side effects gated by `setTimeout` (e.g. `SplashScreen.hide`) require `vi.waitFor(...)` since explicit calls return immediately due to the guard.
+
+---
+
 ## 2026-04-29 — PR #67: test: cover Android-specific native paths (installer, install bootstrap, platform fallbacks)
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/67](https://github.com/smackypants/trueai-localai/pull/67) · merged 3d722fb0efa0 · author @Copilot_
