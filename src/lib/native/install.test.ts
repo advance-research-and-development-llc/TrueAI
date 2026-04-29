@@ -170,4 +170,10 @@ describe('native/install', () => {
     await expect(mod.installNativeIntegrations()).resolves.toBeUndefined()
     expect(mocks.initAppLifecycle).toHaveBeenCalledTimes(1)
   })
+
+  it('barrel re-exports installNativeIntegrations as the same function', async () => {
+    const direct = await importInstall()
+    const barrel = await import('./index')
+    expect(barrel.installNativeIntegrations).toBe(direct.installNativeIntegrations)
+  })
 })
