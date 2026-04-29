@@ -62,7 +62,8 @@ describe('BenchmarkComparison', () => {
 
   it('renders improvement percentages', () => {
     render(<BenchmarkComparison comparison={mockComparison} />)
-    // +21.4% overall improvement should appear somewhere
-    expect(screen.getByText(/21\.4/)).toBeInTheDocument()
+    // +21.4% overall improvement should appear somewhere - may be in multiple elements
+    const matches = screen.getAllByText(/21\.4/)
+    expect(matches.length).toBeGreaterThan(0)
   })
 })

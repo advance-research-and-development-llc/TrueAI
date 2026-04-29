@@ -18,7 +18,7 @@ describe('QuantizationTools', () => {
         onDownloadModel={vi.fn()}
       />
     )
-    expect(screen.getByText(/quantization/i)).toBeInTheDocument()
+    expect(screen.getByText('Model Quantization')).toBeInTheDocument()
   })
 
   it('renders without crashing', () => {

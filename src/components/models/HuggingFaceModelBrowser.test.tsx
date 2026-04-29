@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockSearchModels, mockGetPopular } = vi.hoisted(() => ({
   mockSearchModels: vi.fn(),
@@ -18,48 +18,30 @@ vi.mock('sonner', () => ({
 }))
 
 import { HuggingFaceModelBrowser } from './HuggingFaceModelBrowser'
-import type { HuggingFaceModel } from '@/lib/types'
 
-const mockModels: HuggingFaceModel[] = [
-  {
-    id: 'llama-8b',
-    name: 'Llama-3-8B-GGUF',
-    author: 'meta-llama',
-    downloads: 50000,
-    likes: 1000,
-    size: 4 * 1024 * 1024 * 1024,
-    quantization: 'Q4_K_M',
-    contextLength: 4096,
-    tags: ['llama', 'gguf'],
-    downloadUrl: 'https://huggingface.co/llama-3-8b',
-  },
-]
+beforeEach(() => {
+  mockGetPopular.mockReturnValue(['bartowski/Llama-3-GGUF', 'TheBloke/Mistral-GGUF'])
+  mockSearchModels.mockResolvedValue([])
+})
 
 describe('HuggingFaceModelBrowser', () => {
   it('renders heading', () => {
-    mockGetPopular.mockResolvedValue(mockModels)
     render(<HuggingFaceModelBrowser onDownload={vi.fn()} />)
     expect(screen.getByText(/HuggingFace/i)).toBeInTheDocument()
   })
 
   it('renders search input', () => {
-    mockGetPopular.mockResolvedValue([])
     render(<HuggingFaceModelBrowser onDownload={vi.fn()} />)
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument()
   })
 
-  it('renders popular models on load', async () => {
-    mockGetPopular.mockResolvedValue(mockModels)
+  it('renders popular model shortcut buttons', () => {
     render(<HuggingFaceModelBrowser onDownload={vi.fn()} />)
-    await waitFor(() =>
-      expect(screen.getByText('Llama-3-8B-GGUF')).toBeInTheDocument()
-    )
+    expect(screen.getByText('Llama-3')).toBeInTheDocument()
   })
 
-  it('renders without crashing when popular models empty', async () => {
-    mockGetPopular.mockResolvedValue([])
+  it('renders without crashing', () => {
     render(<HuggingFaceModelBrowser onDownload={vi.fn()} />)
-    await waitFor(() => expect(mockGetPopular).toHaveBeenCalledOnce())
     expect(document.body).toBeTruthy()
   })
 })

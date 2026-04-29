@@ -23,7 +23,7 @@ describe('HarnessCreator', () => {
         onExportHarness={vi.fn()}
       />
     )
-    expect(screen.getByText(/harness/i)).toBeInTheDocument()
+    expect(screen.getByText('Harness Development')).toBeInTheDocument()
   })
 
   it('renders without crashing', () => {

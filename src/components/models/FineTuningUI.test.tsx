@@ -40,7 +40,7 @@ describe('FineTuningUI', () => {
         onDeleteJob={vi.fn()}
       />
     )
-    expect(screen.getByText(/fine.tun/i)).toBeInTheDocument()
+    expect(screen.getByText('Model Fine-Tuning')).toBeInTheDocument()
   })
 
   it('renders without crashing', () => {

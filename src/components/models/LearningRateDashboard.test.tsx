@@ -11,7 +11,7 @@ describe('LearningRateDashboard', () => {
         onUpdateJobLearningRate={vi.fn()}
       />
     )
-    expect(screen.getByText(/learning rate dashboard/i)).toBeInTheDocument()
+    expect(screen.getByText('Learning Rate Fine-Tuning')).toBeInTheDocument()
   })
 
   it('renders without crashing', () => {

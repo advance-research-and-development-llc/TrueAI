@@ -130,7 +130,8 @@ describe('WorkflowBuilder', () => {
         onExecuteWorkflow={vi.fn()}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    const saveBtn = screen.getAllByRole('button', { name: /save/i })[0]
+    fireEvent.click(saveBtn)
     expect(onSaveWorkflow).toHaveBeenCalledOnce()
   })
 

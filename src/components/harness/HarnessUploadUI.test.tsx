@@ -23,7 +23,7 @@ describe('HarnessUploadUI', () => {
         onToggle={vi.fn()}
       />
     )
-    expect(screen.getByText(/harness/i)).toBeInTheDocument()
+    expect(screen.getByText('Custom Harnesses')).toBeInTheDocument()
   })
 
   it('shows empty state when no harnesses', () => {
@@ -35,7 +35,7 @@ describe('HarnessUploadUI', () => {
         onToggle={vi.fn()}
       />
     )
-    expect(screen.getByText(/no custom harnesses/i)).toBeInTheDocument()
+    expect(screen.getByText('No custom harnesses installed')).toBeInTheDocument()
   })
 
   it('renders harness name when harnesses provided', () => {
