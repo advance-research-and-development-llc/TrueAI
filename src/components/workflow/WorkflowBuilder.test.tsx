@@ -1,371 +1,296 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { WorkflowBuilder } from './WorkflowBuilder'
-import type { Workflow, Agent } from '@/lib/types'
+import type { Agent, Workflow } from '@/lib/types'
 
-// Mock ReactFlow hooks and components
-const { mockSetNodes, mockSetEdges, mockOnNodesChange, mockOnEdgesChange } = vi.hoisted(() => ({
-  mockSetNodes: vi.fn(),
-  mockSetEdges: vi.fn(),
-  mockOnNodesChange: vi.fn(),
-  mockOnEdgesChange: vi.fn(),
+const mockToast = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: mockToast,
 }))
 
 vi.mock('@xyflow/react', async () => {
-  const actual = await vi.importActual('@xyflow/react')
+  const React = await vi.importActual<typeof import('react')>('react')
+  type MockNode = {
+    id: string
+    type?: string
+    data?: { label?: string }
+  }
+  type MockEdge = {
+    id?: string
+    source?: string
+    target?: string
+  }
+
   return {
-    ...actual,
-    ReactFlow: ({ children, ...props }: any) => (
-      <div data-testid="react-flow" {...props}>
-        {children}
-      </div>
-    ),
-    Background: () => <div data-testid="background" />,
-    Controls: () => <div data-testid="controls" />,
-    MiniMap: () => <div data-testid="minimap" />,
-    Panel: ({ children }: any) => <div data-testid="panel">{children}</div>,
-    useNodesState: () => [[], mockSetNodes, mockOnNodesChange],
-    useEdgesState: () => [[], mockSetEdges, mockOnEdgesChange],
-    addEdge: vi.fn((edge, edges) => [...edges, edge]),
     MarkerType: { ArrowClosed: 'arrowclosed' },
+    addEdge: vi.fn((edge: MockEdge, edges: MockEdge[]) => [
+      ...edges,
+      { ...edge, id: edge.id ?? `${edge.source}-${edge.target}` },
+    ]),
+    useNodesState: (initialNodes: MockNode[]) => {
+      const [nodes, setNodes] = React.useState(initialNodes)
+      return [nodes, setNodes, vi.fn()]
+    },
+    useEdgesState: (initialEdges: MockEdge[]) => {
+      const [edges, setEdges] = React.useState(initialEdges)
+      return [edges, setEdges, vi.fn()]
+    },
+    ReactFlow: ({
+      nodes,
+      edges,
+      onNodeClick,
+      children,
+    }: {
+      nodes: MockNode[]
+      edges: MockEdge[]
+      onNodeClick?: (event: React.MouseEvent, node: MockNode) => void
+      children?: React.ReactNode
+    }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'react-flow' },
+        [
+          React.createElement('div', { key: 'summary', 'data-testid': 'flow-summary' }, `${nodes.length} nodes, ${edges.length} connections`),
+          ...nodes.map((node) =>
+            React.createElement(
+              'button',
+              {
+                key: node.id,
+                type: 'button',
+                onClick: (event: React.MouseEvent) => onNodeClick?.(event, node),
+              },
+              node.data?.label ?? node.id
+            )
+          ),
+          children,
+        ]
+      ),
+    Background: () => React.createElement('div', { 'data-testid': 'flow-background' }),
+    Controls: () => React.createElement('div', { 'data-testid': 'flow-controls' }),
+    MiniMap: ({ nodeColor }: { nodeColor: (node: MockNode) => string }) =>
+      React.createElement(
+        'div',
+        {
+          'data-testid': 'flow-minimap',
+          'data-colors': ['agent', 'tool', 'decision', 'parallel', 'start', 'end', 'merge']
+            .map((type) => nodeColor({ id: type, type }))
+            .join('|'),
+        }
+      ),
+    Panel: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'flow-panel' }, children),
   }
 })
 
-// Mock sonner toast
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
+function makeWorkflow(overrides: Partial<Workflow> = {}): Workflow {
+  return {
+    id: 'workflow-1',
+    name: 'Existing Workflow',
+    description: 'Existing description',
+    nodes: [
+      { id: 'start-1', type: 'start', position: { x: 0, y: 0 }, data: { label: 'Start' } },
+      { id: 'agent-1', type: 'agent', position: { x: 100, y: 100 }, data: { label: 'Draft Reply', agentId: 'agent-1' } },
+      { id: 'tool-1', type: 'tool', position: { x: 200, y: 200 }, data: { label: 'Lookup Data', toolName: 'web_search' } },
+      { id: 'decision-1', type: 'decision', position: { x: 300, y: 300 }, data: { label: 'Approved?', condition: 'last.includes("ok")' } },
+      { id: 'parallel-1', type: 'parallel', position: { x: 400, y: 400 }, data: { label: 'Parallel Work' } },
+      { id: 'end-1', type: 'end', position: { x: 500, y: 500 }, data: { label: 'End' } },
+    ],
+    edges: [
+      { id: 'edge-1', source: 'start-1', target: 'agent-1', label: 'next' },
+      { id: 'edge-2', source: 'agent-1', target: 'tool-1' },
+    ],
+    variables: {},
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_100,
+    ...overrides,
+  }
+}
+
+const agents: Agent[] = [
+  {
+    id: 'agent-1',
+    name: 'Support Agent',
+    goal: 'Help users',
+    model: 'llama3.2',
+    tools: ['web_search'],
+    createdAt: 1_700_000_000_000,
+    status: 'idle',
   },
-}))
+]
 
 describe('WorkflowBuilder', () => {
-  const mockAgents: Agent[] = [
-    {
-      id: 'agent-1',
-      name: 'Research Agent',
-      goal: 'Research information',
-      systemPrompt: 'You are a research agent',
-      tools: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    },
-    {
-      id: 'agent-2',
-      name: 'Writer Agent',
-      goal: 'Write content',
-      systemPrompt: 'You are a writer agent',
-      tools: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    },
-  ]
-
-  const mockWorkflows: Workflow[] = [
-    {
-      id: 'workflow-1',
-      name: 'Test Workflow',
-      description: 'A test workflow',
-      nodes: [
-        {
-          id: 'start-1',
-          type: 'start',
-          position: { x: 0, y: 0 },
-          data: { label: 'Start' },
-        },
-        {
-          id: 'agent-1',
-          type: 'agent',
-          position: { x: 200, y: 0 },
-          data: { label: 'Agent Node', agentId: 'agent-1' },
-        },
-        {
-          id: 'end-1',
-          type: 'end',
-          position: { x: 400, y: 0 },
-          data: { label: 'End' },
-        },
-      ],
-      edges: [
-        {
-          id: 'e1-2',
-          source: 'start-1',
-          target: 'agent-1',
-        },
-        {
-          id: 'e2-3',
-          source: 'agent-1',
-          target: 'end-1',
-        },
-      ],
-      variables: {},
-      createdAt: Date.now() - 1000,
-      updatedAt: Date.now(),
-    },
-  ]
-
-  const mockOnSaveWorkflow = vi.fn()
-  const mockOnDeleteWorkflow = vi.fn()
-  const mockOnExecuteWorkflow = vi.fn()
+  const onSaveWorkflow = vi.fn()
+  const onDeleteWorkflow = vi.fn()
+  const onExecuteWorkflow = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_123_000)
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
   })
 
-  it('renders workflow builder with ReactFlow canvas', () => {
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    expect(screen.getByTestId('react-flow')).toBeInTheDocument()
-    expect(screen.getByTestId('background')).toBeInTheDocument()
-    expect(screen.getByTestId('controls')).toBeInTheDocument()
-    expect(screen.getByTestId('minimap')).toBeInTheDocument()
-  })
-
-  it('displays list of existing workflows', () => {
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    expect(screen.getByText('Test Workflow')).toBeInTheDocument()
-    // Description might not be visible in the list view
-    expect(screen.getByText(/3.*nodes/i)).toBeInTheDocument()
-  })
-
-  it('allows adding new agent nodes', async () => {
+  it('renders the empty workflow state and blocks saving without a name', async () => {
     const user = userEvent.setup()
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    // Look for add node buttons by icon or text
-    const addButtons = screen.getAllByRole('button')
-    const agentButton = addButtons.find((btn) =>
-      btn.textContent?.includes('Agent') ||
-      btn.querySelector('[data-slot="button"]')
-    )
-
-    if (agentButton) {
-      await user.click(agentButton)
-      // Verify node addition behavior (mocked in this test)
-    }
-  })
-
-  it('shows new workflow dialog when creating a new workflow', async () => {
-    const user = userEvent.setup()
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    // Find "New Workflow" button
-    const newButton = screen.getAllByRole('button').find(
-      (btn) => btn.textContent?.includes('New') || btn.textContent?.includes('new')
-    )
-
-    if (newButton) {
-      await user.click(newButton)
-
-      await waitFor(() => {
-        expect(
-          screen.queryByPlaceholderText(/workflow name/i) ||
-          screen.queryByLabelText(/name/i)
-        ).toBeInTheDocument()
-      })
-    }
-  })
-
-  it('validates workflow name is required before saving', async () => {
-    const { toast } = await import('sonner')
-    const user = userEvent.setup()
-
     render(
       <WorkflowBuilder
         workflows={[]}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
       />
     )
 
-    // Try to save without a name - find save button
-    const saveButtons = screen.getAllByRole('button')
-    const saveButton = saveButtons.find(
-      (btn) => btn.textContent?.includes('Save') || btn.textContent?.includes('save')
-    )
+    expect(screen.getByRole('heading', { name: /visual workflow builder/i })).toBeInTheDocument()
+    expect(screen.getByText('No workflows yet')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-summary')).toHaveTextContent('0 nodes, 0 connections')
 
-    if (saveButton) {
-      await user.click(saveButton)
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
 
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('required'))
-      })
-      expect(mockOnSaveWorkflow).not.toHaveBeenCalled()
-    }
+    expect(mockToast.error).toHaveBeenCalledWith('Workflow name is required')
+    expect(onSaveWorkflow).not.toHaveBeenCalled()
   })
 
-  it('loads a workflow when selected', async () => {
+  it('creates a new workflow and saves the initial start/end graph', async () => {
     const user = userEvent.setup()
     render(
       <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
+        workflows={[]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
       />
     )
 
-    // Click on the workflow to load it
-    const workflowCard = screen.getByText('Test Workflow').closest('div')
-    if (workflowCard) {
-      await user.click(workflowCard)
+    await user.click(screen.getByRole('button', { name: /new workflow/i }))
+    const dialog = screen.getByRole('dialog', { name: /new workflow/i })
+    await user.type(within(dialog).getByPlaceholderText('My Workflow'), 'Support Flow')
+    await user.type(within(dialog).getByPlaceholderText(/describe what this workflow does/i), 'Routes support requests')
+    await user.click(within(dialog).getByRole('button', { name: /^create$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
 
-      await waitFor(() => {
-        // Workflow should be loaded (nodes/edges updated internally)
-        // We can verify by checking if the workflow details are displayed
-        expect(screen.getByText('Test Workflow')).toBeInTheDocument()
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'workflow-1700000123000',
+        name: 'Support Flow',
+        description: 'Routes support requests',
+        nodes: [
+          expect.objectContaining({ id: 'start-1', type: 'start' }),
+          expect.objectContaining({ id: 'end-1', type: 'end' }),
+        ],
+        edges: [],
+        createdAt: 1_700_000_123_000,
+        updatedAt: 1_700_000_123_000,
       })
-    }
-  })
-
-  it('has execute workflow functionality available', async () => {
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
     )
-
-    // Verify the execute callback is provided
-    expect(mockOnExecuteWorkflow).toBeDefined()
-    // Execute button may only appear when workflow is selected or on workflow cards
+    expect(mockToast.success).toHaveBeenCalledWith('Workflow saved successfully')
   })
 
-  it('has delete functionality available', async () => {
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    // Verify the delete callback is provided
-    expect(mockOnDeleteWorkflow).toBeDefined()
-    // Delete button may only appear when workflow is selected
-    // This test verifies the interface is set up correctly
-  })
-
-  it('saves workflow with correct structure', async () => {
-    const { toast } = await import('sonner')
+  it('loads, executes, deletes, and saves an existing workflow', async () => {
     const user = userEvent.setup()
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
 
+    await user.click(screen.getByText('Existing Workflow'))
+    expect(screen.getByTestId('flow-summary')).toHaveTextContent('6 nodes, 2 connections')
+
+    await user.click(screen.getByRole('button', { name: /execute/i }))
+    expect(onExecuteWorkflow).toHaveBeenCalledWith('workflow-1')
+
+    await user.clear(screen.getByPlaceholderText('Workflow name'))
+    await user.type(screen.getByPlaceholderText('Workflow name'), 'Updated Workflow')
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'workflow-1',
+        name: 'Updated Workflow',
+        description: 'Existing description',
+        createdAt: 1_700_000_000_000,
+        updatedAt: 1_700_000_123_000,
+      })
+    )
+
+    await user.click(screen.getByRole('button', { name: /delete/i }))
+    expect(onDeleteWorkflow).toHaveBeenCalledWith('workflow-1')
+    expect(screen.getByTestId('flow-summary')).toHaveTextContent('2 nodes, 0 connections')
+  })
+
+  it('adds node types from the toolbar before saving', async () => {
+    const user = userEvent.setup()
     render(
       <WorkflowBuilder
         workflows={[]}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
       />
     )
 
-    // Open new workflow dialog if needed
-    // Fill in workflow name and description
-    // Add nodes
-    // Save workflow
+    await user.type(screen.getByPlaceholderText('Workflow name'), 'Toolbar Nodes')
+    await user.click(screen.getByRole('button', { name: /^agent$/i }))
+    await user.click(screen.getByRole('button', { name: /^tool$/i }))
+    await user.click(screen.getByRole('button', { name: /^decision$/i }))
+    await user.click(screen.getByRole('button', { name: /^parallel$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
 
-    // For this test, we'll verify the save structure when called
-    mockOnSaveWorkflow.mockImplementation((workflow) => {
-      expect(workflow).toHaveProperty('id')
-      expect(workflow).toHaveProperty('name')
-      expect(workflow).toHaveProperty('nodes')
-      expect(workflow).toHaveProperty('edges')
-      expect(workflow).toHaveProperty('variables')
-      expect(workflow).toHaveProperty('createdAt')
-      expect(workflow).toHaveProperty('updatedAt')
-    })
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Toolbar Nodes',
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ type: 'agent', position: { x: 200, y: 200 }, data: { label: 'Agent Node' } }),
+          expect.objectContaining({ type: 'tool', position: { x: 200, y: 200 }, data: { label: 'Tool Node' } }),
+          expect.objectContaining({ type: 'decision', position: { x: 200, y: 200 }, data: { label: 'Decision Node' } }),
+          expect.objectContaining({ type: 'parallel', position: { x: 200, y: 200 }, data: { label: 'Parallel Node' } }),
+        ]),
+      })
+    )
   })
 
-  it('supports different node types', () => {
+  it('opens node configuration for editable nodes and persists label changes', async () => {
+    const user = userEvent.setup()
     render(
       <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
       />
     )
 
-    // Verify that the workflow builder supports multiple node types
-    // This is tested through the nodeTypes constant in the component
-    // We can verify UI elements that allow adding different node types
-    const buttons = screen.getAllByRole('button')
+    await user.click(screen.getByText('Existing Workflow'))
+    await user.click(screen.getByRole('button', { name: 'Draft Reply' }))
 
-    // Should have buttons for adding different node types
-    expect(buttons.length).toBeGreaterThan(0)
-  })
+    const dialog = screen.getByRole('dialog', { name: /configure node/i })
+    const labelInput = within(dialog).getByPlaceholderText('Node label')
+    await user.clear(labelInput)
+    await user.type(labelInput, 'Rewrite Draft')
+    await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
 
-  it('handles empty workflows list', () => {
-    render(
-      <WorkflowBuilder
-        workflows={[]}
-        agents={mockAgents}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({
+            id: 'agent-1',
+            data: expect.objectContaining({ label: 'Rewrite Draft', agentId: 'agent-1' }),
+          }),
+        ]),
+      })
     )
-
-    // Should render without errors
-    expect(screen.getByTestId('react-flow')).toBeInTheDocument()
-  })
-
-  it('handles empty agents list', () => {
-    render(
-      <WorkflowBuilder
-        workflows={mockWorkflows}
-        agents={[]}
-        onSaveWorkflow={mockOnSaveWorkflow}
-        onDeleteWorkflow={mockOnDeleteWorkflow}
-        onExecuteWorkflow={mockOnExecuteWorkflow}
-      />
-    )
-
-    // Should render without errors
-    expect(screen.getByTestId('react-flow')).toBeInTheDocument()
   })
 })
