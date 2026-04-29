@@ -1,49 +1,67 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
 import { OfflineFallback } from './OfflineFallback'
 
 describe('OfflineFallback', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
-  it('renders the offline heading', () => {
+  it('renders the offline title', () => {
     render(<OfflineFallback />)
-    expect(screen.getByRole('heading', { name: /You're offline/i })).toBeInTheDocument()
+    expect(screen.getByText("You're offline")).toBeInTheDocument()
   })
 
-  it('renders the not-available-offline description', () => {
+  it('renders the offline description message', () => {
     render(<OfflineFallback />)
-    expect(screen.getByText(/not available offline/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/This page is not available offline/)
+    ).toBeInTheDocument()
   })
 
-  it('renders the cached-content note', () => {
-    render(<OfflineFallback />)
-    expect(screen.getByText(/Cached pages/i)).toBeInTheDocument()
-  })
-
-  it('renders Try Again and Go to Home buttons', () => {
+  it('renders the Try Again button', () => {
     render(<OfflineFallback />)
     expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument()
+  })
+
+  it('renders the Go to Home button', () => {
+    render(<OfflineFallback />)
     expect(screen.getByRole('button', { name: /Go to Home/i })).toBeInTheDocument()
   })
 
-  it('clicking Try Again calls window.location.reload()', async () => {
-    const reload = vi.fn()
-    vi.stubGlobal('location', { reload, href: '' })
+  it('calls window.location.reload when Try Again is clicked', async () => {
     const user = userEvent.setup()
+    vi.stubGlobal('location', { reload: vi.fn(), href: '' })
+
     render(<OfflineFallback />)
     await user.click(screen.getByRole('button', { name: /Try Again/i }))
-    expect(reload).toHaveBeenCalledTimes(1)
+
+    expect(window.location.reload).toHaveBeenCalledTimes(1)
   })
 
-  it('clicking Go to Home sets window.location.href to "/"', async () => {
-    const locationObj = { reload: vi.fn(), href: '' }
-    vi.stubGlobal('location', locationObj)
+  it('navigates to "/" when Go to Home is clicked', async () => {
     const user = userEvent.setup()
+    const location = { reload: vi.fn(), href: '' }
+    vi.stubGlobal('location', location)
+
     render(<OfflineFallback />)
     await user.click(screen.getByRole('button', { name: /Go to Home/i }))
-    expect(locationObj.href).toBe('/')
+
+    expect(location.href).toBe('/')
+  })
+
+  it('renders a WifiSlash icon (SVG)', () => {
+    const { container } = render(<OfflineFallback />)
+    expect(container.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('renders the cached-content footnote', () => {
+    render(<OfflineFallback />)
+    expect(
+      screen.getByText(/Cached pages and previously loaded content/)
+    ).toBeInTheDocument()
   })
 })

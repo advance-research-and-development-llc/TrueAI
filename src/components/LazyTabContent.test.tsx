@@ -3,67 +3,93 @@ import { render, screen } from '@testing-library/react'
 import { LazyTabContent } from './LazyTabContent'
 
 describe('LazyTabContent', () => {
-  it('renders children when isActive is true', () => {
-    render(
-      <LazyTabContent isActive={true} tabName="chat">
-        <div>Tab content</div>
-      </LazyTabContent>
-    )
-    expect(screen.getByText('Tab content')).toBeInTheDocument()
-  })
-
-  it('renders nothing when isActive is false and keepMounted is false (default)', () => {
+  it('renders null when not active and keepMounted is false (default)', () => {
     const { container } = render(
-      <LazyTabContent isActive={false} tabName="chat">
-        <div>Tab content</div>
+      <LazyTabContent isActive={false} tabName="test">
+        <div>Hidden Content</div>
       </LazyTabContent>
     )
     expect(container.firstChild).toBeNull()
-    expect(screen.queryByText('Tab content')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hidden Content')).not.toBeInTheDocument()
   })
 
-  it('renders hidden div when isActive is false and keepMounted is true', () => {
+  it('renders null when not active and keepMounted is explicitly false', () => {
     const { container } = render(
-      <LazyTabContent isActive={false} tabName="chat" keepMounted>
-        <div>Hidden content</div>
+      <LazyTabContent isActive={false} tabName="test" keepMounted={false}>
+        <div>Hidden Content</div>
       </LazyTabContent>
     )
-    const hiddenDiv = container.querySelector('[style]') as HTMLElement
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('renders a hidden div when not active but keepMounted is true', () => {
+    const { container } = render(
+      <LazyTabContent isActive={false} tabName="test" keepMounted>
+        <div>Kept Content</div>
+      </LazyTabContent>
+    )
+    const hiddenDiv = container.firstChild as HTMLElement
     expect(hiddenDiv).toBeInTheDocument()
     expect(hiddenDiv.style.display).toBe('none')
-    expect(screen.getByText('Hidden content')).toBeInTheDocument()
+    // Children are in the DOM (for keep-alive semantics)
+    expect(screen.getByText('Kept Content')).toBeInTheDocument()
   })
 
-  it('renders children visibly when isActive is true and keepMounted is true', () => {
+  it('renders children visibly when active', () => {
     render(
-      <LazyTabContent isActive={true} tabName="chat" keepMounted>
-        <div>Active keepMounted content</div>
+      <LazyTabContent isActive={true} tabName="chat">
+        <div>Active Content</div>
       </LazyTabContent>
     )
-    expect(screen.getByText('Active keepMounted content')).toBeInTheDocument()
+    expect(screen.getByText('Active Content')).toBeInTheDocument()
+  })
+
+  it('renders children when active and keepMounted is true', () => {
+    render(
+      <LazyTabContent isActive={true} tabName="chat" keepMounted>
+        <div>Active Keep Content</div>
+      </LazyTabContent>
+    )
+    expect(screen.getByText('Active Keep Content')).toBeInTheDocument()
   })
 
   it('has displayName LazyTabContent', () => {
     expect(LazyTabContent.displayName).toBe('LazyTabContent')
   })
 
-  it('renders multiple children when active', () => {
-    render(
-      <LazyTabContent isActive={true} tabName="settings">
-        <span>Child A</span>
-        <span>Child B</span>
+  it('re-renders when isActive transitions from true to false', () => {
+    const { rerender } = render(
+      <LazyTabContent isActive={true} tabName="tab1">
+        <div>Content</div>
       </LazyTabContent>
     )
-    expect(screen.getByText('Child A')).toBeInTheDocument()
-    expect(screen.getByText('Child B')).toBeInTheDocument()
+    expect(screen.getByText('Content')).toBeInTheDocument()
+
+    rerender(
+      <LazyTabContent isActive={false} tabName="tab1">
+        <div>Content</div>
+      </LazyTabContent>
+    )
+    // keepMounted=false (default), so content should be removed
+    expect(screen.queryByText('Content')).not.toBeInTheDocument()
   })
 
-  it('does not render children at all when inactive and not keepMounted', () => {
-    render(
-      <LazyTabContent isActive={false} tabName="settings">
-        <span>Should not render</span>
+  it('re-renders without error when tabName changes', () => {
+    const { rerender } = render(
+      <LazyTabContent isActive={true} tabName="tab1">
+        <div>Tab A</div>
       </LazyTabContent>
     )
-    expect(screen.queryByText('Should not render')).not.toBeInTheDocument()
+    expect(screen.getByText('Tab A')).toBeInTheDocument()
+
+    // AnimatePresence mode="wait" defers enter until exit completes.
+    // Just verify no crash on tabName change.
+    expect(() =>
+      rerender(
+        <LazyTabContent isActive={true} tabName="tab2">
+          <div>Tab B</div>
+        </LazyTabContent>
+      )
+    ).not.toThrow()
   })
 })

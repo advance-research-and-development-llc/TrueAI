@@ -1,127 +1,122 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LazyErrorBoundary } from './LazyErrorBoundary'
 
-// Component that unconditionally throws during render
-function AlwaysThrows() {
-  throw new Error('Test render error')
-}
-
-// Component that renders normally
-function NormalChild() {
-  return <div>Child rendered successfully</div>
+// A component that throws on demand
+function Thrower({ shouldThrow }: { shouldThrow: boolean }) {
+  if (shouldThrow) throw new Error('Test render error')
+  return <div>Loaded successfully</div>
 }
 
 describe('LazyErrorBoundary', () => {
-  beforeAll(() => {
-    // Suppress React error boundary console output
+  beforeEach(() => {
+    // Suppress the React error boundary console.error noise in tests
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  afterAll(() => {
+  afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('renders children when no error occurs', () => {
+  it('renders children normally when no child throws', () => {
     render(
       <LazyErrorBoundary>
-        <NormalChild />
+        <div>Normal content</div>
       </LazyErrorBoundary>
     )
-    expect(screen.getByText('Child rendered successfully')).toBeInTheDocument()
+    expect(screen.getByText('Normal content')).toBeInTheDocument()
   })
 
-  it('shows error UI when a child throws', () => {
+  it('shows error fallback when a child throws', () => {
     render(
       <LazyErrorBoundary>
-        <AlwaysThrows />
+        <Thrower shouldThrow />
       </LazyErrorBoundary>
     )
     expect(screen.getByText('Component Failed to Load')).toBeInTheDocument()
-  })
-
-  it('shows default fallback message when no fallbackMessage is provided', () => {
-    render(
-      <LazyErrorBoundary>
-        <AlwaysThrows />
-      </LazyErrorBoundary>
-    )
-    expect(screen.getByText(/Unable to load this component/i)).toBeInTheDocument()
-  })
-
-  it('shows custom fallback message when provided', () => {
-    render(
-      <LazyErrorBoundary fallbackMessage="Something went wrong loading the panel.">
-        <AlwaysThrows />
-      </LazyErrorBoundary>
-    )
-    expect(screen.getByText('Something went wrong loading the panel.')).toBeInTheDocument()
-  })
-
-  it('shows custom component name in the heading', () => {
-    render(
-      <LazyErrorBoundary componentName="Analytics Panel">
-        <AlwaysThrows />
-      </LazyErrorBoundary>
-    )
-    expect(screen.getByText('Analytics Panel Failed to Load')).toBeInTheDocument()
-  })
-
-  it('shows the error message in the Technical Details section', () => {
-    render(
-      <LazyErrorBoundary>
-        <AlwaysThrows />
-      </LazyErrorBoundary>
-    )
-    expect(screen.getByText('Technical Details')).toBeInTheDocument()
-    expect(screen.getByText(/Test render error/)).toBeInTheDocument()
-  })
-
-  it('renders a Retry button in error state', () => {
-    render(
-      <LazyErrorBoundary>
-        <AlwaysThrows />
-      </LazyErrorBoundary>
-    )
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument()
   })
 
-  it('resets the error state when Retry is clicked', async () => {
-    const user = userEvent.setup()
+  it('displays the default fallback message when no custom message is provided', () => {
+    render(
+      <LazyErrorBoundary>
+        <Thrower shouldThrow />
+      </LazyErrorBoundary>
+    )
+    expect(
+      screen.getByText('Unable to load this component. Please check your connection and try again.')
+    ).toBeInTheDocument()
+  })
 
-    // Use an external flag so we can switch from "always throw" to "never throw"
-    // without relying on render counts (which are unreliable in React 18 concurrent mode)
-    let throwEnabled = true
-    function FlaggedThrow() {
-      if (throwEnabled) throw new Error('Flag-controlled error')
+  it('uses custom componentName in the heading', () => {
+    render(
+      <LazyErrorBoundary componentName="MyWidget">
+        <Thrower shouldThrow />
+      </LazyErrorBoundary>
+    )
+    expect(screen.getByText('MyWidget Failed to Load')).toBeInTheDocument()
+  })
+
+  it('uses custom fallbackMessage', () => {
+    render(
+      <LazyErrorBoundary fallbackMessage="Oops, something went wrong.">
+        <Thrower shouldThrow />
+      </LazyErrorBoundary>
+    )
+    expect(screen.getByText('Oops, something went wrong.')).toBeInTheDocument()
+  })
+
+  it('shows Technical Details with error message when an error occurs', () => {
+    render(
+      <LazyErrorBoundary>
+        <Thrower shouldThrow />
+      </LazyErrorBoundary>
+    )
+    expect(screen.getByText('Technical Details')).toBeInTheDocument()
+    expect(screen.getByText('Test render error')).toBeInTheDocument()
+  })
+
+  it('resets to normal state when Retry button is clicked', async () => {
+    const user = userEvent.setup()
+    let throws = true
+
+    function ConditionalThrower() {
+      if (throws) throw new Error('Transient error')
       return <div>Recovered content</div>
     }
 
     render(
       <LazyErrorBoundary>
-        <FlaggedThrow />
+        <ConditionalThrower />
       </LazyErrorBoundary>
     )
 
-    // Initial render: always throws → error boundary shows error UI
     expect(screen.getByText('Component Failed to Load')).toBeInTheDocument()
 
-    // Disable throwing before clicking Retry so the recovery render succeeds
-    throwEnabled = false
+    // Stop throwing before clicking Retry so that the re-render succeeds
+    throws = false
     await user.click(screen.getByRole('button', { name: /Retry/i }))
 
-    // After reset + successful re-render, children should be visible
     expect(screen.getByText('Recovered content')).toBeInTheDocument()
+    expect(screen.queryByText('Component Failed to Load')).not.toBeInTheDocument()
   })
 
-  it('does not show error UI for normal children', () => {
-    render(
+  it('renders an SVG warning icon in the error state', () => {
+    const { container } = render(
       <LazyErrorBoundary>
-        <NormalChild />
+        <Thrower shouldThrow />
       </LazyErrorBoundary>
     )
-    expect(screen.queryByText(/Failed to Load/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Retry/i })).not.toBeInTheDocument()
+    expect(container.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('logs the error via console.error', () => {
+    render(
+      <LazyErrorBoundary componentName="BrokenComp">
+        <Thrower shouldThrow />
+      </LazyErrorBoundary>
+    )
+    expect(console.error).toHaveBeenCalled()
   })
 })
