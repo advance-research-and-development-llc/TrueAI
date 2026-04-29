@@ -96,8 +96,6 @@ class AnalyticsService {
 
       const events = await spark.kv.get<AnalyticsEvent[]>('analytics-events') || []
       await spark.kv.set('analytics-events', [event, ...events.slice(0, 9999)])
-
-      console.log('[Analytics]', type, category, action, options)
     } catch (error) {
       console.error('[Analytics] Error tracking event:', error)
     }
