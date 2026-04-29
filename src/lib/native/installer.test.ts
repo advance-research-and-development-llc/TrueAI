@@ -19,6 +19,16 @@ describe('native/installer', () => {
       expect(classifyInstallerPackage('com.google.android.feedback')).toBe('play')
     })
 
+    it('maps the Amazon Appstore package id to "amazon"', () => {
+      expect(classifyInstallerPackage('com.amazon.venezia')).toBe('amazon')
+    })
+
+    it('maps the Samsung Galaxy Store package id to "samsung"', () => {
+      expect(classifyInstallerPackage('com.sec.android.app.samsungapps')).toBe(
+        'samsung',
+      )
+    })
+
     it('maps the system package installer to "sideload"', () => {
       expect(classifyInstallerPackage('com.android.packageinstaller')).toBe(
         'sideload',
