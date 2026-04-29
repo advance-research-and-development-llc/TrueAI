@@ -16,6 +16,14 @@
 
 ---
 
+## 2026-04-29 — PR #67: test: cover Android-specific native paths (installer, install bootstrap, platform fallbacks)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/67](https://github.com/smackypants/trueai-localai/pull/67) · merged 3d722fb0efa0 · author @Copilot_
+
+- (No explicit lessons recorded.) PR title: _test: cover Android-specific native paths (installer, install bootstrap, platform fallbacks)_.
+
+---
+
 ## 2026-04-29 — PR #66: Add test coverage for 15 previously untested components
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/66](https://github.com/smackypants/trueai-localai/pull/66) · merged af9f5a1ea4b0 · author @Copilot_
