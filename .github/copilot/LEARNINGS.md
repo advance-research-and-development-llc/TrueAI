@@ -16,6 +16,16 @@
 
 ---
 
+## 2026-04-29 — PR #69: feat: automated bug scanning and Copilot agent auto-fix pipeline (Phases 2–8)
+
+_Source: [https://github.com/smackypants/trueai-localai/pull/69](https://github.com/smackypants/trueai-localai/pull/69) · merged 90ef45960fa8 · author @Copilot_
+
+- The `code_scanning_alert` event never fires if Code Scanning is not enabled in repo settings — the `continue-on-error: true` workaround in `codeql.yml` is load-bearing until the owner completes the UI step.
+- `pull_request_target` workflows inherit the permissions of the base branch, which is why `dependabot-auto-merge.yml` uses that trigger — the new `issues: write` permission was added to the existing `permissions` block rather than introducing a new job.
+- For `workflow_run` triggers, the `branches` filter matches the HEAD branch of the triggering workflow run (not a base branch), making it suitable for filtering `copilot/**` branches cleanly.
+
+---
+
 ## 2026-04-29 — PR #68: test(native): cover install.ts and refresh TEST_COVERAGE_SUMMARY (Phase 0+1)
 
 _Source: [https://github.com/smackypants/trueai-localai/pull/68](https://github.com/smackypants/trueai-localai/pull/68) · merged 14c43821ea9d · author @Copilot_
