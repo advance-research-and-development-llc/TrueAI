@@ -26,6 +26,7 @@ export class MobilePerformanceOptimizer {
   private fps = 60
   private deviceTier: DeviceCapabilities['tier'] = 'mid'
   private listeners: Set<(metrics: PerformanceMetrics) => void> = new Set()
+  private rafHandle: number | null = null
 
   static getInstance(): MobilePerformanceOptimizer {
     if (!this.instance) {
@@ -133,6 +134,7 @@ export class MobilePerformanceOptimizer {
   }
 
   startFPSMonitoring() {
+    if (this.rafHandle !== null) return
     const measureFPS = () => {
       this.frameCount++
       const now = performance.now()
@@ -146,10 +148,17 @@ export class MobilePerformanceOptimizer {
         this.notifyListeners()
       }
 
-      requestAnimationFrame(measureFPS)
+      this.rafHandle = requestAnimationFrame(measureFPS)
     }
 
-    requestAnimationFrame(measureFPS)
+    this.rafHandle = requestAnimationFrame(measureFPS)
+  }
+
+  stopFPSMonitoring() {
+    if (this.rafHandle !== null) {
+      cancelAnimationFrame(this.rafHandle)
+      this.rafHandle = null
+    }
   }
 
   getFPS(): number {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -30,9 +30,18 @@ export function MessageActions({
   position
 }: MessageActionsProps) {
   const [copied, setCopied] = useState(false)
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleCopy = async () => {
     const ok = await copyText(message.content)
@@ -40,7 +49,8 @@ export function MessageActions({
       void haptics.tap()
       setCopied(true)
       toast.success('Copied to clipboard')
-      setTimeout(() => setCopied(false), 2000)
+      if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current)
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000)
     } else {
       toast.error('Failed to copy')
     }
