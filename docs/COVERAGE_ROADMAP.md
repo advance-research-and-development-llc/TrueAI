@@ -102,7 +102,7 @@ operational definition of "100%" used by this roadmap:
 
 ### Phase 2 — Coverage uplift, ranked by risk (one PR per group, ≤ ~300 LOC of test code)
 - [x] 2.1 Security/credential surface (kv-store, secure-storage, API-key path) — kv-store 80.95→**97.88%** statements, 73.91→**97.82%** functions; secure-storage already 100%
-- [ ] 2.2 LLM runtime (providers, config layering, error/abort paths)
+- [x] 2.2 LLM runtime (providers, config layering, error/abort paths) — dir 93.8→**98.38%** statements, 85.54→**97.1%** branches; client.ts 77.46→**97.18%**, config.ts 97.29→**100%**. Also fixed a real privacy bug where `mergeConfig(base, null)` returned the base reference and `merged.apiKey = apiKey` mutated the exported `DEFAULT_LLM_RUNTIME_CONFIG`.
 - [ ] 2.3 Native abstractions (`src/lib/native/*` web + native branches)
 - [ ] 2.4 Offline queue / service worker / background sync gap-fill
 - [ ] 2.5 `useKV` guards and schema-mismatch fallbacks
