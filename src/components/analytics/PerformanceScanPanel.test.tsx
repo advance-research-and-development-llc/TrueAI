@@ -13,10 +13,38 @@ const { mockPerformanceScanner } = vi.hoisted(() => ({
       optimizations: [],
       bottlenecks: [],
       modelEfficiency: [],
-      hardwareSpecs: { tier: 'medium' },
+      hardwareSpecs: {
+        tier: 'medium',
+        hardwareConcurrency: 4,
+        maxTouchPoints: 0,
+        platform: 'Linux',
+        userAgent: 'jsdom',
+        performanceScore: 70,
+        screen: { width: 1920, height: 1080, pixelRatio: 1, colorDepth: 24 },
+      },
       summary: { critical: 0, high: 0, medium: 0, low: 0, total: 0 },
       score: 85,
       metadata: {},
+      // estimatedImprovements is rendered unconditionally once scanResult is
+      // truthy (PerformanceScanPanel.tsx:194). All five sub-fields must be
+      // present to avoid an unhandled TypeError during re-render.
+      estimatedImprovements: {
+        overallScore: 60,
+        responseTimeReduction: 20,
+        errorRateReduction: 10,
+        throughputIncrease: 15,
+        tokenEfficiencyGain: 5,
+      },
+      // currentMetrics is also read unconditionally (PerformanceScanPanel.tsx:462).
+      currentMetrics: {
+        avgResponseTime: 1200,
+        p95ResponseTime: 2500,
+        p99ResponseTime: 4000,
+        successRate: 97.5,
+        errorRate: 2.5,
+        systemLoad: 45,
+        modelEfficiency: {},
+      },
     }),
     applyOptimizations: vi.fn().mockResolvedValue({ updated: [], applied: 0 }),
     getScanHistory: vi.fn().mockReturnValue([]),

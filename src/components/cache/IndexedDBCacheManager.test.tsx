@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const { mockUseIndexedDBCache } = vi.hoisted(() => ({
@@ -49,9 +49,13 @@ describe('IndexedDBCacheManager', () => {
     confirmSpy.mockRestore()
   })
 
-  it('renders heading', () => {
+  it('renders heading', async () => {
     mockUseIndexedDBCache.mockReturnValue(makeHook())
-    render(<IndexedDBCacheManager />)
+    // Component fires a getCacheStats() useEffect on mount; wrap in act so
+    // the async state updates (setIsLoading, setStats) settle before assert.
+    await act(async () => {
+      render(<IndexedDBCacheManager />)
+    })
     expect(screen.getByText('IndexedDB Cache')).toBeInTheDocument()
   })
 
@@ -155,7 +159,10 @@ describe('IndexedDBCacheManager', () => {
 
   it('shows "Syncing..." badge when isSyncing is true', async () => {
     mockUseIndexedDBCache.mockReturnValue(makeHook({ isSyncing: true }))
-    render(<IndexedDBCacheManager />)
+    // getCacheStats fires async on mount; wrap so state updates are in act.
+    await act(async () => {
+      render(<IndexedDBCacheManager />)
+    })
     expect(screen.getByText('Syncing...')).toBeInTheDocument()
   })
 

@@ -15,7 +15,7 @@ every subsequent PR must measure against.
 
 ## Frozen baseline (Phase 0)
 
-Captured on Node 24 / npm 11 against the merge base of this branch. All
+Captured on Node 24 / npm 11 against the merge base at commit `947feb2` (see git log). All
 later PRs must match-or-exceed every metric below; any regression fails CI
 via the vitest thresholds in [`vitest.config.ts`](../vitest.config.ts).
 
@@ -95,10 +95,10 @@ operational definition of "100%" used by this roadmap:
 > outputs there.
 
 ### Phase 1 — Stabilize the existing test suite
-- [ ] 1.1 Fix the `PerformanceScanPanel` unhandled error
-- [ ] 1.2 Eliminate `act(...)` warnings and stray `console.error` noise
-- [ ] 1.3 Standardize timer / `userEvent` patterns per stored memories
-- [x] 1.4 Lock vitest thresholds at the baseline (this PR)
+- [x] 1.1 Fix the `PerformanceScanPanel` unhandled error
+- [x] 1.2 Eliminate `act(...)` warnings and stray `console.error` noise
+- [x] 1.3 Standardize timer / `userEvent` patterns per stored memories
+- [x] 1.4 Lock vitest thresholds at the baseline (Phase 0 + 1.4 PR)
 
 ### Phase 2 — Coverage uplift, ranked by risk (one PR per group, ≤ ~300 LOC of test code)
 - [ ] 2.1 Security/credential surface (kv-store, secure-storage, API-key path)
