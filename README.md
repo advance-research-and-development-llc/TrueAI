@@ -2,6 +2,75 @@
 
 A comprehensive, production-ready AI assistant platform with visual workflow builder, cost tracking, offline support, and mobile optimization. **Now with ToolNeuron-competitive features!**
 
+## 🌍 Project Manifesto: Local AI Belongs to Everyone
+
+TrueAI LocalAI is built on a simple belief:
+
+**The future of artificial intelligence should not be locked behind overpriced subscriptions, centralized cloud platforms, or the business models of Big Tech.**
+
+Today, much of the AI industry is built around renting access to language models through expensive hosted services. Users pay again and again for systems they do not own, cannot inspect, cannot fully control, and often cannot use without sending their data through someone else’s servers.
+
+We believe that model access should not become another form of digital dependency.
+
+AI is rapidly becoming more efficient. Models are getting smaller, hardware is getting faster, and everyday devices — phones, laptops, desktops, and local servers — are becoming powerful enough to run increasingly capable AI systems directly. What once required massive infrastructure is moving closer to the user.
+
+That changes everything.
+
+TrueAI LocalAI exists to help prove a different future is possible: one where advanced AI assistants, agents, workflows, and automation can run locally, privately, affordably, and under the user’s control.
+
+### Why Local AI Matters
+
+Local AI is not just a technical preference. It is a statement about ownership, privacy, access, and freedom.
+
+When AI runs locally:
+
+- **Your data stays with you**
+- **Your tools keep working offline**
+- **Your costs stay predictable**
+- **Your workflows are not dependent on a corporate API**
+- **Your assistant serves you, not a platform**
+- **Your creativity is not filtered through someone else’s business model**
+
+The goal is not to reject progress. The goal is to make sure progress actually improves people’s lives.
+
+AI should help individuals, families, students, creators, developers, workers, and small businesses become more capable — not more dependent. It should reduce friction, expand opportunity, and give people better tools to build, learn, repair, automate, and create.
+
+It should not become another system where a few companies control the infrastructure, collect the data, set the prices, and decide who gets access.
+
+### A Different Vision for AI
+
+We believe the current AI boom is over-centralized and overpriced. Many companies are charging premium prices for what is often, at its core, access to language models running on remote infrastructure. That model may dominate today, but it is not the only future.
+
+As open models improve and local hardware becomes more capable, more people will realize they can run powerful AI tools themselves — without constant fees, unnecessary surveillance, or dependence on closed platforms.
+
+This project is part of that shift.
+
+TrueAI LocalAI is designed for a future where AI agents and models can run directly on normal everyday devices. A future where your phone, laptop, desktop, or home server can become your own private AI workspace. A future where intelligence is not rented from a corporation, but owned and operated by the people using it.
+
+### Built for People, Not Platforms, For People, Not Profit
+
+The point of AI should be to create better lives for everyone.
+
+It should help people do more meaningful work, build independent businesses, learn faster, solve problems, and reclaim time. It should not be used as an excuse to replace people without care, strip away dignity, or concentrate even more power in the hands of a few.
+
+TrueAI LocalAI stands for a more human-centered AI future:
+
+- **Private by default**
+- **Local-first**
+- **Offline-capable**
+- **Open and user-controlled**
+- **Affordable for ordinary people**
+- **Built to empower, not replace**
+- **Designed for independence, not dependency**
+
+This is more than an app.
+
+It is a challenge to the idea that advanced AI must belong only to massive companies with massive data centers. It is a step toward proving that powerful AI can be personal, local, and accessible.
+
+The future of AI should not be something we rent forever.
+
+**It should be something we own, understand, improve, and use to build better lives.**
+
 ## 🚀 Key Features
 
 ### Core Functionality
