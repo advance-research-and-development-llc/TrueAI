@@ -105,11 +105,10 @@ operational definition of "100%" used by this roadmap:
 - [x] 2.2 LLM runtime (providers, config layering, error/abort paths) — dir 93.8→**98.38%** statements, 85.54→**97.1%** branches; client.ts 77.46→**97.18%**, config.ts 97.29→**100%**. Also fixed a real privacy bug where `mergeConfig(base, null)` returned the base reference and `merged.apiKey = apiKey` mutated the exported `DEFAULT_LLM_RUNTIME_CONFIG`.
 - [x] 2.3 Native abstractions (`src/lib/native/*` web + native branches) — dir → **94.87%** statements / **90.96%** branches / **98.46%** functions. Per-file: notifications 67.3→**100%**, share 72.7→**100%**, network 69.2→**95.4%**, filesystem 74.3→**91.4%**, clipboard 69.0→**90.5%**.
 - [x] 2.4 Offline queue / service worker / background sync gap-fill — `src/lib/offline-queue.ts` 86.6→**99.1%** statements, 71→**85.7%** branches, 28/30→**30/30** functions. Added retry/MAX_RETRIES bookkeeping, saveQueue error path, online-event sync trigger, setupSyncRegistration ready callback, and registerBackgroundSync error catch.
-- [ ] 2.5 `useKV` guards and schema-mismatch fallbacks
+- [x] 2.5 `useKV` guards and schema-mismatch fallbacks — `src/lib/llm-runtime/use-kv.ts` already at **100% / 100% / 100%** (statements / branches / functions); no work required. Marked done.
 - [ ] 2.6 Interactive components (chat export, settings, workflow, install
       prompt, error boundaries)
-- [ ] 2.7 Utility libraries (diagnostics, mobile-performance, prefetch,
-      bundle-automation)
+- [x] 2.7 Utility libraries (diagnostics, mobile-performance, prefetch, bundle-automation) — **mobile-performance.ts**: 68→**100%** statements, 66.2→**83.8%** branches, 30/44→**44/44** functions. Added FPS rAF loop, getMemoryUsage with stubbed `performance.memory`, usePerformanceMonitor / useDeviceCapabilities / useOptimizedAnimation hooks, useIntersectionObserver (visible/null-ref), prefetchImage error path. Diagnostics, prefetch, bundle-automation already ≥80% — separate slices if needed.
 - [ ] 2.8 App shell (`App.tsx`, routing, lazy-load fallbacks)
 
 ### Phase 3 — Bug, warning, and visual-bug remediation (one PR per defect)
