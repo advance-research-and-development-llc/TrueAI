@@ -23,9 +23,6 @@
 
 import type { LanguageModel } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { createOpenAI } from '@ai-sdk/openai'
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 
 import {
   ensureLLMRuntimeConfigLoaded,
@@ -50,9 +47,12 @@ function cacheKey(cfg: LLMRuntimeConfig): string {
   return `${cfg.provider}|${cfg.baseUrl}|${cfg.apiKey}|${cfg.defaultModel}`
 }
 
-function buildHandle(cfg: LLMRuntimeConfig): ProviderHandle {
+async function buildHandle(cfg: LLMRuntimeConfig): Promise<ProviderHandle> {
   switch (cfg.provider) {
     case 'openai': {
+      // Lazy-load hosted-provider packages so they don't bloat the
+      // initial JS bundle for the local-first default path.
+      const { createOpenAI } = await import('@ai-sdk/openai')
       const p = createOpenAI({
         apiKey: cfg.apiKey || 'missing-api-key',
         baseURL: cfg.baseUrl || undefined,
@@ -60,6 +60,7 @@ function buildHandle(cfg: LLMRuntimeConfig): ProviderHandle {
       return { cfgKey: cacheKey(cfg), build: (id) => p.chat(id) }
     }
     case 'anthropic': {
+      const { createAnthropic } = await import('@ai-sdk/anthropic')
       const p = createAnthropic({
         apiKey: cfg.apiKey || 'missing-api-key',
         baseURL: cfg.baseUrl || undefined,
@@ -67,6 +68,7 @@ function buildHandle(cfg: LLMRuntimeConfig): ProviderHandle {
       return { cfgKey: cacheKey(cfg), build: (id) => p(id) }
     }
     case 'google': {
+      const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
       const p = createGoogleGenerativeAI({
         apiKey: cfg.apiKey || 'missing-api-key',
         baseURL: cfg.baseUrl || undefined,
@@ -105,23 +107,34 @@ export async function getLanguageModel(modelId?: string): Promise<LanguageModel>
   const cfg = await ensureLLMRuntimeConfigLoaded()
   const id = modelId && modelId.trim().length > 0 ? modelId.trim() : cfg.defaultModel
   if (!cachedHandle || cachedHandle.cfgKey !== cacheKey(cfg)) {
-    cachedHandle = buildHandle(cfg)
+    cachedHandle = await buildHandle(cfg)
   }
   return cachedHandle.build(id)
 }
 
 /**
- * Synchronous variant: assumes config has already been hydrated. Falls
- * back to defaults otherwise. Intended for hot paths (streaming frames,
- * test helpers); production callers should `ensureLLMRuntimeConfigLoaded()`
- * once at mount and then use this.
+ * Synchronous variant for the local-first default path. Hosted
+ * providers (openai, anthropic, google) require the async
+ * `getLanguageModel` because their packages are dynamically imported
+ * to keep the initial bundle small. Calling this with a hosted
+ * provider configured will throw.
  */
 export function getLanguageModelSync(modelId?: string): LanguageModel {
   ensureSubscribed()
   const cfg = getLLMRuntimeConfig()
   const id = modelId && modelId.trim().length > 0 ? modelId.trim() : cfg.defaultModel
+  if (cfg.provider === 'openai' || cfg.provider === 'anthropic' || cfg.provider === 'google') {
+    throw new Error(
+      `getLanguageModelSync does not support hosted provider '${cfg.provider}'. Use the async getLanguageModel() instead.`,
+    )
+  }
   if (!cachedHandle || cachedHandle.cfgKey !== cacheKey(cfg)) {
-    cachedHandle = buildHandle(cfg)
+    const p = createOpenAICompatible({
+      name: 'truelocal',
+      baseURL: cfg.baseUrl,
+      apiKey: cfg.apiKey || undefined,
+    })
+    cachedHandle = { cfgKey: cacheKey(cfg), build: (id2) => p.chatModel(id2) }
   }
   return cachedHandle.build(id)
 }

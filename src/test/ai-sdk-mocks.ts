@@ -66,16 +66,16 @@ export function mockLanguageModel(opts: MockTextOptions = {}): LanguageModel {
       const id = 'mock-text-id'
       const stream = simulateReadableStream({
         chunks: [
-          { type: 'stream-start', warnings: [] },
-          { type: 'text-start', id },
+          { type: 'stream-start' as const, warnings: [] },
+          { type: 'text-start' as const, id },
           ...chunks.map((delta) => ({ type: 'text-delta' as const, id, delta })),
-          { type: 'text-end', id },
-          { type: 'finish', finishReason, usage },
+          { type: 'text-end' as const, id },
+          { type: 'finish' as const, finishReason, usage },
         ],
       })
       return { stream }
     },
-  }) as unknown as LanguageModel
+  } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
 }
 
 /**
