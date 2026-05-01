@@ -35,10 +35,16 @@ export default defineConfig({
         // (lines 65.77% · functions 54.05% · branches 54.56% · statements
         // 63.64%) so any future regression fails CI immediately. Subsequent
         // Phase 2 PRs will continue to ratchet these floors upward.
-        lines: 65.5,
-        functions: 54,
-        branches: 54,
-        statements: 63.5,
+        //
+        // Phase 3: ratcheted up from 65.5/54/54/63.5 to the rounded-down
+        // Phase 3 baseline (lines 79.52% · functions 68.29% · branches 69.11%
+        // · statements 77.27%) — +41 new tests across use-indexeddb-cache,
+        // AnalyticsDashboard, ConversationSettings, ModelConfigPanel,
+        // AppearanceSettings.
+        lines: 79,
+        functions: 68,
+        branches: 69,
+        statements: 77,
       },
     },
   },
