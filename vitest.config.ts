@@ -71,8 +71,19 @@ export default defineConfig({
         // separator, Collapsible, Drawer open with header/footer/close,
         // Pagination with active link + ellipsis, Table full layout,
         // Toggle variants, ToggleGroup with items).
-        lines: 80,
-        functions: 70,
+        //
+        // Phase 8: ratcheted up from 80/70/70/78 to rounded-down Phase 8
+        // baseline (lines 81.19% · functions 71.29% · branches 70.24% ·
+        // statements 78.84%) — +8 shadcn primitive smoke tests for HoverCard
+        // (open with custom align/sideOffset), Resizable (panel group with
+        // and without grip handle), InputOTP (group/slot via OTPInputContext
+        // + separator), DropdownMenu (open with label/group/items/variants/
+        // separator/shortcut/checkbox/radio group), Form (FormField/FormItem/
+        // FormLabel/FormControl/FormDescription/FormMessage with both
+        // children-fallback and error-message branches), and Sonner Toaster
+        // (renders with next-themes default theme).
+        lines: 81,
+        functions: 71,
         branches: 70,
         statements: 78,
       },

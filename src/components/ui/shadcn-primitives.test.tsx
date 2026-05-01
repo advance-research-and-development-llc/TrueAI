@@ -4,6 +4,7 @@
 // assembly via cn(), variant defaults, asChild forwarding) is exercised.
 
 import { describe, it, expect } from 'vitest'
+import * as React from 'react'
 import { render, screen } from '@testing-library/react'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './accordion'
 import { AspectRatio } from './aspect-ratio'
@@ -39,6 +40,34 @@ import {
 } from './table'
 import { Toggle } from './toggle'
 import { ToggleGroup, ToggleGroupItem } from './toggle-group'
+import { HoverCard, HoverCardTrigger, HoverCardContent } from './hover-card'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './resizable'
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from './input-otp'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from './dropdown-menu'
+import { useForm } from 'react-hook-form'
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+} from './form'
+import { Toaster } from './sonner'
+import { Input } from './input'
 
 describe('Accordion primitive', () => {
   it('renders accordion items with trigger and content', () => {
@@ -222,5 +251,190 @@ describe('ToggleGroup primitive', () => {
     )
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('B')).toBeInTheDocument()
+  })
+})
+
+describe('HoverCard primitive', () => {
+  it('renders an open HoverCard with trigger and content', () => {
+    render(
+      <HoverCard open>
+        <HoverCardTrigger data-testid="hc-trigger">Hover me</HoverCardTrigger>
+        <HoverCardContent data-testid="hc-content" align="start" sideOffset={8}>
+          Body content
+        </HoverCardContent>
+      </HoverCard>
+    )
+    expect(screen.getByTestId('hc-trigger')).toHaveAttribute(
+      'data-slot',
+      'hover-card-trigger'
+    )
+    // Content renders into a portal; query by text rather than testid container
+    expect(screen.getByText('Body content')).toBeInTheDocument()
+  })
+})
+
+describe('Resizable primitives', () => {
+  it('renders a panel group with two panels and a handle (with grip)', () => {
+    render(
+      <ResizablePanelGroup direction="horizontal" data-testid="rpg">
+        <ResizablePanel defaultSize={50} data-testid="rp1">Left</ResizablePanel>
+        <ResizableHandle withHandle data-testid="rh" />
+        <ResizablePanel defaultSize={50} data-testid="rp2">Right</ResizablePanel>
+      </ResizablePanelGroup>
+    )
+    expect(screen.getByTestId('rpg')).toHaveAttribute(
+      'data-slot',
+      'resizable-panel-group'
+    )
+    expect(screen.getByTestId('rp1')).toHaveAttribute('data-slot', 'resizable-panel')
+    expect(screen.getByTestId('rh')).toHaveAttribute('data-slot', 'resizable-handle')
+    expect(screen.getByText('Left')).toBeInTheDocument()
+    expect(screen.getByText('Right')).toBeInTheDocument()
+  })
+
+  it('renders a handle without grip when withHandle is omitted', () => {
+    render(
+      <ResizablePanelGroup direction="vertical">
+        <ResizablePanel defaultSize={50}>A</ResizablePanel>
+        <ResizableHandle data-testid="rh-bare" />
+        <ResizablePanel defaultSize={50}>B</ResizablePanel>
+      </ResizablePanelGroup>
+    )
+    expect(screen.getByTestId('rh-bare')).toBeInTheDocument()
+  })
+})
+
+describe('InputOTP primitive', () => {
+  it('renders OTP input with grouped slots and a separator', () => {
+    render(
+      <InputOTP maxLength={6} data-testid="otp">
+        <InputOTPGroup data-testid="otp-grp">
+          <InputOTPSlot index={0} data-testid="otp-slot-0" />
+          <InputOTPSlot index={1} />
+        </InputOTPGroup>
+        <InputOTPSeparator data-testid="otp-sep" />
+        <InputOTPGroup>
+          <InputOTPSlot index={2} />
+        </InputOTPGroup>
+      </InputOTP>
+    )
+    expect(screen.getByTestId('otp-grp')).toHaveAttribute(
+      'data-slot',
+      'input-otp-group'
+    )
+    expect(screen.getByTestId('otp-slot-0')).toHaveAttribute(
+      'data-slot',
+      'input-otp-slot'
+    )
+    expect(screen.getByTestId('otp-sep')).toHaveAttribute('role', 'separator')
+  })
+})
+
+describe('DropdownMenu primitive', () => {
+  it('renders an open menu with label, items, separator, shortcut, and a checkbox/radio group', () => {
+    render(
+      <DropdownMenu open>
+        <DropdownMenuTrigger data-testid="dm-trigger">Open</DropdownMenuTrigger>
+        <DropdownMenuContent sideOffset={6}>
+          <DropdownMenuLabel inset>Section</DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuItem inset>
+              Item one
+              <DropdownMenuShortcut>⌘A</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuCheckboxItem checked>Check me</DropdownMenuCheckboxItem>
+          <DropdownMenuRadioGroup value="r1">
+            <DropdownMenuRadioItem value="r1">Radio one</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="r2">Radio two</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+    expect(screen.getByTestId('dm-trigger')).toHaveAttribute(
+      'data-slot',
+      'dropdown-menu-trigger'
+    )
+    expect(screen.getByText('Section')).toBeInTheDocument()
+    expect(screen.getByText('Item one')).toBeInTheDocument()
+    expect(screen.getByText('⌘A')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
+    expect(screen.getByText('Check me')).toBeInTheDocument()
+    expect(screen.getByText('Radio one')).toBeInTheDocument()
+    expect(screen.getByText('Radio two')).toBeInTheDocument()
+  })
+})
+
+function FormHarness({
+  withError = false,
+  description = 'Helper text',
+}: {
+  withError?: boolean
+  description?: string
+}) {
+  const form = useForm<{ username: string }>({
+    defaultValues: { username: '' },
+  })
+  // Manually set an error after mount so FormMessage renders the error string
+  // rather than children. Using useEffect avoids triggering a setState during
+  // render of a sibling component (FormLabel).
+  React.useEffect(() => {
+    if (withError) {
+      form.setError('username', { type: 'manual', message: 'Required field' })
+    }
+  }, [withError, form])
+  return (
+    <Form {...form}>
+      <form>
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input data-testid="username-input" {...field} />
+              </FormControl>
+              <FormDescription>{description}</FormDescription>
+              <FormMessage>fallback</FormMessage>
+            </FormItem>
+          )}
+        />
+      </form>
+    </Form>
+  )
+}
+
+describe('Form primitive', () => {
+  it('wires FormField → FormItem → FormLabel/FormControl/FormDescription with stable ids', () => {
+    render(<FormHarness />)
+    const label = screen.getByText('Username')
+    const input = screen.getByTestId('username-input')
+    const description = screen.getByText('Helper text')
+
+    // Label is associated with the input via htmlFor → form-item id
+    expect(label).toHaveAttribute('for', input.getAttribute('id') ?? '')
+    expect(input).toHaveAttribute('aria-describedby', description.getAttribute('id') ?? '')
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    // FormMessage renders its children when there is no error
+    expect(screen.getByText('fallback')).toBeInTheDocument()
+  })
+
+  it('renders FormMessage with the field error message and toggles aria-invalid', () => {
+    render(<FormHarness withError />)
+    const input = screen.getByTestId('username-input')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Required field')).toBeInTheDocument()
+  })
+})
+
+describe('Sonner Toaster primitive', () => {
+  it('renders without crashing using next-themes default theme', () => {
+    const { container } = render(<Toaster />)
+    // Sonner renders a section with class containing 'toaster'
+    const section = container.querySelector('section')
+    expect(section).toBeTruthy()
   })
 })
