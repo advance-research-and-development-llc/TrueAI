@@ -51,10 +51,13 @@ async function buildHandle(cfg: LLMRuntimeConfig): Promise<ProviderHandle> {
   switch (cfg.provider) {
     case 'openai': {
       // Lazy-load hosted-provider packages so they don't bloat the
-      // initial JS bundle for the local-first default path.
+      // initial JS bundle for the local-first default path. Pass the
+      // user-supplied apiKey verbatim (including empty string) so the
+      // SDK surfaces its own "missing/invalid key" error rather than
+      // a misleading placeholder failure.
       const { createOpenAI } = await import('@ai-sdk/openai')
       const p = createOpenAI({
-        apiKey: cfg.apiKey || 'missing-api-key',
+        apiKey: cfg.apiKey,
         baseURL: cfg.baseUrl || undefined,
       })
       return { cfgKey: cacheKey(cfg), build: (id) => p.chat(id) }
@@ -62,7 +65,7 @@ async function buildHandle(cfg: LLMRuntimeConfig): Promise<ProviderHandle> {
     case 'anthropic': {
       const { createAnthropic } = await import('@ai-sdk/anthropic')
       const p = createAnthropic({
-        apiKey: cfg.apiKey || 'missing-api-key',
+        apiKey: cfg.apiKey,
         baseURL: cfg.baseUrl || undefined,
       })
       return { cfgKey: cacheKey(cfg), build: (id) => p(id) }
@@ -70,7 +73,7 @@ async function buildHandle(cfg: LLMRuntimeConfig): Promise<ProviderHandle> {
     case 'google': {
       const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
       const p = createGoogleGenerativeAI({
-        apiKey: cfg.apiKey || 'missing-api-key',
+        apiKey: cfg.apiKey,
         baseURL: cfg.baseUrl || undefined,
       })
       return { cfgKey: cacheKey(cfg), build: (id) => p(id) }

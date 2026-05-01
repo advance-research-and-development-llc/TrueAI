@@ -99,22 +99,32 @@ export function useStreamingChat(
         for (const m of history) messages.push(m)
         messages.push({ role: 'user', content: prompt })
 
+        let streamError: Error | null = null
         const result = streamText({
           model,
           messages,
           temperature: opts.temperature,
           abortSignal: controller.signal,
+          // Surface mid-stream failures immediately rather than waiting
+          // until the loop exits + `await result.text` resolves; this
+          // shrinks the window where status='streaming' is stale after
+          // the underlying provider has already failed.
+          onError: ({ error }) => {
+            streamError = error instanceof Error ? error : new Error(String(error))
+          },
         })
 
         let acc = ''
         for await (const delta of result.textStream) {
           if (userAbortedRef.current) break
+          if (streamError) throw streamError
           acc += delta
           setText(acc)
         }
-        // Awaiting `result.text` surfaces stream-creation / mid-stream
-        // errors that wouldn't be thrown by `textStream` itself
-        // (e.g. provider HTTP failures).
+        if (streamError) throw streamError
+        // Awaiting `result.text` surfaces stream-creation errors that
+        // wouldn't be thrown by `textStream` itself (e.g. provider HTTP
+        // failures that occur before any chunk is emitted).
         if (!userAbortedRef.current) {
           await result.text
           setStatus('done')
