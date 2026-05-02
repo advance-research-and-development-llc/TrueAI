@@ -128,7 +128,7 @@
         "@vitejs/plugin-react-swc": "^4.2.2",
         "@vitest/coverage-v8": "^4.1.5",
         "@vitest/ui": "^4.1.5",
-        "eslint": "^9.28.0",
+        "eslint": "^10.3.0",
         "eslint-plugin-react-hooks": "^5.2.0",
         "eslint-plugin-react-refresh": "^0.4.19",
         "fake-indexeddb": "^6.2.5",
