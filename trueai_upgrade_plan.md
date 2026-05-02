@@ -89,8 +89,10 @@ parallel runtime), Node 24.14.1 / npm 11.11.0, via `npx vitest run --coverage`:
 **Test corpus at baseline:** 190 test files, **2059 tests passing**, 0 failing.
 There is one pre-existing unhandled async error from
 `src/components/analytics/PerformanceScanPanel.test.tsx` (post-test render
-where `analysis.overallScore` is `undefined`); it does not fail the suite but
-should be cleaned up in Phase 2 alongside other targeted test work.
+where `analysis.overallScore` is `undefined`) — it surfaces as a Vitest
+"Unhandled error" line in test output (logged but non-blocking; suite still
+exits 0) and should be cleaned up in Phase 2 alongside other targeted test
+work.
 
 #### Notable per-area baseline (informs Phase 2 prioritisation)
 
@@ -166,6 +168,10 @@ Pick a tight scope to keep the PR reviewable:
 - `npm run lint:fix` script.
 - One dead-code/dependency-hygiene tool — `knip` **or** `depcheck` (one of
   them, not both), wired as `npm run check:deps`, run manually for now.
+  Selection guidance: prefer `knip` for this repo (TS-aware, understands
+  `tsconfig.json` paths, surfaces unused exports as well as unused deps);
+  fall back to `depcheck` only if `knip`'s config overhead proves
+  disproportionate.
 - Android side: Gradle wrapper sanity script (`scripts/android-doctor.sh`)
   that verifies JDK 21 + Android SDK before invoking `./gradlew`.
 - **Acceptance:** scripts run green on `main`; zero new runtime deps; no
