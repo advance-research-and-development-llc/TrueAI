@@ -18,6 +18,9 @@ vi.mock('@/lib/llm-runtime/config', () => {
     requestTimeoutMs: 30000,
     temperature: 0.7,
     topP: 1,
+    topK: 40,
+    minP: 0.05,
+    repeatPenalty: 1.1,
     maxTokens: 4096,
   }
   return {
@@ -42,6 +45,9 @@ const defaultConfig = {
   requestTimeoutMs: 30000,
   temperature: 0.7,
   topP: 1,
+  topK: 40,
+  minP: 0.05,
+  repeatPenalty: 1.1,
   maxTokens: 4096,
 }
 
@@ -245,6 +251,61 @@ describe('LLMRuntimeSettings', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ temperature: 0.5, topP: 0.9, maxTokens: 512 })
+    )
+  })
+
+  it('edits Top K, Min P, and Repeat Penalty numeric inputs', async () => {
+    const user = userEvent.setup()
+    render(<LLMRuntimeSettings />)
+    await act(async () => {})
+
+    fireEvent.change(screen.getByLabelText('Top K'), { target: { value: '64' } })
+    fireEvent.change(screen.getByLabelText('Min P'), { target: { value: '0.1' } })
+    fireEvent.change(screen.getByLabelText('Repeat Penalty'), { target: { value: '1.2' } })
+
+    await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ topK: 64, minP: 0.1, repeatPenalty: 1.2 })
+    )
+  })
+
+  it('floors fractional Top K input', async () => {
+    const user = userEvent.setup()
+    render(<LLMRuntimeSettings />)
+    await act(async () => {})
+
+    fireEvent.change(screen.getByLabelText('Top K'), { target: { value: '7.9' } })
+    await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ topK: 7 })
+    )
+  })
+
+  it('clamps Min P out-of-range input to 0', async () => {
+    const user = userEvent.setup()
+    render(<LLMRuntimeSettings />)
+    await act(async () => {})
+
+    fireEvent.change(screen.getByLabelText('Min P'), { target: { value: '1.5' } })
+    await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ minP: 0 })
+    )
+  })
+
+  it('clamps Repeat Penalty below 1 up to 1 (no penalty floor)', async () => {
+    const user = userEvent.setup()
+    render(<LLMRuntimeSettings />)
+    await act(async () => {})
+
+    fireEvent.change(screen.getByLabelText('Repeat Penalty'), { target: { value: '0.5' } })
+    await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ repeatPenalty: 1 })
     )
   })
 

@@ -132,6 +132,9 @@ export function LLMRuntimeSettings() {
     draft.requestTimeoutMs !== config.requestTimeoutMs ||
     draft.temperature !== config.temperature ||
     draft.topP !== config.topP ||
+    draft.topK !== config.topK ||
+    draft.minP !== config.minP ||
+    draft.repeatPenalty !== config.repeatPenalty ||
     draft.maxTokens !== config.maxTokens
 
   const handleProviderChange = (next: string) => {
@@ -287,6 +290,15 @@ export function LLMRuntimeSettings() {
 
       <Card className="p-4 space-y-4">
         <h4 className="font-medium">Sampling defaults</h4>
+        <p className="text-xs text-muted-foreground">
+          Applied when a chat or agent doesn't pass per-call overrides.
+          Top-K, Min-P, and Repeat Penalty are sent as the
+          <code className="mx-1">top_k</code>/<code className="mx-1">min_p</code>/
+          <code className="mx-1">repeat_penalty</code>
+          OpenAI-extension fields, which llama.cpp / Ollama / LM Studio
+          honour. Hosted OpenAI ignores unknown fields, so leaving them
+          at their defaults is safe.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-2">
             <Label htmlFor="llm-temperature">Temperature</Label>
@@ -301,6 +313,9 @@ export function LLMRuntimeSettings() {
                 setDraft({ ...draft, temperature: Number(e.target.value) || 0 })
               }
             />
+            <p className="text-xs text-muted-foreground">
+              Lower = focused, higher = creative.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="llm-top-p">Top P</Label>
@@ -313,6 +328,72 @@ export function LLMRuntimeSettings() {
               value={draft.topP}
               onChange={(e) => setDraft({ ...draft, topP: Number(e.target.value) || 1 })}
             />
+            <p className="text-xs text-muted-foreground">
+              Nucleus sampling: cumulative probability cutoff.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="llm-top-k">Top K</Label>
+            <Input
+              id="llm-top-k"
+              type="number"
+              min={0}
+              step={1}
+              value={draft.topK}
+              onChange={(e) => {
+                const parsed = Number(e.target.value)
+                setDraft({
+                  ...draft,
+                  topK: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0,
+                })
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              K most likely tokens. <code>0</code> disables.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="llm-min-p">Min P</Label>
+            <Input
+              id="llm-min-p"
+              type="number"
+              min={0}
+              max={1}
+              step={0.01}
+              value={draft.minP}
+              onChange={(e) => {
+                const parsed = Number(e.target.value)
+                setDraft({
+                  ...draft,
+                  minP:
+                    Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 0,
+                })
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Filters tokens below this fraction of the top token.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="llm-repeat-penalty">Repeat Penalty</Label>
+            <Input
+              id="llm-repeat-penalty"
+              type="number"
+              min={1}
+              step={0.05}
+              value={draft.repeatPenalty}
+              onChange={(e) => {
+                const parsed = Number(e.target.value)
+                setDraft({
+                  ...draft,
+                  repeatPenalty:
+                    Number.isFinite(parsed) && parsed >= 1 ? parsed : 1,
+                })
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              <code>1</code> = no penalty. Higher discourages repeats.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="llm-max-tokens">Max tokens</Label>
@@ -330,6 +411,9 @@ export function LLMRuntimeSettings() {
                 })
               }}
             />
+            <p className="text-xs text-muted-foreground">
+              Response length cap.
+            </p>
           </div>
         </div>
         <div className="space-y-2">

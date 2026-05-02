@@ -45,6 +45,12 @@ export interface LLMRequestOptions {
   temperature?: number
   /** Overrides the configured top_p. */
   topP?: number
+  /** Overrides the configured top_k (`0` disables). */
+  topK?: number
+  /** Overrides the configured min_p (`0` disables). */
+  minP?: number
+  /** Overrides the configured repeat penalty (`1` disables). */
+  repeatPenalty?: number
   /** Overrides the configured max_tokens cap. */
   maxTokens?: number
   /** Optional system prompt prepended to the user prompt. */
@@ -97,6 +103,19 @@ export async function llm(
     temperature: options.temperature ?? config.temperature,
     top_p: options.topP ?? config.topP,
     max_tokens: options.maxTokens ?? config.maxTokens,
+  }
+  // llama.cpp / Ollama OpenAI-compatible extension fields. Hosted OpenAI
+  // ignores unknown body fields, so this is safe to always send when the
+  // user has set non-default values; we only include them when actively
+  // engaged so we don't accidentally cap sampling for OpenAI users who
+  // expect vanilla behaviour.
+  const topK = options.topK ?? config.topK
+  if (typeof topK === 'number' && topK > 0) body.top_k = topK
+  const minP = options.minP ?? config.minP
+  if (typeof minP === 'number' && minP > 0) body.min_p = minP
+  const repeatPenalty = options.repeatPenalty ?? config.repeatPenalty
+  if (typeof repeatPenalty === 'number' && repeatPenalty > 1) {
+    body.repeat_penalty = repeatPenalty
   }
   if (jsonMode || options.jsonMode) {
     body.response_format = { type: 'json_object' }

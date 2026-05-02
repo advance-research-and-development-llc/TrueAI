@@ -373,6 +373,16 @@ to talk to a server on another machine.
 Defaults can also be baked into the APK by editing the `llm` block in
 `public/runtime.config.json` before building.
 
+**Sampling defaults.** The Sampling card in **Settings → LLM Runtime**
+exposes Temperature, Top-P, Top-K, Min-P, Repeat Penalty, and Max Tokens
+controls — matching the parameters surfaced by other on-device LLM apps so
+output is comparable across stacks. Top-K, Min-P, and Repeat Penalty are
+sent as the OpenAI-extension fields `top_k` / `min_p` / `repeat_penalty`,
+which llama.cpp / Ollama / LM Studio honour and hosted OpenAI ignores. They
+are only included in the request body when set away from their neutral
+defaults (`0` / `0` / `1`), so existing OpenAI users see no behavioural
+change.
+
 ## 🔐 Security
 
 - No external API calls by default (fully local; only talks to the LLM endpoint you configure)
