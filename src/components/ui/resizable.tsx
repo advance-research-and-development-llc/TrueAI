@@ -8,8 +8,15 @@ import { cn } from "@/lib/utils"
 // and replaced the `direction` prop with `orientation`. We preserve the shadcn
 // external API (callers still pass `direction="horizontal"|"vertical"`) and
 // translate to v4 internally. We also keep emitting `data-panel-group-direction`
-// on the group so existing CSS selectors continue to work; the handle uses v4's
-// `aria-orientation`, which is perpendicular to the group orientation.
+// on the group so existing CSS selectors continue to work.
+//
+// On the handle, v4's Separator emits `aria-orientation` describing the
+// separator's *own* orientation, which is perpendicular to the group it sits
+// in: a vertically-stacked group has horizontal separators, and a horizontal
+// group has vertical separators. The shadcn handle's stacked-layout styling
+// (h-px / w-full bar) therefore applies when `aria-orientation=horizontal`
+// (i.e. when the parent group is vertical), which mirrors the v3 selector
+// `data-[panel-group-direction=vertical]` exactly.
 
 type PanelGroupDirection = "horizontal" | "vertical"
 
