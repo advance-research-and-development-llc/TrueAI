@@ -1,6 +1,6 @@
 import { ComponentProps } from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { ChevronRight } from "lucide-react";import { MoreHorizontal } from "lucide-react";
+import { ChevronRight, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Breadcrumb({ ...props }: ComponentProps<"nav">) {

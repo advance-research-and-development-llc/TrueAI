@@ -1,6 +1,6 @@
 import { ComponentProps } from "react"
 import * as MenubarPrimitive from "@radix-ui/react-menubar"
-import { CheckIcon } from "lucide-react";import { ChevronRightIcon } from "lucide-react";import { CircleIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Menubar({
