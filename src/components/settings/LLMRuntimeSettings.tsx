@@ -90,6 +90,16 @@ const PROVIDER_PRESETS: Record<LLMProvider, ProviderPreset> = {
       'Hosted Google Generative AI via the Vercel AI SDK. Requires an API key. ' +
       'Direct browser calls may be blocked by CORS depending on your network.',
   },
+  'local-wasm': {
+    label: 'Local (on-device, WASM)',
+    baseUrl: 'hf:Mozilla/Llama-3.2-1B-Instruct-llamafile:Llama-3.2-1B-Instruct.Q4_K_M.gguf',
+    defaultModel: 'Llama-3.2-1B-Instruct-Q4_K_M',
+    description:
+      'True on-device inference via @wllama/wllama (WASM build of llama.cpp). ' +
+      "Set 'Base URL' to a .gguf URL or 'hf:<owner>/<repo>:<path>' shortcut. " +
+      'API key is ignored. The model is downloaded once into the browser cache, ' +
+      'then all inference runs locally with no further network calls.',
+  },
 }
 
 interface ConnectionStatus {
