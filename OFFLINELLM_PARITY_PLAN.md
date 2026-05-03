@@ -27,7 +27,9 @@ If you are an agent (or human) about to open a PR in this series:
 |---|-------|----------|-------------|
 | **PR 1** | #3 | ✅ merged | Local-wasm AI-SDK provider via `@wllama/wllama` (`src/lib/llm-runtime/ai-sdk/local-wllama-provider.ts`) + extended sampling knobs (Top-K / Min-P / Repeat Penalty / Context Size) + per-conversation overrides + Settings UI panels + download-progress pub-sub |
 | **PR 2** | #9 | ✅ merged | In-tree Capacitor `Llama` plugin skeleton (`android/capacitor-llama/`, `src/lib/native/llama.ts`) — load / unload / isLoaded / one-shot complete, `arm64-v8a` only, dormant (no JS callsite invokes it yet) |
-| **PR 3** | this PR | 🚧 in flight | Numbering reconciliation + this tracker doc |
+| **PR 3** | this branch | ✅ landed | Numbering reconciliation + this tracker doc |
+| **PR 4.a** | this branch | 🚧 in flight | Native streaming JNI surface + `local-native` AI-SDK provider + ABI matrix expansion (`armeabi-v7a`, `x86_64`) + `local-wasm` auto-fallback |
+| **PR 4.b** | _follow-up_ | ⏳ deferred | Small LRU of loaded models (relax the bridge's single-model invariant) |
 
 ---
 
@@ -103,6 +105,11 @@ master table:
 If a row above grows beyond ~1500 LOC of diff, split into `PR N.a`,
 `PR N.b`, etc., and add a one-line entry here recording the split. PRs
 are tracked as a series, not a single megamerge.
+
+| Split           | Sub-PR  | Scope |
+|-----------------|---------|-------|
+| **PR 4** split  | **4.a** | Streaming JNI surface, `local-native` AI-SDK provider, ABI matrix expansion (`armeabi-v7a`, `x86_64`), web/iOS auto-fallback to `local-wasm` |
+| **PR 4** split  | **4.b** | Small LRU of loaded models (relax `LlamaBridge`'s single-model invariant). Deferred until the streaming surface settles. |
 
 ---
 

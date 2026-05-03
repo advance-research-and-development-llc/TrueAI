@@ -1,7 +1,9 @@
 package com.trueai.llama;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
- * Java <-> JNI bridge for the vendored llama.cpp runtime.
+ * Java &lt;-&gt; JNI bridge for the vendored llama.cpp runtime.
  *
  * <p>This class is intentionally a thin pass-through. The Capacitor
  * plugin ({@link LlamaPlugin}) does the JS-facing argument validation,
@@ -20,10 +22,39 @@ package com.trueai.llama;
  * <p><b>Single-model invariant.</b> PR 2 supports exactly one loaded
  * model per process. Callers that need to swap models must
  * {@link #unloadModel()} first; {@link #loadModel} called while a model
- * is already loaded will throw. PR 4 may relax this to a small LRU
- * cache, but only after the streaming surface settles.
+ * is already loaded will throw. PR 4.b may relax this to a small LRU
+ * cache, but only after the streaming surface in PR 4.a settles.
+ *
+ * <p><b>Streaming.</b> {@link #streamComplete} (PR 4) runs the decode
+ * loop on the calling thread (a worker spawned by {@link LlamaPlugin}
+ * — never the Capacitor main task queue) and delivers token pieces
+ * synchronously through the supplied {@link TokenCallback}. The
+ * {@link AtomicBoolean} cancel flag is polled by the C++ loop between
+ * tokens; flipping it from another thread terminates the stream cleanly
+ * with the most recently produced text.
  */
 public class LlamaBridge {
+
+    /**
+     * Sink for streaming token pieces produced by {@link #streamComplete}.
+     * Implementations are invoked from the C++ decode loop on the worker
+     * thread and MUST NOT block — typical implementations forward to
+     * Capacitor's {@code notifyListeners} which is itself non-blocking.
+     */
+    public interface TokenCallback {
+        /**
+         * Called once per generated token piece.
+         *
+         * @param piece       UTF-8 text for this token. May be empty for
+         *                    control / non-printable tokens.
+         * @param currentText Cumulative text generated so far. Equivalent
+         *                    to concatenating every {@code piece}; mirrors
+         *                    the {@code currentText} shape used by the
+         *                    wllama adapter so the AI-SDK provider's
+         *                    delta logic is identical on both runtimes.
+         */
+        void onToken(String piece, String currentText);
+    }
 
     private static volatile boolean nativeLibLoaded = false;
     private static volatile Throwable nativeLibLoadError = null;
@@ -98,6 +129,57 @@ public class LlamaBridge {
         );
     }
 
+    /**
+     * Stream a completion token-by-token. Blocks the calling thread for
+     * the full duration of the decode loop; callers must invoke this
+     * from a worker thread (see {@link LlamaPlugin#streamComplete}).
+     * The {@code cancelled} flag is polled by the C++ loop between
+     * tokens — flip it from any thread to request termination.
+     *
+     * <p>{@code synchronized} on the bridge instance guarantees that
+     * {@link #loadModel} / {@link #unloadModel} called from another
+     * thread cannot tear down the {@code contextHandle} mid-stream. As
+     * a consequence, {@link #isLoaded} probes will block for the
+     * stream's lifetime — that's the deliberate trade-off for the
+     * single-model invariant; PR 4.b LRU work will revisit it.
+     */
+    public synchronized void streamComplete(
+        String prompt,
+        int nPredict,
+        float temperature,
+        float topP,
+        int topK,
+        float minP,
+        float repeatPenalty,
+        AtomicBoolean cancelled,
+        TokenCallback callback
+    ) {
+        ensureNativeLib();
+        if (contextHandle == 0L) {
+            throw new IllegalStateException("No model loaded");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("callback is required");
+        }
+        if (cancelled == null) {
+            // Defensive: provide a never-set flag so the C++ side can
+            // unconditionally call get() without a null check.
+            cancelled = new AtomicBoolean(false);
+        }
+        nativeStreamComplete(
+            contextHandle,
+            prompt,
+            nPredict,
+            temperature,
+            topP,
+            topK,
+            minP,
+            repeatPenalty,
+            cancelled,
+            callback
+        );
+    }
+
     private static void ensureNativeLib() {
         if (!nativeLibLoaded) {
             UnsatisfiedLinkError ule = new UnsatisfiedLinkError(
@@ -127,5 +209,18 @@ public class LlamaBridge {
         int topK,
         float minP,
         float repeatPenalty
+    );
+
+    private static native void nativeStreamComplete(
+        long handle,
+        String prompt,
+        int nPredict,
+        float temperature,
+        float topP,
+        int topK,
+        float minP,
+        float repeatPenalty,
+        AtomicBoolean cancelled,
+        TokenCallback callback
     );
 }
