@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Copy, Check, ArrowBendUpLeft, PencilSimple, Trash, Download } from '@phosphor-icons/react'
+import { Copy, Check, ArrowBendUpLeft, PencilSimple, Trash, Download, ShareNetwork } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import type { Message } from '@/lib/types'
 import { copyText } from '@/lib/native/clipboard'
 import { haptics } from '@/lib/native/haptics'
+import { share, canShare } from '@/lib/native/share'
 
 interface MessageActionsProps {
   message: Message
@@ -79,6 +80,28 @@ export function MessageActions({
     }
   }
 
+  // `canShare()` is a synchronous capability probe: true on Capacitor
+  // native, on browsers that expose `navigator.share` (most mobile web),
+  // and as a clipboard-copy fallback when `navigator.clipboard.writeText`
+  // exists. Computing it once on render is fine — it doesn't change for
+  // the lifetime of the document. We hide the button only when there's
+  // genuinely no way to share (jsdom, very old desktop browsers).
+  const shareAvailable = canShare()
+
+  const handleShare = async () => {
+    const ok = await share({
+      text: message.content,
+      dialogTitle: 'Share message',
+    })
+    if (ok) {
+      void haptics.tap()
+    }
+    // Intentionally no error toast on `false` — Capacitor and the Web
+    // Share API both resolve falsy on user-cancel, which isn't an error.
+    // The clipboard fallback only returns false on a genuine failure,
+    // which is rare enough that staying silent is preferable to noise.
+  }
+
   return (
     <>
       <AnimatePresence>
@@ -110,6 +133,25 @@ export function MessageActions({
                 <p>{copied ? 'Copied!' : 'Copy'}</p>
               </TooltipContent>
             </Tooltip>
+
+            {shareAvailable && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label="Share"
+                    className="h-7 w-7 p-0 shadow-lg active:scale-95 transition-transform"
+                    onClick={handleShare}
+                  >
+                    <ShareNetwork size={14} weight="bold" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Share</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
             {message.role === 'assistant' && onRegenerate && (
               <Tooltip>
