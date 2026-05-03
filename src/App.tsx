@@ -609,7 +609,7 @@ assistant:`
       // already filtered out of the wire request there.
       const response = await llmRuntimeCall(
         prompt,
-        conversation?.model || 'gpt-4o-mini',
+        conversation.model || 'gpt-4o-mini',
         false,
         {
           temperature: conversation.temperature,
