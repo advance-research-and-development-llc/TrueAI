@@ -74,6 +74,24 @@ export interface LLMRuntimeConfig {
   temperature: number
   /** Default top_p (0..1). */
   topP: number
+  /**
+   * Default top_k. Limits sampling to the K most likely tokens. `0` means
+   * disabled (consider all tokens). Forwarded as `top_k` on llama.cpp /
+   * Ollama compatible endpoints.
+   */
+  topK: number
+  /**
+   * Default min_p (0..1). Filters tokens whose probability is below this
+   * fraction of the top token's probability. `0` means disabled.
+   * Forwarded as `min_p` on llama.cpp / Ollama compatible endpoints.
+   */
+  minP: number
+  /**
+   * Default repeat penalty. `1` means no penalty; values >1 discourage
+   * the model from repeating tokens (llama.cpp convention). Forwarded as
+   * `repeat_penalty` on llama.cpp / Ollama compatible endpoints.
+   */
+  repeatPenalty: number
   /** Default response token cap. */
   maxTokens: number
 }
@@ -84,8 +102,17 @@ export const DEFAULT_LLM_RUNTIME_CONFIG: LLMRuntimeConfig = {
   apiKey: '',
   defaultModel: 'llama3.2',
   requestTimeoutMs: 120_000,
+  // Sampling defaults align with the OfflineLLM Android app's documented
+  // table (Temperature 0.7, Top-P 0.9, Top-K 40, Min-P 0.05, Repeat 1.1)
+  // so the two apps produce comparable output for parity testing. Top-P
+  // is intentionally kept at the previous TrueAI default of 1 to avoid
+  // changing observed behaviour for users on existing configs; it can be
+  // tightened per-call or via Settings.
   temperature: 0.7,
   topP: 1,
+  topK: 40,
+  minP: 0.05,
+  repeatPenalty: 1.1,
   maxTokens: 2000,
 }
 
@@ -125,6 +152,18 @@ function mergeConfig(
         ? patch.temperature
         : base.temperature,
     topP: typeof patch.topP === 'number' && patch.topP >= 0 ? patch.topP : base.topP,
+    topK:
+      typeof patch.topK === 'number' && Number.isFinite(patch.topK) && patch.topK >= 0
+        ? Math.floor(patch.topK)
+        : base.topK,
+    minP:
+      typeof patch.minP === 'number' && patch.minP >= 0 && patch.minP <= 1
+        ? patch.minP
+        : base.minP,
+    repeatPenalty:
+      typeof patch.repeatPenalty === 'number' && patch.repeatPenalty >= 1
+        ? patch.repeatPenalty
+        : base.repeatPenalty,
     maxTokens:
       typeof patch.maxTokens === 'number' && patch.maxTokens > 0 ? patch.maxTokens : base.maxTokens,
   }

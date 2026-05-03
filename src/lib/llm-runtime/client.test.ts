@@ -141,6 +141,78 @@ describe('llm client', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/network error/)
   })
+
+  it('forwards top_k / min_p / repeat_penalty as OpenAI-extension fields when configured', async () => {
+    await updateLLMRuntimeConfig({
+      topK: 50,
+      minP: 0.05,
+      repeatPenalty: 1.15,
+    })
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    )
+    globalThis.fetch = fetchSpy as unknown as typeof fetch
+    await llm('ping')
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string) as {
+      top_k?: number
+      min_p?: number
+      repeat_penalty?: number
+    }
+    expect(body.top_k).toBe(50)
+    expect(body.min_p).toBe(0.05)
+    expect(body.repeat_penalty).toBe(1.15)
+  })
+
+  it('omits top_k / min_p / repeat_penalty when at neutral defaults', async () => {
+    await updateLLMRuntimeConfig({
+      topK: 0,
+      minP: 0,
+      repeatPenalty: 1,
+    })
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    )
+    globalThis.fetch = fetchSpy as unknown as typeof fetch
+    await llm('ping')
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string) as {
+      top_k?: number
+      min_p?: number
+      repeat_penalty?: number
+    }
+    expect(body.top_k).toBeUndefined()
+    expect(body.min_p).toBeUndefined()
+    expect(body.repeat_penalty).toBeUndefined()
+  })
+
+  it('honours per-call topK / minP / repeatPenalty overrides', async () => {
+    await updateLLMRuntimeConfig({ topK: 10, minP: 0.02, repeatPenalty: 1.05 })
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        { status: 200 },
+      ),
+    )
+    globalThis.fetch = fetchSpy as unknown as typeof fetch
+    await llm('ping', undefined, false, {
+      topK: 80,
+      minP: 0.2,
+      repeatPenalty: 1.3,
+    })
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string) as {
+      top_k?: number
+      min_p?: number
+      repeat_penalty?: number
+    }
+    expect(body.top_k).toBe(80)
+    expect(body.min_p).toBe(0.2)
+    expect(body.repeat_penalty).toBe(1.3)
+  })
 })
 
 /**
