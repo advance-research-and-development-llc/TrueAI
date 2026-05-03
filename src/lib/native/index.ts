@@ -25,3 +25,14 @@ export {
   type InstallerSource,
 } from './installer'
 export { installNativeIntegrations } from './install'
+export {
+  llama,
+  isAvailable as isLlamaAvailable,
+  type LlamaLoadOptions,
+  type LlamaLoadResult,
+  type LlamaUnloadResult,
+  type LlamaIsLoadedResult,
+  type LlamaCompleteOptions,
+  type LlamaCompleteResult,
+  type LlamaApi,
+} from './llama'

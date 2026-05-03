@@ -1,0 +1,99 @@
+// Gradle module for the in-tree `Llama` Capacitor plugin.
+//
+// This module wraps llama.cpp (MIT, https://github.com/ggerganov/llama.cpp)
+// behind a Capacitor `@CapacitorPlugin` so JS can run on-device GGUF
+// inference on Android.
+//
+// PR-2 scope: load + one-shot complete only. Streaming and the AI SDK
+// `local-native` provider land in PR-3.
+//
+// ABI strategy: PR-2 builds for `arm64-v8a` only — that is roughly 95% of
+// the active Android device population and keeps the diff (and APK size)
+// small. PR-3 adds `armeabi-v7a` and `x86_64`. We deliberately drop x86
+// to avoid bloating the APK for an effectively-dead device class.
+//
+// JDK strategy: kept at JavaVersion.VERSION_17 to match
+// `android/variables.gradle`; the toolchain doc pins JDK 21 only for the
+// app shell. Bumping the plugin's source/target compatibility above the
+// app's would force a coordinated app bump, which is explicitly out of
+// scope per the PR-2 plan in `.github/copilot-instructions.md`.
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace "com.trueai.llama"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        consumerProguardFiles 'proguard-rules.pro'
+
+        // CMake build config — see src/main/cpp/CMakeLists.txt. Disabled
+        // by default in the Gradle property below so casual `./gradlew
+        // assembleDebug` runs do not pull down llama.cpp source the first
+        // time. CI sets `-PenableLlamaNative=true` to compile the JNI lib.
+        externalNativeBuild {
+            cmake {
+                cppFlags '-std=c++17', '-fexceptions', '-frtti'
+                arguments '-DANDROID_STL=c++_shared',
+                          '-DCMAKE_BUILD_TYPE=Release',
+                          // Disable llama.cpp options we don't use on
+                          // mobile so the resulting .so is small.
+                          '-DLLAMA_CURL=OFF',
+                          '-DLLAMA_BUILD_TESTS=OFF',
+                          '-DLLAMA_BUILD_EXAMPLES=OFF',
+                          '-DLLAMA_BUILD_SERVER=OFF'
+            }
+        }
+        // PR-2: arm64-v8a only. PR-3 expands the ABI matrix.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility rootProject.ext.javaVersion
+        targetCompatibility rootProject.ext.javaVersion
+    }
+
+    // Native build is opt-in. When the property is absent (the default for
+    // local `./gradlew assembleDebug` runs and for the Android CI lint
+    // job) the module ships as a Java-only stub: the JNI methods throw
+    // UnsatisfiedLinkError at runtime, which the JS shim treats as
+    // "engine unavailable" and the app degrades gracefully.
+    if (project.findProperty('enableLlamaNative') == 'true') {
+        externalNativeBuild {
+            cmake {
+                path file('src/main/cpp/CMakeLists.txt')
+                version '3.22.1'
+            }
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                'META-INF/AL2.0',
+                'META-INF/LGPL2.1',
+                'META-INF/*.kotlin_module',
+            ]
+        }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+}
