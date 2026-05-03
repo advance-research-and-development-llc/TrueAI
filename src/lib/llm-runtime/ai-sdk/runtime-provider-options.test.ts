@@ -73,8 +73,8 @@ describe('getRuntimeProviderOptions', () => {
   })
 
   describe('hosted and on-device providers', () => {
-    it.each(['openai', 'anthropic', 'google', 'local-wasm'] as const)(
-      'returns {} for provider=%s so request bodies are byte-identical (or wllama defaults stay authoritative)',
+    it.each(['openai', 'anthropic', 'google', 'local-wasm', 'local-native'] as const)(
+      'returns {} for provider=%s so request bodies are byte-identical (or on-device defaults stay authoritative)',
       async (provider) => {
         await updateLLMRuntimeConfig({
           provider,

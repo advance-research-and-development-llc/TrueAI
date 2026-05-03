@@ -107,6 +107,19 @@ const PROVIDER_PRESETS: Record<LLMProvider, ProviderPreset> = {
       'and the GGUF model are downloaded once into the browser cache; ' +
       'after that all inference runs locally with no further network calls.',
   },
+  'local-native': {
+    label: 'Local (on-device, native llama.cpp)',
+    baseUrl: '',
+    defaultModel: 'Llama-3.2-1B-Instruct-Q4_K_M',
+    description:
+      'True on-device inference via the in-tree Capacitor `Llama` plugin ' +
+      '(vendored llama.cpp, JNI). Android-only. ' +
+      "Set 'Base URL' to the absolute path of a .gguf file on the device " +
+      '(typically populated via the in-app GGUF importer). API key is ignored. ' +
+      'On platforms without the native runtime (web / iOS / Android builds ' +
+      'without the JNI .so) the runtime automatically falls back to the WASM ' +
+      'engine, so users always get an on-device runtime.',
+  },
 }
 
 interface ConnectionStatus {
@@ -138,7 +151,7 @@ interface SamplingCapabilities {
 }
 
 const HOSTED_PROVIDERS = new Set<LLMProvider>(['openai', 'anthropic', 'google'])
-const ON_DEVICE_PROVIDERS = new Set<LLMProvider>(['local-wasm'])
+const ON_DEVICE_PROVIDERS = new Set<LLMProvider>(['local-wasm', 'local-native'])
 
 function getSamplingCapabilities(provider: LLMProvider): SamplingCapabilities {
   const hosted = HOSTED_PROVIDERS.has(provider)

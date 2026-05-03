@@ -183,6 +183,43 @@ describe('ai-sdk provider-factory', () => {
     expect(() => getLanguageModelSync()).toThrow(/local-wasm/i)
   })
 
+  it('switches to local-native and reports the configured modelId without invoking the JNI plugin', async () => {
+    await updateLLMRuntimeConfig({
+      provider: 'local-native',
+      // empty baseUrl is fine: building the LanguageModel adapter
+      // doesn't load a model — that's deferred to the first
+      // doGenerate/doStream call. The native plugin is unavailable in
+      // the jsdom test environment, so any actual call would route
+      // through the wllama fallback, which is exhaustively covered in
+      // local-native-provider.test.ts.
+      baseUrl: '',
+      apiKey: '',
+      defaultModel: 'native-test',
+      requestTimeoutMs: 5000,
+      temperature: 0.5,
+      topP: 0.9,
+      maxTokens: 100,
+    })
+    const model = await getLanguageModel()
+    expect(model.modelId).toBe('native-test')
+    expect(model.provider).toBe('local-native')
+    expect(model.specificationVersion).toBe('v3')
+  })
+
+  it('getLanguageModelSync rejects local-native too', async () => {
+    await updateLLMRuntimeConfig({
+      provider: 'local-native',
+      baseUrl: '/data/models/m.gguf',
+      apiKey: '',
+      defaultModel: 'm',
+      requestTimeoutMs: 5000,
+      temperature: 0.5,
+      topP: 0.9,
+      maxTokens: 100,
+    })
+    expect(() => getLanguageModelSync()).toThrow(/local-native/i)
+  })
+
   it('does not read the api key from process.env (security: only LLMRuntimeConfig)', async () => {
     const prev = process.env.OPENAI_API_KEY
     process.env.OPENAI_API_KEY = 'should-not-be-used'

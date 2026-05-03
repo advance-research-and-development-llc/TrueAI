@@ -5,7 +5,7 @@
  * `isAvailable() === false` without throwing.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { llama } from './llama'
 
 describe('native/llama (web fallback)', () => {
@@ -33,5 +33,13 @@ describe('native/llama (web fallback)', () => {
     await expect(
       llama.complete({ prompt: 'hello' }),
     ).rejects.toMatchObject({ code: 'ENGINE_UNAVAILABLE' })
+  })
+
+  it('streamComplete rejects with ENGINE_UNAVAILABLE on web (no listener registered)', async () => {
+    const onEvent = vi.fn()
+    await expect(
+      llama.streamComplete({ prompt: 'hello' }, onEvent),
+    ).rejects.toMatchObject({ code: 'ENGINE_UNAVAILABLE' })
+    expect(onEvent).not.toHaveBeenCalled()
   })
 })
