@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Slider } from '@/components/ui/slider'
 import {
   Select,
   SelectContent,
@@ -109,6 +110,60 @@ interface ConnectionStatus {
   models?: string[]
 }
 
+/**
+ * Per-provider visibility for the "extended" sampling knobs added in PR 2.
+ *
+ * - **Top-K / Min-P / Repeat Penalty** are llama.cpp-family concepts. The
+ *   hosted OpenAI-API providers (OpenAI, Anthropic, Google) either don't
+ *   accept them at all or use a different field (`frequency_penalty`),
+ *   so the HTTP path in `client.ts` already omits them when they're at
+ *   their neutral values. To keep the UI honest we hide the knobs for
+ *   those providers entirely — exposing them would imply they take effect
+ *   when in reality the request body would silently drop them.
+ * - **Context Size** is only meaningful for on-device runtimes (wllama
+ *   `n_ctx`, native llama.cpp `n_ctx`). HTTP servers manage their own
+ *   context windows, so the knob is hidden unless the provider is one
+ *   of the on-device variants.
+ */
+interface SamplingCapabilities {
+  topK: boolean
+  minP: boolean
+  repeatPenalty: boolean
+  contextSize: boolean
+}
+
+const HOSTED_PROVIDERS = new Set<LLMProvider>(['openai', 'anthropic', 'google'])
+const ON_DEVICE_PROVIDERS = new Set<LLMProvider>(['local-wasm'])
+
+function getSamplingCapabilities(provider: LLMProvider): SamplingCapabilities {
+  const hosted = HOSTED_PROVIDERS.has(provider)
+  return {
+    topK: !hosted,
+    minP: !hosted,
+    repeatPenalty: !hosted,
+    contextSize: ON_DEVICE_PROVIDERS.has(provider),
+  }
+}
+
+/**
+ * Coerce a user-typed numeric input into a finite number within
+ * `[min, max]`, falling back to `fallback` for blank / NaN inputs.
+ * Used by the new slider+numeric pairs so the slider never
+ * receives an invalid value.
+ */
+function clampNumber(
+  raw: string,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) return fallback
+  if (parsed < min) return min
+  if (parsed > max) return max
+  return parsed
+}
+
 export function LLMRuntimeSettings() {
   const [config, setConfig] = useState<LLMRuntimeConfig>(DEFAULT_LLM_RUNTIME_CONFIG)
   const [draft, setDraft] = useState<LLMRuntimeConfig>(DEFAULT_LLM_RUNTIME_CONFIG)
@@ -143,7 +198,13 @@ export function LLMRuntimeSettings() {
     draft.requestTimeoutMs !== config.requestTimeoutMs ||
     draft.temperature !== config.temperature ||
     draft.topP !== config.topP ||
+    draft.topK !== config.topK ||
+    draft.minP !== config.minP ||
+    draft.repeatPenalty !== config.repeatPenalty ||
+    draft.contextSize !== config.contextSize ||
     draft.maxTokens !== config.maxTokens
+
+  const capabilities = getSamplingCapabilities(draft.provider)
 
   const handleProviderChange = (next: string) => {
     const provider = next as LLMProvider
@@ -343,6 +404,216 @@ export function LLMRuntimeSettings() {
             />
           </div>
         </div>
+
+        {(capabilities.topK || capabilities.minP || capabilities.repeatPenalty) && (
+          <>
+            <Separator />
+            <div className="space-y-1">
+              <h5 className="text-sm font-medium">Local-runtime sampling</h5>
+              <p className="text-xs text-muted-foreground">
+                Extra knobs honoured by llama.cpp / wllama / Ollama and other
+                local OpenAI-compatible servers. Hosted providers (OpenAI,
+                Anthropic, Google) ignore these — set a knob to its
+                neutral value (Top-K = 0, Min-P = 0, Repeat Penalty = 1) to
+                omit it from outgoing requests entirely.
+              </p>
+            </div>
+
+            {capabilities.topK && (
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="llm-top-k">Top-K</Label>
+                  <span
+                    className="text-xs text-muted-foreground"
+                    aria-hidden="true"
+                    data-testid="llm-top-k-value"
+                  >
+                    {draft.topK === 0 ? 'disabled' : draft.topK}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Slider
+                    aria-label="Top-K slider"
+                    min={0}
+                    max={200}
+                    step={1}
+                    value={[draft.topK]}
+                    onValueChange={(v) => setDraft({ ...draft, topK: v[0] ?? 0 })}
+                    className="flex-1"
+                  />
+                  <Input
+                    id="llm-top-k"
+                    type="number"
+                    min={0}
+                    max={1000}
+                    step={1}
+                    value={draft.topK}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        topK: clampNumber(e.target.value, 0, 1000, 0),
+                      })
+                    }
+                    className="w-24"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Limits sampling to the K most probable tokens. <code>0</code>{' '}
+                  disables top-k filtering.
+                </p>
+              </div>
+            )}
+
+            {capabilities.minP && (
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="llm-min-p">Min-P</Label>
+                  <span
+                    className="text-xs text-muted-foreground"
+                    aria-hidden="true"
+                    data-testid="llm-min-p-value"
+                  >
+                    {draft.minP === 0 ? 'disabled' : draft.minP.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Slider
+                    aria-label="Min-P slider"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={[draft.minP]}
+                    onValueChange={(v) => setDraft({ ...draft, minP: v[0] ?? 0 })}
+                    className="flex-1"
+                  />
+                  <Input
+                    id="llm-min-p"
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={draft.minP}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        minP: clampNumber(e.target.value, 0, 1, 0),
+                      })
+                    }
+                    className="w-24"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Drops tokens whose probability is less than{' '}
+                  <code>min_p × max-token-probability</code>. Native to
+                  llama.cpp; hosted providers do not support it.{' '}
+                  <code>0</code> disables it.
+                </p>
+              </div>
+            )}
+
+            {capabilities.repeatPenalty && (
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="llm-repeat-penalty">Repeat penalty</Label>
+                  <span
+                    className="text-xs text-muted-foreground"
+                    aria-hidden="true"
+                    data-testid="llm-repeat-penalty-value"
+                  >
+                    {draft.repeatPenalty <= 1
+                      ? 'disabled'
+                      : draft.repeatPenalty.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Slider
+                    aria-label="Repeat penalty slider"
+                    min={1}
+                    max={2}
+                    step={0.01}
+                    value={[draft.repeatPenalty]}
+                    onValueChange={(v) =>
+                      setDraft({ ...draft, repeatPenalty: v[0] ?? 1 })
+                    }
+                    className="flex-1"
+                  />
+                  <Input
+                    id="llm-repeat-penalty"
+                    type="number"
+                    min={1}
+                    max={2}
+                    step={0.01}
+                    value={draft.repeatPenalty}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        repeatPenalty: clampNumber(e.target.value, 1, 2, 1),
+                      })
+                    }
+                    className="w-24"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Penalises tokens already present in the context to reduce
+                  repetition loops. <code>1</code> disables the penalty;{' '}
+                  <code>1.1</code> is the OfflineLLM default.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {capabilities.contextSize && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <Label htmlFor="llm-context-size">Context size (tokens)</Label>
+                <span
+                  className="text-xs text-muted-foreground"
+                  aria-hidden="true"
+                  data-testid="llm-context-size-value"
+                >
+                  {draft.contextSize}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Slider
+                  aria-label="Context size slider"
+                  min={512}
+                  max={32768}
+                  step={512}
+                  value={[draft.contextSize]}
+                  onValueChange={(v) =>
+                    setDraft({ ...draft, contextSize: v[0] ?? 2048 })
+                  }
+                  className="flex-1"
+                />
+                <Input
+                  id="llm-context-size"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.contextSize}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      contextSize: clampNumber(e.target.value, 1, 131072, 2048),
+                    })
+                  }
+                  className="w-28"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                On-device context window in tokens. Larger windows use more
+                RAM and slow first-token latency. The model is reloaded
+                whenever this value changes.
+              </p>
+            </div>
+          </>
+        )}
+
+        <Separator />
         <div className="space-y-2">
           <Label htmlFor="llm-timeout">Request timeout (ms)</Label>
           <Input

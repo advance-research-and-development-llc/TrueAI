@@ -18,6 +18,10 @@ vi.mock('@/lib/llm-runtime/config', () => {
     requestTimeoutMs: 30000,
     temperature: 0.7,
     topP: 1,
+    topK: 40,
+    minP: 0.05,
+    repeatPenalty: 1.1,
+    contextSize: 2048,
     maxTokens: 4096,
   }
   return {
@@ -42,6 +46,10 @@ const defaultConfig = {
   requestTimeoutMs: 30000,
   temperature: 0.7,
   topP: 1,
+  topK: 40,
+  minP: 0.05,
+  repeatPenalty: 1.1,
+  contextSize: 2048,
   maxTokens: 4096,
 }
 
@@ -325,5 +333,156 @@ describe('LLMRuntimeSettings', () => {
 
     expect(screen.getByText(/Available models \(15\)/)).toBeInTheDocument()
     expect(screen.getByText(/model-0,.*model-11, …/)).toBeInTheDocument()
+  })
+
+  describe('PR 3 — extended sampling knobs (Top-K / Min-P / Repeat Penalty / Context Size)', () => {
+    it('renders Top-K, Min-P, and Repeat Penalty inputs with defaults for a local provider (ollama)', async () => {
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      const topK = screen.getByLabelText('Top-K') as HTMLInputElement
+      const minP = screen.getByLabelText('Min-P') as HTMLInputElement
+      const rp = screen.getByLabelText('Repeat penalty') as HTMLInputElement
+
+      expect(topK).toHaveValue(40)
+      expect(minP).toHaveValue(0.05)
+      expect(rp).toHaveValue(1.1)
+    })
+
+    it('does NOT render Context size for the default ollama provider', async () => {
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+      // Context size is on-device-only (wllama n_ctx). Hidden for HTTP
+      // providers, including ollama.
+      expect(screen.queryByLabelText('Context size (tokens)')).toBeNull()
+    })
+
+    it('renders Context size when the provider is local-wasm (on-device)', async () => {
+      mockEnsureLoaded.mockResolvedValue({
+        ...defaultConfig,
+        provider: 'local-wasm',
+      })
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      const ctx = screen.getByLabelText('Context size (tokens)') as HTMLInputElement
+      expect(ctx).toHaveValue(2048)
+    })
+
+    it('hides Top-K / Min-P / Repeat Penalty / Context Size for the openai provider', async () => {
+      mockEnsureLoaded.mockResolvedValue({
+        ...defaultConfig,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        defaultModel: 'gpt-4o-mini',
+      })
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      expect(screen.queryByLabelText('Top-K')).toBeNull()
+      expect(screen.queryByLabelText('Min-P')).toBeNull()
+      expect(screen.queryByLabelText('Repeat penalty')).toBeNull()
+      expect(screen.queryByLabelText('Context size (tokens)')).toBeNull()
+      // Sanity: temperature/top-p/max-tokens are still shown for hosted
+      // providers — they apply to every OpenAI-API endpoint.
+      expect(screen.getByLabelText('Temperature')).toBeInTheDocument()
+      expect(screen.getByLabelText('Top P')).toBeInTheDocument()
+      expect(screen.getByLabelText('Max tokens')).toBeInTheDocument()
+    })
+
+    it('hides the extended knobs for anthropic and google as well', async () => {
+      for (const provider of ['anthropic', 'google'] as const) {
+        mockEnsureLoaded.mockResolvedValueOnce({ ...defaultConfig, provider })
+        const { unmount } = render(<LLMRuntimeSettings />)
+        await act(async () => {})
+        expect(screen.queryByLabelText('Top-K')).toBeNull()
+        expect(screen.queryByLabelText('Min-P')).toBeNull()
+        expect(screen.queryByLabelText('Repeat penalty')).toBeNull()
+        unmount()
+      }
+    })
+
+    it('saves edits to Top-K / Min-P / Repeat Penalty', async () => {
+      const user = userEvent.setup()
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      fireEvent.change(screen.getByLabelText('Top-K'), { target: { value: '80' } })
+      fireEvent.change(screen.getByLabelText('Min-P'), { target: { value: '0.1' } })
+      fireEvent.change(screen.getByLabelText('Repeat penalty'), { target: { value: '1.2' } })
+
+      await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          topK: 80,
+          minP: 0.1,
+          repeatPenalty: 1.2,
+        }),
+      )
+    })
+
+    it('saves edits to Context size when the provider is local-wasm', async () => {
+      const user = userEvent.setup()
+      mockEnsureLoaded.mockResolvedValue({
+        ...defaultConfig,
+        provider: 'local-wasm',
+      })
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      fireEvent.change(screen.getByLabelText('Context size (tokens)'), {
+        target: { value: '4096' },
+      })
+      await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ contextSize: 4096 }),
+      )
+    })
+
+    it('clamps Top-K to its [0, 1000] range and Min-P to [0, 1] for blank / out-of-range inputs', async () => {
+      const user = userEvent.setup()
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      // Blank → falls back to 0 (the "disabled" sentinel for these knobs).
+      fireEvent.change(screen.getByLabelText('Top-K'), { target: { value: '' } })
+      // Above range → clamped to upper bound (1).
+      fireEvent.change(screen.getByLabelText('Min-P'), { target: { value: '5' } })
+
+      await user.click(screen.getByRole('button', { name: /^Save$/i }))
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ topK: 0, minP: 1 }),
+      )
+    })
+
+    it('shows the "disabled" hint when Top-K is at its neutral value (0)', async () => {
+      mockEnsureLoaded.mockResolvedValue({
+        ...defaultConfig,
+        topK: 0,
+        minP: 0,
+        repeatPenalty: 1,
+      })
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      // The value-readout span next to each label shows "disabled" when
+      // the knob is at its neutral value, so the user understands the
+      // field will be omitted from outgoing requests.
+      expect(screen.getByTestId('llm-top-k-value')).toHaveTextContent('disabled')
+      expect(screen.getByTestId('llm-min-p-value')).toHaveTextContent('disabled')
+      expect(screen.getByTestId('llm-repeat-penalty-value')).toHaveTextContent('disabled')
+    })
+
+    it('Save button becomes enabled after editing Top-K alone', async () => {
+      render(<LLMRuntimeSettings />)
+      await act(async () => {})
+
+      fireEvent.change(screen.getByLabelText('Top-K'), { target: { value: '20' } })
+
+      expect(screen.getByRole('button', { name: /^Save$/i })).not.toBeDisabled()
+    })
   })
 })
