@@ -67,6 +67,9 @@ const HF_API = 'https://huggingface.co/api'
 const SEARCH_LIMIT = 20
 
 function formatBytes(bytes: number): string {
+  // The HF tree API returns size as a non-negative integer, but defend
+  // against missing / NaN / 0-byte placeholder entries so the UI never
+  // shows "NaN B" or "-Infinity TB" if the response shape ever changes.
   if (!Number.isFinite(bytes) || bytes <= 0) return 'unknown size'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
