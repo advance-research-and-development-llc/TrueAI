@@ -1,0 +1,237 @@
+name: Coverage Gap Dispatch
+
+# Runs `npm run test:coverage` on every push to main and on a daily
+# cron. For each src/ file whose coverage is below the per-file
+# threshold, dispatches a `copilot-fix` issue (deduped by file path)
+# tagged `coverage-gap`. The agent picks them up via the standard
+# `coverage-gap-fill` prompt fragment.
+#
+# Also runs the ratchet script — if coverage moved up, the floor in
+# vitest.config.ts is bumped to floor(actual) and committed back to
+# main by github-actions[bot] (which is in the ruleset bypass list).
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 05:00 UTC daily, after dependency-scan at 04:00
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'vitest.config.ts'
+      - '.github/workflows/coverage-dispatch.yml'
+      - 'scripts/ratchet-coverage-thresholds.mjs'
+  workflow_dispatch:
+    inputs:
+      file_threshold:
+        description: 'Per-file line-coverage threshold (%)'
+        required: false
+        default: '70'
+      max_dispatched:
+        description: 'Max issues dispatched in one run'
+        required: false
+        default: '5'
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: coverage-dispatch-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FILE_THRESHOLD: ${{ github.event.inputs.file_threshold || '70' }}
+  MAX_DISPATCHED: ${{ github.event.inputs.max_dispatched || '5' }}
+
+jobs:
+  coverage:
+    name: Coverage scan + ratchet + dispatch
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Coverage run ──────────────────────────────────────────────────────
+      # Tolerate test failures here — we still want to ratchet & dispatch on
+      # whatever data was collected. Hard-fail CI is owned by other workflows.
+      - name: Run vitest with coverage
+        id: vitest
+        run: |
+          set +e
+          npm run test:coverage -- --reporter=default --reporter=json --outputFile=/tmp/vitest.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Verify coverage summary present
+        id: verify
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning ::coverage/coverage-summary.json missing — skipping dispatch."
+          fi
+
+      # ── Ratchet ───────────────────────────────────────────────────────────
+      - name: Ratchet vitest.config.ts thresholds
+        if: steps.verify.outputs.ok == 'true' && github.event_name != 'pull_request'
+        id: ratchet
+        run: |
+          set +e
+          node scripts/ratchet-coverage-thresholds.mjs
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Commit ratcheted thresholds
+        if: steps.ratchet.outputs.exit == '0' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet vitest.config.ts; then
+            echo "No threshold change to commit."
+            exit 0
+          fi
+          git add vitest.config.ts
+          git commit -m "chore(coverage): ratchet thresholds to floor(actual)"
+          # Push via the bot's ruleset bypass. If the protected branch
+          # rejects (e.g. a required check is unsatisfiable), warn but
+          # don't fail the whole run — the data is still useful.
+          if ! git push origin HEAD:main; then
+            echo "::warning ::ratchet commit could not be pushed (likely ruleset enforcement); see logs."
+          fi
+
+      # ── Dispatch per-file coverage-gap issues ─────────────────────────────
+      - name: Identify under-threshold files
+        if: steps.verify.outputs.ok == 'true'
+        id: gaps
+        run: |
+          set -euo pipefail
+          THRESH="${FILE_THRESHOLD}"
+          # Emit "<linePct>\t<file>\t<uncoveredLines>" for files below threshold.
+          # `total` key is excluded; only src/ files are considered.
+          jq -r --argjson t "$THRESH" '
+            to_entries[]
+            | select(.key != "total")
+            | select(.key | test("/src/"))
+            | select(.value.lines.pct < $t)
+            | [
+                (.value.lines.pct | tostring),
+                .key,
+                ((.value.lines.skipped // 0) | tostring)
+              ] | @tsv
+          ' coverage/coverage-summary.json \
+            | sort -n \
+            | head -n "${MAX_DISPATCHED}" \
+            > /tmp/coverage-gaps.tsv
+          COUNT=$(wc -l < /tmp/coverage-gaps.tsv | tr -d ' ')
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Found $COUNT files below ${THRESH}% line coverage (capped at $MAX_DISPATCHED)."
+
+      - name: Dispatch coverage-gap issues
+        if: steps.gaps.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          THRESH: ${{ env.FILE_THRESHOLD }}
+        run: |
+          set -euo pipefail
+          # Inline throttle (cheap; same logic as agent-throttle composite)
+          OPEN=$(gh issue list --repo "$REPO" --label "copilot-fix" --state open --limit 200 --json number --jq 'length' 2>/dev/null || echo 0)
+          if [ "${OPEN:-0}" -ge 25 ]; then
+            echo "::warning ::queue at cap ($OPEN/25); skipping coverage dispatch."
+            exit 0
+          fi
+
+          while IFS=$'\t' read -r PCT FILE _SKIPPED; do
+            REL="${FILE#"${GITHUB_WORKSPACE}"/}"
+            DEDUP="cov:${REL}"
+            TITLE="[Coverage] ${REL} at ${PCT}% (target ${THRESH}%) [${DEDUP}]"
+
+            # Pull file-level uncovered ranges from coverage-final.json if
+            # present; otherwise leave a hint to run locally.
+            UNCOVERED="(see \`coverage/lcov-report/${REL}.html\` artifact)"
+            if [ -f coverage/coverage-final.json ]; then
+              UNCOVERED=$(jq -r --arg f "$FILE" '
+                .[$f] // empty
+                | (.statementMap // {}) as $sm
+                | (.s // {}) as $s
+                | [ $s | to_entries[] | select(.value == 0) | .key | tonumber ]
+                | map(($sm[(. | tostring)].start.line // 0))
+                | unique
+                | .[0:30]
+                | join(", ")
+              ' coverage/coverage-final.json 2>/dev/null || echo "(unknown)")
+              [ -z "$UNCOVERED" ] && UNCOVERED="(unknown)"
+            fi
+
+            BODY_FILE=$(mktemp)
+            # Heredoc terminator must be at bash column 0 — keep BODY_EOF
+            # flush-left within the YAML run block (no extra indentation).
+            cat > "$BODY_FILE" <<BODY_EOF
+          ## Auto-generated coverage-gap fix issue
+
+          | Field | Value |
+          |---|---|
+          | **Bug type** | \`coverage-gap\` |
+          | **File** | \`${REL}\` |
+          | **Current line coverage** | \`${PCT}%\` |
+          | **Target line coverage** | \`≥ ${THRESH}%\` |
+          | **Prompt fragment** | [\`coverage-gap-fill\`](../blob/main/.github/copilot/PROMPTS.md#fragment-coverage-gap-fill) |
+
+          ### Uncovered statement lines (first 30)
+
+          \`${UNCOVERED}\`
+
+          ### Universal hard constraints
+
+          - [ ] \`npm test\` passes
+          - [ ] \`npm run test:coverage\` shows \`${REL}\` ≥ \`${THRESH}%\` line coverage
+          - [ ] No global vitest threshold regression
+          - [ ] \`npm run lint\` exits 0
+          - [ ] No telemetry / third-party network calls / override-pin weakening
+          - [ ] \`LICENSE\` / \`NOTICE\` / copyright headers preserved
+
+          ### Instructions
+
+          Follow prompt fragment **\`coverage-gap-fill\`** in
+          [\`.github/copilot/PROMPTS.md\`](../blob/main/.github/copilot/PROMPTS.md).
+          BODY_EOF
+            # Strip the 10-space YAML-base indent we used to keep the
+            # heredoc terminator at bash column 0.
+            sed -i 's/^          //' "$BODY_FILE"
+
+            EXISTING=$(gh issue list --repo "$REPO" --label "copilot-fix,coverage-gap" --state open \
+              --search "\"${DEDUP}\" in:title" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+            if [ -n "$EXISTING" ]; then
+              gh issue edit "$EXISTING" --repo "$REPO" --body-file "$BODY_FILE" >/dev/null
+              echo "Updated #$EXISTING for $REL"
+            else
+              gh issue create --repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE" \
+                --label "copilot-fix,coverage-gap,bug" --assignee "copilot" \
+                || echo "::warning ::failed to create issue for $REL"
+            fi
+          done < /tmp/coverage-gaps.tsv
+
+      - name: Upload coverage report artifact
+        if: always() && steps.verify.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+          retention-days: 14

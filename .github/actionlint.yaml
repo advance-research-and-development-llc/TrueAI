@@ -1,0 +1,15 @@
+# actionlint configuration — see https://github.com/rhysd/actionlint/blob/main/docs/config.md
+#
+# We currently have no custom rules; this file exists to silence
+# false-positive warnings about webhook events / permission scopes
+# that GitHub supports but actionlint's allow-list lags behind on.
+
+self-hosted-runner:
+  labels:
+    # Custom larger-runner labels referenced via the COPILOT_RUNNER variable
+    # in copilot-setup-steps.yml. Add new labels here when provisioning
+    # additional runner sizes.
+    - ubuntu-2-core
+    - ubuntu-4-core
+    - ubuntu-8-core
+    - ubuntu-16-core

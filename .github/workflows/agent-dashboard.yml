@@ -1,0 +1,58 @@
+name: Agent Dashboard
+
+# Nightly regeneration of docs/AGENT_DASHBOARD.md from live GitHub
+# data. Pure local generation — no third-party services. Commits the
+# updated file via github-actions[bot] (which is already in the
+# default-branch ruleset bypass list).
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 07:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: agent-dashboard
+  cancel-in-progress: false
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Regenerate dashboard
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          node scripts/regen-agent-dashboard.mjs
+
+      - name: Commit if changed
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet docs/AGENT_DASHBOARD.md; then
+            echo "Dashboard unchanged."
+            exit 0
+          fi
+          git add docs/AGENT_DASHBOARD.md
+          git commit -m "chore(dashboard): nightly regen [skip ci]"
+          if ! git push origin HEAD:main; then
+            echo "::warning ::dashboard commit could not be pushed (likely ruleset enforcement)"
+          fi

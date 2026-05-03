@@ -131,6 +131,18 @@ auto-appended by `.github/workflows/learnings-ingest.yml` whenever a
 PR is merged into `main`, parsing the `## Lessons learned` section
 out of each PR body.
 
+Two further files form the canonical "how the agent loop works" trio:
+
+- [`.github/copilot/PROMPTS.md`](./copilot/PROMPTS.md) — the named
+  prompt fragments that every dispatcher embeds in fix-issue bodies.
+  When an issue says "follow fragment `fix-codeql`", read that file.
+- [`docs/AGENT_OPERATIONS.md`](../docs/AGENT_OPERATIONS.md) —
+  operator-facing runbook (queue triage, manual dispatch, false-
+  positive silencing, autonomous-merge rollback). Read this when an
+  issue is unclear or when you need to understand what other
+  workflows / dispatchers might already be acting on the same
+  defect.
+
 **Before starting any non-trivial task**, read `LEARNINGS.md`. Treat
 every entry there as a hard constraint unless your task explicitly
 overrides it. Entries are dated; newer entries supersede older ones
@@ -161,9 +173,14 @@ on those issues.
 An issue is an auto-generated fix task when **all** of the following are true:
 
 - It carries the label `copilot-fix`.
-- The title starts with one of: `[CodeQL`, `[Auto]`, `[Audit]`, `[Security]`.
+- The title starts with one of: `[CodeQL`, `[Auto]`, `[Audit]`, `[Security]`,
+  `[Coverage]`, `[Crash]`.
 - The body contains a "Bug type" row with one of:
-  `codeql-alert`, `lint-error`, `test-failure`, `dependency-vuln`.
+  `codeql-alert`, `lint-error`, `test-failure`, `dependency-vuln`,
+  `coverage-gap`, `compatibility`, `secret-leak`, `android-lint`, `other`.
+- The body links to a **prompt fragment** in
+  [`.github/copilot/PROMPTS.md`](./copilot/PROMPTS.md). That fragment
+  is the canonical contract — read it before doing anything else.
 
 ### Branch naming convention
 
@@ -175,7 +192,31 @@ Use **exactly** this pattern — do not invent a different name:
 | `lint-error` | `copilot/fix-audit-lint-{YYYY-MM-DD}` |
 | `test-failure` | push to the **existing** PR branch listed in the issue body — do NOT open a new branch |
 | `dependency-vuln` | `copilot/fix-dep-{package-name}-{new-version}` |
+| `coverage-gap` | `copilot/cov-{file-slug}` |
+| `compatibility` | `copilot/fix-compat-{YYYY-MM-DD}` |
+| `secret-leak` | `copilot/fix-secret-{alert-number}` |
+| `android-lint` | `copilot/fix-android-lint-{rule-slug}-{YYYY-MM-DD}` |
 | `other` | `copilot/fix-{issue-number}-{short-slug}` |
+
+### Risk classification (assigned to your PR automatically)
+
+After you open the PR, the [`pr-risk-label.yml`](./workflows/pr-risk-label.yml)
+workflow attaches one of `risk:trivial | risk:low | risk:medium | risk:high`
+based on the paths you touched and the diff size. The label affects
+auto-merge eligibility:
+
+- `risk:high` → auto-merge is **refused**; manual approval required.
+  This fires automatically if you touch `.github/**`, `LICENSE`,
+  `NOTICE`, `package.json`, `src/lib/llm-runtime/kv-store.ts`, or
+  `src/lib/native/secure-storage.ts` — i.e. governance / credential
+  surface area. Keep your fix away from those paths unless the issue
+  explicitly authorises it.
+- `risk:medium` / `risk:low` / `risk:trivial` → auto-merge is enabled
+  the moment all required status checks are green AND CODEOWNERS
+  approval lands.
+
+The full classification logic lives in
+[`scripts/classify-pr-risk.mjs`](../scripts/classify-pr-risk.mjs).
 
 ### Required checks before opening the PR
 

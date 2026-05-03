@@ -1,0 +1,164 @@
+name: Fix Verification Harness
+
+# When a copilot-fix issue closes (typically via PR merge with `Closes
+# #N`), this workflow re-runs the relevant detector against the merge
+# commit and reopens the issue if the defect persists.
+#
+# Closes the loop on the "agent claims it fixed it but didn't" failure
+# mode. Limited per-bug-type detectors:
+#   - lint-error    → re-run `npm run lint`
+#   - test-failure  → re-run `npm test`
+#   - coverage-gap  → re-check the file's coverage ≥ threshold
+#   - dependency-vuln → re-run npm audit on the same advisory id
+#   - codeql-alert  → cannot self-trigger CodeQL; relies on the next
+#                     scheduled CodeQL run to reopen the alert (which
+#                     in turn dispatches a fresh fix issue).
+#   - secret-leak   → cannot revalidate from CI; relies on secret
+#                     scanning re-firing if the secret remains.
+
+on:
+  issues:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to verify'
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    name: Verify fix
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.issue.labels.*.name, 'copilot-fix')
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Read issue metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number || github.event.inputs.issue_number }}
+        run: |
+          set -euo pipefail
+          gh issue view "$ISSUE" --repo "$REPO" --json labels,body,title \
+            > /tmp/issue.json
+          # Extract bug-type label
+          BUG=$(jq -r '
+            [.labels[].name] as $L
+            | if   ($L | index("lint-error"))      then "lint-error"
+              elif ($L | index("test-failure"))    then "test-failure"
+              elif ($L | index("coverage-gap"))    then "coverage-gap"
+              elif ($L | index("dependency-vuln")) then "dependency-vuln"
+              elif ($L | index("android-lint"))    then "android-lint"
+              else "other" end
+          ' /tmp/issue.json)
+          echo "bug=$BUG" >> "$GITHUB_OUTPUT"
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "Detected bug type: $BUG"
+
+      - name: Install dependencies
+        if: steps.meta.outputs.bug != 'other'
+        run: npm ci
+
+      # ── Re-run the relevant detector ──────────────────────────────────────
+      - name: Re-run lint
+        id: relint
+        if: steps.meta.outputs.bug == 'lint-error'
+        run: |
+          set +e
+          npm run lint
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Re-run tests
+        id: retest
+        if: steps.meta.outputs.bug == 'test-failure'
+        run: |
+          set +e
+          npm test -- --run
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Re-run coverage check
+        id: recov
+        if: steps.meta.outputs.bug == 'coverage-gap'
+        run: |
+          set +e
+          npm run test:coverage -- --run
+          COV_EXIT=$?
+          # Extract file path from issue title: "[Coverage] <file> at ..."
+          FILE=$(jq -r '.title' /tmp/issue.json | sed -nE 's/\[Coverage\] ([^ ]+) at .*/\1/p')
+          if [ -z "$FILE" ] || [ ! -f coverage/coverage-summary.json ]; then
+            echo "exit=$COV_EXIT" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PCT=$(jq -r --arg f "$FILE" '
+            (to_entries | map(select(.key | endswith($f))) | .[0].value.lines.pct) // 0
+          ' coverage/coverage-summary.json 2>/dev/null || echo 0)
+          THRESH=70
+          echo "Coverage of $FILE: ${PCT}% (threshold ${THRESH}%)"
+          if awk "BEGIN {exit !(${PCT} >= ${THRESH})}"; then
+            echo "exit=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "exit=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Re-run npm audit
+        id: reaudit
+        if: steps.meta.outputs.bug == 'dependency-vuln'
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=low
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      # ── Reopen if any detector failed ─────────────────────────────────────
+      - name: Reopen issue on persistent defect
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ steps.meta.outputs.issue }}
+          BUG: ${{ steps.meta.outputs.bug }}
+          LINT_EXIT: ${{ steps.relint.outputs.exit || '0' }}
+          TEST_EXIT: ${{ steps.retest.outputs.exit || '0' }}
+          COV_EXIT: ${{ steps.recov.outputs.exit || '0' }}
+          AUDIT_EXIT: ${{ steps.reaudit.outputs.exit || '0' }}
+        run: |
+          set -euo pipefail
+          PERSISTENT=false
+          case "$BUG" in
+            lint-error)      [ "$LINT_EXIT"  != "0" ] && PERSISTENT=true ;;
+            test-failure)    [ "$TEST_EXIT"  != "0" ] && PERSISTENT=true ;;
+            coverage-gap)    [ "$COV_EXIT"   != "0" ] && PERSISTENT=true ;;
+            dependency-vuln) [ "$AUDIT_EXIT" != "0" ] && PERSISTENT=true ;;
+            *) echo "No automated detector for $BUG; nothing to verify."; exit 0 ;;
+          esac
+
+          if [ "$PERSISTENT" = "true" ]; then
+            echo "::warning ::Defect persists for issue #$ISSUE — reopening."
+            gh issue reopen "$ISSUE" --repo "$REPO" || true
+            COMMENT_FILE=$(mktemp)
+            # Heredoc terminator at YAML run-block base indent (= bash col 0).
+            cat > "$COMMENT_FILE" <<COMMENT_EOF
+          🚨 **Fix verification failed.**
+
+          Re-running the original detector against the merge commit \`${GITHUB_SHA}\` still
+          reports the defect (\`${BUG}\` exit code non-zero in [run #${GITHUB_RUN_ID}](https://github.com/${REPO}/actions/runs/${GITHUB_RUN_ID})).
+
+          Reopened automatically by \`fix-verification.yml\`. Please re-investigate.
+          COMMENT_EOF
+            gh issue comment "$ISSUE" --repo "$REPO" --body-file "$COMMENT_FILE"
+          else
+            echo "✓ Verification passed for #$ISSUE — leaving closed."
+          fi

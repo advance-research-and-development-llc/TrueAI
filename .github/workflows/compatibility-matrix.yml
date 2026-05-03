@@ -1,0 +1,171 @@
+name: Compatibility Matrix
+
+# Catches compatibility regressions BEFORE Dependabot opens a PR or a
+# release ships:
+#   - browserslist + are-you-es5 → ES feature regressions
+#   - npm-check-updates --doctor → peer-dep conflicts
+#   - scripts/check-node-engines.mjs → node engines drift
+#   - Android lintRelease against compileSdk - 1 → back-compat fallout
+#
+# Findings dispatch a `compatibility` Copilot fix issue via the
+# `dispatch-fix-issue` composite. Workflow is informational by default
+# (does not fail PRs); set `fail-on-finding: true` via workflow_dispatch
+# input to make it block.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Monday 06:00 UTC
+  push:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'android/**/*.gradle*'
+      - '.github/workflows/compatibility-matrix.yml'
+      - 'scripts/check-node-engines.mjs'
+  workflow_dispatch:
+    inputs:
+      fail-on-finding:
+        description: 'Fail the workflow if any compatibility finding is detected'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: compat-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        run: npm run build
+        continue-on-error: true
+
+      - name: browserslist coverage
+        id: bsl
+        run: |
+          set +e
+          npx --yes browserslist > /tmp/bsl.txt
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          head -20 /tmp/bsl.txt || true
+
+      - name: ES-version regression check (are-you-es5)
+        id: es5
+        if: hashFiles('dist/**/*.js') != ''
+        run: |
+          set +e
+          npx --yes are-you-es5 check ./dist --recursive > /tmp/es5.txt 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          tail -50 /tmp/es5.txt || true
+
+      - name: Node engines compatibility
+        id: engines
+        run: |
+          set +e
+          node scripts/check-node-engines.mjs > /tmp/engines.json 2> /tmp/engines.err
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          tail -10 /tmp/engines.err || true
+
+      - name: Peer-dep conflict check (ncu --doctor)
+        id: ncu
+        # `ncu --doctor` runs install + tests in a sandbox per upgrade —
+        # too slow for every push. Run on schedule only.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          set +e
+          # `--doctor` requires a script that exits non-zero on failure.
+          # We just want the conflict report; use --jsonAll instead.
+          npx --yes npm-check-updates --jsonAll > /tmp/ncu.json 2> /tmp/ncu.err
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          head -20 /tmp/ncu.err || true
+
+      - name: Aggregate findings + dispatch
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          FAIL_ON: ${{ github.event.inputs.fail-on-finding || 'false' }}
+        run: |
+          set -euo pipefail
+          FINDINGS=()
+
+          if [ "${{ steps.es5.outputs.exit }}" = "1" ]; then
+            FINDINGS+=("**browser**: \`are-you-es5\` reported ES2015+ syntax in \`dist/\` that may break older browser targets.")
+          fi
+
+          if [ "${{ steps.engines.outputs.exit }}" = "1" ]; then
+            INCOMPAT=$(jq -r '.incompatibleCount // 0' /tmp/engines.json 2>/dev/null || echo 0)
+            FINDINGS+=("**node-engines**: \`${INCOMPAT}\` package(s) declare \`engines.node\` incompatible with our floor.")
+          fi
+
+          # ncu output is verbose; just signal presence of breaking peers
+          if [ -s /tmp/ncu.err ] && grep -qi 'peer\|conflict' /tmp/ncu.err 2>/dev/null; then
+            FINDINGS+=("**peer-deps**: \`npm-check-updates\` flagged peer-dependency conflicts (see workflow log).")
+          fi
+
+          if [ ${#FINDINGS[@]} -eq 0 ]; then
+            echo "✓ no compatibility findings"
+            exit 0
+          fi
+
+          BODY="$(printf -- '- %s\n' "${FINDINGS[@]}")"
+          DEDUP="compat:$(date -u '+%Y-%m-%d')"
+          TITLE="[Audit] Compatibility-matrix findings ($(date -u '+%Y-%m-%d')) [${DEDUP}]"
+
+          # De-dup: any open compat issue in the last 7 days reuses
+          EXISTING=$(gh issue list --repo "$REPO" --label "copilot-fix,compatibility" --state open \
+            --search "compat: in:title" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+
+          ISSUE_BODY_FILE=$(mktemp)
+          cat > "$ISSUE_BODY_FILE" <<BODY_EOF
+          ## Compatibility-matrix findings
+
+          ${BODY}
+
+          ### Resolution
+          Follow prompt fragment **\`fix-compatibility\`** in
+          [\`.github/copilot/PROMPTS.md\`](../blob/main/.github/copilot/PROMPTS.md).
+
+          ### Universal hard constraints
+          - [ ] \`npm ci\` succeeds
+          - [ ] \`npm run lint\` exits 0
+          - [ ] \`npm run build:dev\` succeeds
+          - [ ] \`npm test\` passes
+          - [ ] CodeQL must not introduce new alerts
+          - [ ] \`package.json\` overrides pins must NOT be weakened
+          - [ ] No telemetry / third-party network calls added
+          BODY_EOF
+          sed -i 's/^          //' "$ISSUE_BODY_FILE"
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --repo "$REPO" --body-file "$ISSUE_BODY_FILE" >/dev/null
+            echo "Updated #$EXISTING"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body-file "$ISSUE_BODY_FILE" \
+              --label "copilot-fix,compatibility,audit" --assignee "copilot" || true
+          fi
+
+          if [ "$FAIL_ON" = "true" ]; then
+            echo "::error ::compatibility findings detected and fail-on-finding=true"
+            exit 1
+          fi

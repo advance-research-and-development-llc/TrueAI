@@ -1,0 +1,88 @@
+name: PR Risk Labeller
+
+# Classifies every PR with one of `risk:trivial|low|medium|high` based
+# on which paths were touched and the diff size. Used by:
+#   - `auto-merge.yml`: PRs labelled `risk:trivial` from `copilot[bot]`
+#     get auto-merged with a relaxed approval gate (still requires all
+#     status checks green).
+#   - `dispatch-fix-issue` composite: existing copilot-fix issues that
+#     spawn a PR inherit the risk label so reviewers know what to expect.
+#
+# This workflow is read-only on file content and never modifies code.
+#
+# Reads `scripts/classify-pr-risk.mjs` for the classification logic.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: risk-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Compute risk label
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Fetch changed files + diff stats
+        id: files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh pr view "$PR" --repo "$REPO" --json additions,deletions,files \
+            > /tmp/pr.json
+          jq -r '.files[].path' /tmp/pr.json > /tmp/files.txt
+          ADD=$(jq -r '.additions' /tmp/pr.json)
+          DEL=$(jq -r '.deletions' /tmp/pr.json)
+          echo "add=$ADD" >> "$GITHUB_OUTPUT"
+          echo "del=$DEL" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; cat /tmp/files.txt
+
+      - name: Classify
+        id: classify
+        env:
+          ADDITIONS: ${{ steps.files.outputs.add }}
+          DELETIONS: ${{ steps.files.outputs.del }}
+        run: |
+          set -euo pipefail
+          LABEL=$(node scripts/classify-pr-risk.mjs < /tmp/files.txt)
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
+          echo "Computed risk: $LABEL  (+${ADDITIONS} −${DELETIONS})"
+
+      - name: Apply label (and remove other risk:* labels)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          LABEL: ${{ steps.classify.outputs.label }}
+        run: |
+          set -euo pipefail
+          # Ensure all risk labels exist
+          for r in trivial low medium high; do
+            gh label create "risk:${r}" --color "ededed" --description "Risk classification: ${r}" --repo "$REPO" --force >/dev/null
+          done
+          # Remove other risk:* labels first
+          for r in trivial low medium high; do
+            CUR="risk:${r}"
+            if [ "$CUR" != "$LABEL" ]; then
+              gh issue edit "$PR" --repo "$REPO" --remove-label "$CUR" >/dev/null 2>&1 || true
+            fi
+          done
+          gh issue edit "$PR" --repo "$REPO" --add-label "$LABEL" >/dev/null
+          echo "Applied $LABEL to PR #$PR"
