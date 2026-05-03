@@ -41,7 +41,7 @@ echo "==> Verifying owner-only setup for $OWNER/$REPO"
 echo
 
 # --- 1. Workflow permissions -------------------------------------------------
-echo "[1/5] Actions workflow permissions"
+echo "[1/7] Actions workflow permissions"
 PERMS_JSON="$(gh api "/repos/$OWNER/$REPO/actions/permissions/workflow" 2>/dev/null || echo '{}')"
 DEFAULT_PERMS="$(printf '%s' "$PERMS_JSON" | jq -r '.default_workflow_permissions // ""')"
 PR_APPROVE="$(printf '%s' "$PERMS_JSON" | jq -r '.can_approve_pull_request_reviews // false')"
@@ -59,7 +59,7 @@ fi
 echo
 
 # --- 2. Auto-merge / squash settings ----------------------------------------
-echo "[2/5] Pull-request merge settings"
+echo "[2/7] Pull-request merge settings"
 REPO_JSON="$(gh api "/repos/$OWNER/$REPO" 2>/dev/null || echo '{}')"
 for key in allow_auto_merge allow_squash_merge delete_branch_on_merge; do
   val="$(printf '%s' "$REPO_JSON" | jq -r --arg k "$key" '.[$k] // false')"
@@ -74,7 +74,7 @@ done
 echo
 
 # --- 3. Environments (release / play / fdroid) ------------------------------
-echo "[3/5] Environments"
+echo "[3/7] Environments"
 ENVS_JSON="$(gh api "/repos/$OWNER/$REPO/environments" 2>/dev/null || echo '{"environments":[]}')"
 for env_name in release play fdroid; do
   if printf '%s' "$ENVS_JSON" | jq -e --arg n "$env_name" '.environments[]? | select(.name == $n)' >/dev/null; then
@@ -86,7 +86,7 @@ done
 echo
 
 # --- 4. Rulesets imported ----------------------------------------------------
-echo "[4/5] Repository rulesets"
+echo "[4/7] Repository rulesets"
 RULESETS_JSON="$(gh api "/repos/$OWNER/$REPO/rulesets" 2>/dev/null || echo '[]')"
 for name in \
   "Protect default branch (main/master)" \
@@ -104,7 +104,7 @@ done
 echo
 
 # --- 5. Bot installations ---------------------------------------------------
-echo "[5/5] Bot app installations"
+echo "[5/7] Bot app installations"
 INSTALL_JSON="$(gh api "/repos/$OWNER/$REPO/installations" --paginate 2>/dev/null || echo '{"installations":[]}')"
 for slug_label in \
   "github-actions:github-actions[bot]" \
@@ -119,6 +119,85 @@ for slug_label in \
     warn "$label not installed (optional — install via https://github.com/apps/copilot-swe-agent)"
   else
     fail "$label not installed"
+  fi
+done
+echo
+
+# --- 6. Agent infra: variables, secrets, and dispatcher workflows -----------
+echo "[6/7] Agent infrastructure"
+
+# COPILOT_RUNNER variable (Workstream A1)
+RUNNER_VAR="$(gh api "/repos/$OWNER/$REPO/actions/variables/COPILOT_RUNNER" --jq '.value' 2>/dev/null || echo "")"
+if [[ -n "$RUNNER_VAR" ]]; then
+  ok "Actions variable COPILOT_RUNNER = '$RUNNER_VAR'"
+else
+  warn "Actions variable COPILOT_RUNNER not set (falls back to ubuntu-latest; recommended: ubuntu-8-core)"
+fi
+
+# AGENT_AUTOMATION_TOKEN secret presence (Workstream A4) — cannot read value
+# but `gh api` will return 200 if the secret exists.
+if gh api "/repos/$OWNER/$REPO/actions/secrets/AGENT_AUTOMATION_TOKEN" >/dev/null 2>&1; then
+  ok "Secret AGENT_AUTOMATION_TOKEN is present"
+else
+  warn "Secret AGENT_AUTOMATION_TOKEN missing (workflows fall back to GITHUB_TOKEN; broader scopes recommended — see AGENT_RUNTIME.md § 3a)"
+fi
+
+# Dispatcher workflows present + active
+WORKFLOWS_JSON="$(gh api "/repos/$OWNER/$REPO/actions/workflows" --paginate 2>/dev/null || echo '{"workflows":[]}')"
+for wf in \
+  "Copilot Setup Steps" \
+  "CodeQL Auto-Fix Dispatch" \
+  "Auto Lint Fix" \
+  "Test Failure Auto-Fix Dispatch" \
+  "Android Proactive Lint Audit" \
+  "Dependency Vulnerability Scan" \
+  "Secret Scanning Auto-Fix Dispatch" \
+  "Coverage Gap Dispatch" \
+  "Compatibility Matrix" \
+  "PR Risk Labeller" \
+  "Fix Verification Harness" \
+  "Bug Report from Logs Dispatcher"; do
+  state="$(printf '%s' "$WORKFLOWS_JSON" | jq -r --arg n "$wf" '.workflows[]? | select(.name == $n) | .state' | head -n1)"
+  if [[ "$state" == "active" ]]; then
+    ok "workflow '$wf' is active"
+  elif [[ -n "$state" ]]; then
+    warn "workflow '$wf' state = '$state' (expected active)"
+  else
+    fail "workflow '$wf' not found"
+  fi
+done
+
+# Composite actions present in the working tree (the only place we can check).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+for f in \
+  ".github/actions/dispatch-fix-issue/action.yml" \
+  ".github/actions/agent-throttle/action.yml" \
+  ".github/copilot/PROMPTS.md" \
+  ".github/copilot/AGENT_RUNTIME.md" \
+  "scripts/ratchet-coverage-thresholds.mjs" \
+  "scripts/check-node-engines.mjs" \
+  "scripts/classify-pr-risk.mjs" \
+  "docs/AGENT_OPERATIONS.md"; do
+  if [[ -f "$REPO_ROOT/$f" ]]; then
+    ok "file present: $f"
+  else
+    fail "file missing: $f"
+  fi
+done
+echo
+
+# --- 7. Security features (best-effort, requires admin) ---------------------
+echo "[7/7] Security features"
+SEC_JSON="$(gh api "/repos/$OWNER/$REPO" --jq '.security_and_analysis // {}' 2>/dev/null || echo '{}')"
+for feat in secret_scanning secret_scanning_push_protection; do
+  state="$(printf '%s' "$SEC_JSON" | jq -r --arg k "$feat" '.[$k].status // ""')"
+  if [[ "$state" == "enabled" ]]; then
+    ok "$feat = enabled"
+  elif [[ -n "$state" ]]; then
+    warn "$feat = $state (recommended: enabled — see codeql-autofix.yml header)"
+  else
+    warn "$feat status unknown (admin scope required to read)"
   fi
 done
 echo

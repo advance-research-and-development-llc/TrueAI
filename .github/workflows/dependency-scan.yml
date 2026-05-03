@@ -1,0 +1,223 @@
+name: Dependency Vulnerability Scan
+
+# Multi-source supply-chain scan. Runs OSV-Scanner (npm + Gradle) and
+# `npm audit` against the workspace, dedupes against open `copilot-fix`
+# issues, and dispatches one fix issue per advisory via the
+# `dispatch-fix-issue` composite action.
+#
+# Schedule: daily at 04:00 UTC (offset from auto-bugfix at 03:00).
+#
+# Hard constraint: NEVER weakens `package.json` overrides. The scanner
+# only reports; the agent fixes per the `dep-vuln-bump` prompt fragment.
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  push:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'android/**/*.gradle*'
+      - 'android/**/gradle.properties'
+      - '.github/workflows/dependency-scan.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'android/**/*.gradle*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  security-events: read
+
+concurrency:
+  group: dependency-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: OSV-Scanner + npm audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies (best-effort)
+        run: npm ci --no-audit --prefer-offline
+        continue-on-error: true
+
+      # ── OSV-Scanner ───────────────────────────────────────────────────────
+      - name: Run OSV-Scanner
+        id: osv
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --recursive
+            --skip-git
+            --format=json
+            --output=/tmp/osv.json
+            ./
+
+      # ── npm audit (separate signal, complements OSV) ──────────────────────
+      - name: Run npm audit
+        id: audit
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=low --json > /tmp/npm-audit.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Summarise findings
+        id: summary
+        run: |
+          set -euo pipefail
+          OSV_COUNT=0
+          AUDIT_COUNT=0
+          if [ -s /tmp/osv.json ]; then
+            OSV_COUNT=$(jq '[.results[]?.packages[]?.vulnerabilities[]?] | length' /tmp/osv.json 2>/dev/null || echo 0)
+          fi
+          if [ -s /tmp/npm-audit.json ]; then
+            AUDIT_COUNT=$(jq '.metadata.vulnerabilities | (.critical + .high + .moderate + .low + .info)' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          fi
+          echo "osv_count=$OSV_COUNT"   >> "$GITHUB_OUTPUT"
+          echo "audit_count=$AUDIT_COUNT" >> "$GITHUB_OUTPUT"
+          echo "Found OSV=$OSV_COUNT, npm-audit=$AUDIT_COUNT"
+
+      - name: Upload scan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-reports
+          path: |
+            /tmp/osv.json
+            /tmp/npm-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # ── Dispatch one issue per OSV vulnerability (top 20 by severity) ─────
+      - name: Dispatch fix issues for OSV findings
+        if: github.event_name != 'pull_request' && steps.summary.outputs.osv_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Flatten OSV findings to (id, package, ecosystem, severity, summary)
+          jq -r '
+            .results[]?.packages[]? as $p
+            | $p.vulnerabilities[]?
+            | [
+                .id,
+                ($p.package.name // "unknown"),
+                ($p.package.ecosystem // "unknown"),
+                (.database_specific.severity // .severity[0].score // "unknown"),
+                ((.summary // .details // "") | gsub("\n"; " ") | .[0:200])
+              ] | @tsv
+          ' /tmp/osv.json | sort -u | head -20 > /tmp/osv-flat.tsv
+
+          # Convert TSV → JSON queue file consumed by the next step
+          # (composite actions can't be invoked from inside a `run:` loop,
+          # so we batch the rows and process them in a follow-up step).
+          jq -R -s -c '
+            split("\n")
+            | map(select(length>0))
+            | map(split("\t"))
+            | map({
+                id: .[0],
+                pkg: .[1],
+                eco: .[2],
+                sev: .[3],
+                sum: .[4]
+              })
+          ' /tmp/osv-flat.tsv > /tmp/osv-queue.json
+          echo "Queued $(jq 'length' /tmp/osv-queue.json) OSV findings for dispatch."
+
+      # The composite must be invoked at workflow level, so we expand the
+      # queue into separate steps via a small matrix-emulation pattern:
+      # write a script file, then call dispatch-fix-issue once per row.
+      - name: Dispatch (loop) — one issue per queued OSV finding
+        if: github.event_name != 'pull_request' && hashFiles('/tmp/osv-queue.json') != ''
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Throttle check inline (avoid invoking composite per item; cheaper).
+          OPEN_COUNT=$(gh issue list --repo "$REPO" --label "copilot-fix" --state open --limit 200 --json number --jq 'length' 2>/dev/null || echo 0)
+          CAP=25
+          if [ "${OPEN_COUNT:-0}" -ge "$CAP" ]; then
+            echo "::warning ::queue at cap ($OPEN_COUNT/$CAP); skipping OSV dispatch this run."
+            exit 0
+          fi
+
+          jq -c '.[]' /tmp/osv-queue.json | while read -r row; do
+            ID=$(echo "$row"  | jq -r .id)
+            PKG=$(echo "$row" | jq -r .pkg)
+            ECO=$(echo "$row" | jq -r .eco)
+            SEV=$(echo "$row" | jq -r .sev)
+            SUM=$(echo "$row" | jq -r .sum)
+            DEDUP="OSV:${ID}"
+            TITLE="[Security] ${ID} in ${PKG} (${ECO})"
+            BODY_FILE=$(mktemp)
+            # Heredoc terminator must be at bash column 0; keep BODY_EOF
+            # at the YAML run-block base indent (no extra leading spaces).
+            cat > "$BODY_FILE" <<BODY_EOF
+          ## Auto-generated fix issue
+
+          | Field | Value |
+          |---|---|
+          | **Bug type** | \`dependency-vuln\` |
+          | **Severity** | \`${SEV}\` |
+          | **Prompt fragment** | [\`dep-vuln-bump\`](../blob/main/.github/copilot/PROMPTS.md#fragment-dep-vuln-bump) |
+
+          ### Finding
+
+          **Advisory:** [\`${ID}\`](https://osv.dev/vulnerability/${ID})
+
+          | Package | Ecosystem |
+          |---|---|
+          | \`${PKG}\` | \`${ECO}\` |
+
+          ${SUM}
+
+          ### Universal hard constraints (do not skip any)
+
+          - [ ] \`npm ci\` succeeds
+          - [ ] \`npm run lint\` exits 0
+          - [ ] \`npm run build:dev\` succeeds
+          - [ ] \`npm test\` passes
+          - [ ] CodeQL must not introduce new alerts
+          - [ ] \`package.json\` \`overrides\` pins must NOT be weakened (TIGHTEN, never relax)
+          - [ ] No telemetry, analytics, or third-party network calls added
+          - [ ] \`LICENSE\`, \`NOTICE\`, and copyright headers preserved
+
+          ### Instructions for Copilot agent
+
+          Follow the **\`dep-vuln-bump\`** fragment in
+          [\`.github/copilot/PROMPTS.md\`](../blob/main/.github/copilot/PROMPTS.md).
+          BODY_EOF
+            sed -i 's/^          //' "$BODY_FILE"
+
+            EXISTING=$(gh issue list --repo "$REPO" --label "copilot-fix,dependency-vuln" --state open \
+              --search "\"${DEDUP}\" in:title" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+            if [ -n "$EXISTING" ]; then
+              echo "Dedup hit (#$EXISTING) for $ID — skipping."
+              continue
+            fi
+            # Title must contain DEDUP key for future dedup
+            FULL_TITLE="${TITLE} [${DEDUP}]"
+            gh issue create --repo "$REPO" --title "$FULL_TITLE" --body-file "$BODY_FILE" \
+              --label "copilot-fix,dependency-vuln,security,bug" --assignee "copilot" \
+              || echo "::warning ::failed to create issue for $ID"
+          done

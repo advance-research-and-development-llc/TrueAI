@@ -68,6 +68,58 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
+      # Pre-install agent-friendly CLIs that the dispatcher / audit
+      # workflows shell out to. These are tiny apt packages — installing
+      # them up-front saves time and prevents transient apt failures
+      # mid-task. `gh` and `jq` are already present on ubuntu-latest, but
+      # we re-install defensively in case a custom runner image lacks them.
+      - name: Pre-install agent-friendly CLIs
+        run: |
+          set -eux
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            jq ripgrep shellcheck
+          # actionlint: install via the upstream installer (no apt package).
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+            | bash -s -- latest /usr/local/bin || sudo mv ./actionlint /usr/local/bin/ || true
+          actionlint -version || true
+          # `gh` ships on ubuntu-latest; verify rather than reinstall.
+          gh --version || (
+            sudo mkdir -p -m 755 /etc/apt/keyrings && \
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+              | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null && \
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+              | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null && \
+            sudo apt-get update -y && \
+            sudo apt-get install -y gh
+          )
+        continue-on-error: true
+
+      # Pre-warm the Gradle wrapper distribution & build cache so the
+      # FIRST `./android/gradlew ...` invocation by the agent doesn't
+      # spend 60-90 seconds downloading Gradle. Cache key is the gradle
+      # wrapper properties + build files so it invalidates correctly on
+      # Gradle / dep upgrades.
+      - name: Cache Gradle caches & wrapper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/build-cache
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle*', 'android/**/gradle.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Bootstrap Gradle wrapper distribution
+        run: |
+          if [ -f android/gradlew ]; then
+            chmod +x android/gradlew
+            JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 \
+              ./android/gradlew --version || true
+          fi
+        continue-on-error: true
+
       - name: Install npm dependencies (npm ci)
         run: npm ci
         # Don't fail the whole setup if npm ci hits a transient registry
@@ -77,7 +129,13 @@ jobs:
 
       - name: Print toolchain summary
         run: |
-          echo "Node:    $(node --version)"
-          echo "npm:     $(npm --version)"
-          echo "Java:    $(java -version 2>&1 | head -1)"
-          echo "Gradle:  $(test -f android/gradlew && android/gradlew --version | grep '^Gradle' || echo 'not yet bootstrapped')"
+          echo "Node:       $(node --version)"
+          echo "npm:        $(npm --version)"
+          echo "Java:       $(java -version 2>&1 | head -1)"
+          echo "Gradle:     $(test -f android/gradlew && android/gradlew --version | grep '^Gradle' || echo 'not yet bootstrapped')"
+          echo "jq:         $(jq --version 2>/dev/null || echo 'missing')"
+          echo "gh:         $(gh --version 2>/dev/null | head -1 || echo 'missing')"
+          echo "ripgrep:    $(rg --version 2>/dev/null | head -1 || echo 'missing')"
+          echo "shellcheck: $(shellcheck --version 2>/dev/null | grep '^version:' || echo 'missing')"
+          echo "actionlint: $(actionlint -version 2>/dev/null | head -1 || echo 'missing')"
+          echo "Runner:     ${{ runner.name }} (label resolved from COPILOT_RUNNER='${{ vars.COPILOT_RUNNER || 'ubuntu-latest' }}')"
