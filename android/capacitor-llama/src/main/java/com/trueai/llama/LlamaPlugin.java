@@ -15,12 +15,12 @@ import java.io.File;
  * <code>src/lib/native/llama.ts</code> rather than addressing the
  * plugin directly.
  *
- * <p>PR-2 scope: load / unload / isLoaded / one-shot complete. Streaming
+ * <p>PR 2 scope: load / unload / isLoaded / one-shot complete. Streaming
  * (<code>streamComplete</code>), token-level callbacks, and abort
- * propagation land in PR-3.
+ * propagation land in PR 4.
  *
  * <p>The plugin is dormant by default — no app code calls these methods
- * yet. The class is shipped now so PR-3 can land a small, focused
+ * yet. The class is shipped now so PR 4 can land a small, focused
  * streaming + AI-SDK-provider diff on top of an already-reviewed
  * scaffold.
  *

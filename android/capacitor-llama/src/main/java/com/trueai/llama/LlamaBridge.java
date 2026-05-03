@@ -17,10 +17,10 @@ package com.trueai.llama;
  * surface the same error to {@link LlamaPlugin}, which translates it
  * into a Capacitor reject with code <code>ENGINE_UNAVAILABLE</code>.
  *
- * <p><b>Single-model invariant.</b> PR-2 supports exactly one loaded
+ * <p><b>Single-model invariant.</b> PR 2 supports exactly one loaded
  * model per process. Callers that need to swap models must
  * {@link #unloadModel()} first; {@link #loadModel} called while a model
- * is already loaded will throw. PR-3 may relax this to a small LRU
+ * is already loaded will throw. PR 4 may relax this to a small LRU
  * cache, but only after the streaming surface settles.
  */
 public class LlamaBridge {

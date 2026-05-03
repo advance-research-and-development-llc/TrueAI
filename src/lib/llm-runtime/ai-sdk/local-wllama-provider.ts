@@ -17,8 +17,8 @@
  *     ignored on this provider.
  *
  * This is the foundation for PR 1 of the OfflineLLM-comparison plan.
- * Native Capacitor llama.cpp (PRs 2–3), the in-app GGUF importer
- * (PR 4), sampling UX (PR 7) and friends layer on top of this adapter.
+ * Native Capacitor llama.cpp (PRs 2 & 4), the in-app GGUF importer
+ * (PR 5), sampling UX (PR 7) and friends layer on top of this adapter.
  */
 
 import type {
@@ -102,7 +102,7 @@ export interface LocalWllamaOptions {
   maxOutputTokens?: number
   /**
    * Asset path config for wllama. When omitted the bundled CDN URLs
-   * (`@wllama/wllama/esm/wasm-from-cdn`) are used. PR 13 (offline
+   * (`@wllama/wllama/esm/wasm-from-cdn`) are used. PR 17 (offline
    * product flavor) will switch this to a self-hosted asset path.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,7 +138,7 @@ export interface LocalWllamaOptions {
  * JS bindings and the WASM blobs cannot drift even across patch
  * upgrades. If you bump the npm dependency, update both numbers.
  *
- * PR 13 of the OfflineLLM-comparison plan (offline product flavor)
+ * PR 17 of the OfflineLLM-comparison plan (offline product flavor)
  * will swap this for a self-hosted asset path baked into the APK so
  * the offline flavor never touches the network.
  */
@@ -350,7 +350,7 @@ async function getOrCreateInstance(opts: LocalWllamaOptions): Promise<WllamaInst
 /**
  * Flatten a `LanguageModelV3` prompt into a wllama chat message list.
  * Non-text parts (files, tool calls, reasoning) are skipped — surface
- * a warning so the AI SDK's caller knows. PR 17 (vision) will lift
+ * a warning so the AI SDK's caller knows. PR 16 (vision) will lift
  * this restriction by routing image parts through wllama-vision.
  */
 function toWllamaMessages(
@@ -380,7 +380,7 @@ function toWllamaMessages(
         // Reasoning, file, tool-call, tool-result, tool-approval — none
         // are supported by the local-wasm provider yet. Drop them and
         // emit a single warning per message so the caller can decide
-        // how to surface the omission. PR 17 (vision) will lift the
+        // how to surface the omission. PR 16 (vision) will lift the
         // restriction for image parts.
         droppedNonText = true
       }

@@ -7,7 +7,7 @@
  * re-import the module under test so the mocked plugin proxy is the
  * one wired up.
  *
- * Why these tests matter: PR-3 will swap the JS shim's caller from
+ * Why these tests matter: PR 4 will swap the JS shim's caller from
  * dormant test-only code to the AI-SDK `local-native` provider, and a
  * silent regression in argument shape (e.g. `nCtx` vs `n_ctx`) would
  * surface only on a real device. Locking the wire format in vitest

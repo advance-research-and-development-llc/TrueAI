@@ -335,7 +335,7 @@ function App() {
     [conversations, activeConversationId]
   )
 
-  // PR 9: route chat sends through the AI-SDK streaming path. The
+  // PR 1.h: route chat sends through the AI-SDK streaming path. The
   // hook reads its options from a ref on every send, so per-render
   // values for the active conversation (model / system prompt /
   // sampling overrides) are picked up automatically. Per-conversation
@@ -622,7 +622,7 @@ function App() {
         throw new Error('Conversation not found')
       }
 
-      // Build a real ModelMessage[] history (PR 9). Replaces the prior
+      // Build a real ModelMessage[] history (PR 1.h). Replaces the prior
       // `spark.llmPrompt` text-wrapper hack which concatenated the
       // entire transcript into one user prompt; the AI-SDK path
       // accepts proper role-tagged messages, so the model now sees

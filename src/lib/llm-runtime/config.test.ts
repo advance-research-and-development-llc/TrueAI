@@ -162,7 +162,7 @@ describe('llm-runtime/config', () => {
         maxTokens: 0,
         temperature: -5,
         defaultModel: '',
-        // Sampling knobs (PR 2): negative / out-of-range values must be
+        // Sampling knobs (PR 1.b): negative / out-of-range values must be
         // rejected so a malformed stored blob can't poison the runtime.
         topK: -1,
         minP: 1.5,
@@ -196,7 +196,7 @@ describe('llm-runtime/config', () => {
     })
 
     it('migrates a legacy stored config (missing new sampling fields) to defaults', async () => {
-      // Pre-PR-2 stored configs have only the original 7 fields. Loading
+      // Pre-PR 1.b stored configs have only the original 7 fields. Loading
       // them must not crash and must populate the new fields with
       // DEFAULT_LLM_RUNTIME_CONFIG values.
       mockFetch(null)

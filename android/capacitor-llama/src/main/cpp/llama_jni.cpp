@@ -1,7 +1,7 @@
 // JNI shim for `com.trueai.llama.LlamaBridge`.
 //
-// PR-2 scope: load + one-shot completion. The C++ side owns a single
-// `llama_model*` + `llama_context*` pair per Java handle. PR-3 adds a
+// PR 2 scope: load + one-shot completion. The C++ side owns a single
+// `llama_model*` + `llama_context*` pair per Java handle. PR 4 adds a
 // streaming entry point that fires Capacitor events token-by-token.
 //
 // Threading: every JNI method assumes the Java caller already serialised

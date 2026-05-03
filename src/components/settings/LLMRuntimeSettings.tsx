@@ -116,7 +116,7 @@ interface ConnectionStatus {
 }
 
 /**
- * Per-provider visibility for the "extended" sampling knobs added in PR 2.
+ * Per-provider visibility for the "extended" sampling knobs added in PR 1.b.
  *
  * - **Top-K / Min-P / Repeat Penalty** are llama.cpp-family concepts. The
  *   hosted OpenAI-API providers (OpenAI, Anthropic, Google) either don't

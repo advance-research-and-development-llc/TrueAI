@@ -4,7 +4,7 @@
  * This is the typed wrapper around the in-tree Capacitor `Llama` plugin
  * (`android/capacitor-llama/`). It exposes load / unload / isLoaded /
  * one-shot complete primitives. Streaming and the AI-SDK-shaped
- * `local-native` provider land in PR-3 of the OfflineLLM-comparison
+ * `local-native` provider land in PR 4 of the OfflineLLM-comparison
  * plan and will be added next to (not on top of) this surface.
  *
  * Threat model / availability:
@@ -17,7 +17,7 @@
  *     ship). The plugin propagates that as `ENGINE_UNAVAILABLE` so the
  *     JS layer always has the same rejection contract.
  *
- * Callers must treat this as best-effort: the AI-SDK provider in PR-3
+ * Callers must treat this as best-effort: the AI-SDK provider in PR 4
  * falls back to `local-wasm` (wllama) when this engine is unavailable.
  */
 
@@ -82,7 +82,7 @@ export interface LlamaPlugin {
 const Llama = registerPlugin<LlamaPlugin>('Llama')
 
 /**
- * True only when the native plugin is registered AND callable. PR-2 ships
+ * True only when the native plugin is registered AND callable. PR 2 ships
  * the plugin only on Android, so this returns false on web and iOS.
  *
  * Note: this does NOT verify that the JNI shared library was compiled
