@@ -103,4 +103,96 @@ describe('useStreamingChat', () => {
     // from the abort branch or 'done' if the stream finished first).
     expect(['idle', 'done']).toContain(result.current.status)
   })
+
+  describe('PR 7 — sampling controls forwarded to streamText', () => {
+    it('forwards temperature, topP, topK, frequency/presence penalty, maxOutputTokens, and providerOptions', async () => {
+      const seen: Array<Record<string, unknown>> = []
+      getLanguageModelMock.mockResolvedValue(
+        mockLanguageModel({
+          chunks: ['ok'],
+          onCall: (callOpts) => {
+            seen.push(callOpts as Record<string, unknown>)
+          },
+        }),
+      )
+      const { result } = renderHook(() =>
+        useStreamingChat({
+          temperature: 0.7,
+          topP: 0.9,
+          topK: 50,
+          frequencyPenalty: 0.2,
+          presencePenalty: 0.1,
+          maxOutputTokens: 256,
+          providerOptions: { openai: { min_p: 0.05, repeat_penalty: 1.15 } },
+        }),
+      )
+      await act(async () => {
+        await result.current.send('hi')
+      })
+      expect(seen.length).toBeGreaterThan(0)
+      const call = seen[0]
+      expect(call.temperature).toBe(0.7)
+      expect(call.topP).toBe(0.9)
+      expect(call.topK).toBe(50)
+      expect(call.frequencyPenalty).toBe(0.2)
+      expect(call.presencePenalty).toBe(0.1)
+      expect(call.maxOutputTokens).toBe(256)
+      expect(call.providerOptions).toEqual({
+        openai: { min_p: 0.05, repeat_penalty: 1.15 },
+      })
+    })
+
+    it('omits sampling fields when the caller does not specify them', async () => {
+      const seen: Array<Record<string, unknown>> = []
+      getLanguageModelMock.mockResolvedValue(
+        mockLanguageModel({
+          chunks: ['ok'],
+          onCall: (callOpts) => {
+            seen.push(callOpts as Record<string, unknown>)
+          },
+        }),
+      )
+      const { result } = renderHook(() => useStreamingChat())
+      await act(async () => {
+        await result.current.send('hi')
+      })
+      expect(seen.length).toBeGreaterThan(0)
+      const call = seen[0]
+      expect(call.temperature).toBeUndefined()
+      expect(call.topP).toBeUndefined()
+      expect(call.topK).toBeUndefined()
+      expect(call.frequencyPenalty).toBeUndefined()
+      expect(call.presencePenalty).toBeUndefined()
+      expect(call.maxOutputTokens).toBeUndefined()
+      expect(call.providerOptions).toBeUndefined()
+    })
+
+    it('picks up the latest options without re-creating send() (option ref is read on each call)', async () => {
+      const seen: Array<Record<string, unknown>> = []
+      getLanguageModelMock.mockResolvedValue(
+        mockLanguageModel({
+          chunks: ['ok'],
+          onCall: (callOpts) => {
+            seen.push(callOpts as Record<string, unknown>)
+          },
+        }),
+      )
+      const { result, rerender } = renderHook(
+        (props: { temperature?: number; topK?: number }) =>
+          useStreamingChat(props),
+        { initialProps: { temperature: 0.1, topK: 10 } },
+      )
+      await act(async () => {
+        await result.current.send('first')
+      })
+      rerender({ temperature: 0.9, topK: 80 })
+      await act(async () => {
+        await result.current.send('second')
+      })
+      expect(seen[0].temperature).toBe(0.1)
+      expect(seen[0].topK).toBe(10)
+      expect(seen[1].temperature).toBe(0.9)
+      expect(seen[1].topK).toBe(80)
+    })
+  })
 })

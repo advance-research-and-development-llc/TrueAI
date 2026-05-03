@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ProviderOptions } from '@ai-sdk/provider-utils'
 import {
   getLanguageModel,
   streamText,
@@ -29,6 +30,24 @@ export interface UseStreamingChatOptions {
   system?: string
   /** Sampling temperature override. */
   temperature?: number
+  /** Nucleus-sampling top-p override (0–1). */
+  topP?: number
+  /** Top-K sampling override (0 = disabled, the AI SDK / provider treats it as "off"). */
+  topK?: number
+  /** Frequency-penalty override (per the Vercel AI SDK convention; not all providers honour it). */
+  frequencyPenalty?: number
+  /** Presence-penalty override. */
+  presencePenalty?: number
+  /** Maximum output tokens to generate. */
+  maxOutputTokens?: number
+  /**
+   * Provider-specific overrides forwarded verbatim to `streamText`.
+   * Use this for OpenAI-extension knobs the AI SDK doesn't expose
+   * directly (e.g. `min_p`, `repeat_penalty` on llama.cpp / Ollama).
+   * Shape mirrors the AI SDK's `ProviderOptions`:
+   * `{ [providerId]: { [key]: JSONValue } }`.
+   */
+  providerOptions?: ProviderOptions
 }
 
 export interface UseStreamingChatResult {
@@ -104,6 +123,12 @@ export function useStreamingChat(
           model,
           messages,
           temperature: opts.temperature,
+          topP: opts.topP,
+          topK: opts.topK,
+          frequencyPenalty: opts.frequencyPenalty,
+          presencePenalty: opts.presencePenalty,
+          maxOutputTokens: opts.maxOutputTokens,
+          providerOptions: opts.providerOptions,
           abortSignal: controller.signal,
           // Surface mid-stream failures immediately rather than waiting
           // until the loop exits + `await result.text` resolves; this
