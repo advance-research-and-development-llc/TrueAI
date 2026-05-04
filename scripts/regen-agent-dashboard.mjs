@@ -57,7 +57,7 @@ const totalOpen = parseInt(
 
 // --- Recent agent PRs ------------------------------------------------------
 const recentJson = gh(`pr list --repo ${SLUG} --state closed --limit 30 --json number,title,author,mergedAt,mergeCommit`);
-let recent = [];
+let recent;
 try { recent = JSON.parse(recentJson || '[]'); } catch { recent = []; }
 const agentMerged = recent.filter(p =>
   p.author?.login === 'Copilot' || p.author?.login === 'copilot-swe-agent[bot]' || p.author?.login === 'github-actions[bot]'

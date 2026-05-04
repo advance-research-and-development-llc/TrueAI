@@ -1,0 +1,66 @@
+name: Code Index
+
+# Regenerates .agent/index.json — the machine-readable map of the
+# codebase that the Copilot cloud agent reads at session start.
+# Pure local generation; no third-party services. The index is
+# committed to the repo so agents don't need to regenerate it on
+# every session (copilot-setup-steps.yml regenerates as a safety
+# net for branches that haven't been pushed to main yet).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'android/**/*.java'
+      - 'android/**/*.kt'
+      - '.github/workflows/**'
+      - '.github/copilot/PROMPTS.md'
+      - 'scripts/build-agent-index.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: code-index
+  cancel-in-progress: true
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Regenerate code index
+        run: node scripts/build-agent-index.mjs
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-index
+          path: .agent/index.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet .agent/index.json; then
+            echo "Index unchanged."
+            exit 0
+          fi
+          git add .agent/index.json
+          git commit -m "chore(agent-index): regen [skip ci]"
+          if ! git push origin HEAD:main; then
+            echo "::warning ::index commit could not be pushed (likely ruleset enforcement)"
+          fi
