@@ -5,6 +5,31 @@
 
 ## Current snapshot
 
+_As of 2026-05-04 (post B.2 follow-up — `client.ts` branches → 100%)._
+
+| Metric | Value | Δ vs. prior snapshot |
+|---|---|---|
+| Test files | **209** | +0 |
+| Tests | **2910** | +1 |
+| Global lines | **84.31%** | (no change — single non-line branch) |
+| Global branches | **74.68%** | (held; touched module already 100% lines) |
+| Global functions | **74.79%** | (held) |
+| Global statements | **81.97%** | (held) |
+
+This sweep landed:
+
+- `src/lib/llm-runtime/client.test.ts` — **+1 test** covering the
+  `text || '(empty body)'` arm in the non-OK response branch on
+  `client.ts:175`. This is the path Cloudflare-style empty 5xx
+  gateway responses take, and the user-facing message must still
+  be useful when the upstream returns no body text. Took
+  `client.ts` branches from **98.75% → 100%** while lines stayed
+  at the existing 100%. Lines/functions/statements unchanged
+  (single-branch surgical add); thresholds in `vitest.config.ts`
+  unchanged.
+
+## Earlier snapshot (post sidebar primitive coverage)
+
 _As of 2026-05-04 (post sidebar primitive coverage, on top of Phase 2.9)._
 
 | Metric | Value | Δ vs. Phase 2.9 snapshot |
