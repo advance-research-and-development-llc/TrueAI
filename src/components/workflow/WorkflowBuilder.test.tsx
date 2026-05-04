@@ -43,12 +43,16 @@ vi.mock('@xyflow/react', async () => {
     ReactFlow: ({
       nodes,
       edges,
+      nodeTypes,
       onNodeClick,
+      onConnect,
       children,
     }: {
       nodes: MockNode[]
       edges: MockEdge[]
+      nodeTypes?: Record<string, React.ComponentType<{ data: unknown }>>
       onNodeClick?: (event: React.MouseEvent, node: MockNode) => void
+      onConnect?: (params: { source: string; target: string }) => void
       children?: React.ReactNode
     }) =>
       React.createElement(
@@ -56,16 +60,37 @@ vi.mock('@xyflow/react', async () => {
         { 'data-testid': 'react-flow' },
         [
           React.createElement('div', { key: 'summary', 'data-testid': 'flow-summary' }, `${nodes.length} nodes, ${edges.length} connections`),
-          ...nodes.map((node) =>
-            React.createElement(
+          // Render via nodeTypes when available so the actual node components
+          // (AgentNode/ToolNode/DecisionNode/ParallelNode/StartNode/EndNode)
+          // execute and contribute to coverage.
+          ...nodes.map((node) => {
+            const NodeComponent = nodeTypes && node.type ? nodeTypes[node.type] : undefined
+            return React.createElement(
               'button',
               {
                 key: node.id,
                 type: 'button',
                 onClick: (event: React.MouseEvent) => onNodeClick?.(event, node),
               },
-              node.data?.label ?? node.id
+              [
+                node.data?.label ?? node.id,
+                NodeComponent
+                  ? React.createElement(NodeComponent, { key: 'rendered', data: node.data ?? {} })
+                  : null,
+              ]
             )
+          }),
+          // Expose a hidden trigger that synthesizes an onConnect call so the
+          // onConnect/addEdge code path gets coverage.
+          React.createElement(
+            'button',
+            {
+              key: 'connect-trigger',
+              type: 'button',
+              'data-testid': 'mock-connect',
+              onClick: () => onConnect?.({ source: 'src-x', target: 'tgt-y' }),
+            },
+            'connect'
           ),
           children,
         ]
@@ -273,7 +298,7 @@ describe('WorkflowBuilder', () => {
     )
 
     await user.click(screen.getByText('Existing Workflow'))
-    await user.click(screen.getByRole('button', { name: 'Draft Reply' }))
+    await user.click(screen.getAllByText('Draft Reply')[0].closest('button')!)
 
     const dialog = screen.getByRole('dialog', { name: /configure node/i })
     const labelInput = within(dialog).getByPlaceholderText('Node label')
@@ -292,5 +317,162 @@ describe('WorkflowBuilder', () => {
         ]),
       })
     )
+  })
+
+  it('onConnect adds a smoothstep edge with arrow marker', async () => {
+    const user = userEvent.setup()
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
+    await user.click(screen.getByText('Existing Workflow'))
+    expect(screen.getByTestId('flow-summary')).toHaveTextContent('6 nodes, 2 connections')
+    await user.click(screen.getByTestId('mock-connect'))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        edges: expect.arrayContaining([
+          expect.objectContaining({ source: 'src-x', target: 'tgt-y' }),
+        ]),
+      })
+    )
+  })
+
+  it('selecting an agent in the node configuration dialog updates the node payload', async () => {
+    const user = userEvent.setup()
+    // Polyfills for Radix Select inside jsdom.
+    if (!HTMLElement.prototype.hasPointerCapture) {
+      HTMLElement.prototype.hasPointerCapture = () => false
+      HTMLElement.prototype.setPointerCapture = () => {}
+      HTMLElement.prototype.releasePointerCapture = () => {}
+    }
+    HTMLElement.prototype.scrollIntoView = () => {}
+
+    const multiAgents: Agent[] = [
+      ...agents,
+      {
+        id: 'agent-2',
+        name: 'Triage Agent',
+        goal: 'Classify',
+        model: 'llama3.2',
+        tools: [],
+        createdAt: 1_700_000_000_000,
+        status: 'idle',
+      },
+    ]
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={multiAgents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
+    await user.click(screen.getByText('Existing Workflow'))
+    await user.click(screen.getAllByText('Draft Reply')[0].closest('button')!)
+    const dialog = screen.getByRole('dialog', { name: /configure node/i })
+    await user.click(within(dialog).getByRole('combobox'))
+    await user.click(await screen.findByRole('option', { name: 'Triage Agent' }))
+    await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ id: 'agent-1', data: expect.objectContaining({ agentId: 'agent-2' }) }),
+        ]),
+      })
+    )
+  })
+
+  it('selecting a tool in the node configuration dialog updates the toolName', async () => {
+    const user = userEvent.setup()
+    if (!HTMLElement.prototype.hasPointerCapture) {
+      HTMLElement.prototype.hasPointerCapture = () => false
+      HTMLElement.prototype.setPointerCapture = () => {}
+      HTMLElement.prototype.releasePointerCapture = () => {}
+    }
+    HTMLElement.prototype.scrollIntoView = () => {}
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
+    await user.click(screen.getByText('Existing Workflow'))
+    await user.click(screen.getAllByText('Lookup Data')[0].closest('button')!)
+    const dialog = screen.getByRole('dialog', { name: /configure node/i })
+    await user.click(within(dialog).getByRole('combobox'))
+    await user.click(await screen.findByRole('option', { name: 'Calculator' }))
+    await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ id: 'tool-1', data: expect.objectContaining({ toolName: 'calculator' }) }),
+        ]),
+      })
+    )
+  })
+
+  it('editing the decision condition input persists on save', async () => {
+    const user = userEvent.setup()
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
+    await user.click(screen.getByText('Existing Workflow'))
+    await user.click(screen.getAllByText('Approved?')[0].closest('button')!)
+    const dialog = screen.getByRole('dialog', { name: /configure node/i })
+    const condition = within(dialog).getByPlaceholderText(/result > 100/i)
+    await user.clear(condition)
+    await user.type(condition, 'score >= 0.8')
+    await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
+    await user.click(screen.getByRole('button', { name: /save workflow/i }))
+    expect(onSaveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ id: 'decision-1', data: expect.objectContaining({ condition: 'score >= 0.8' }) }),
+        ]),
+      })
+    )
+  })
+
+  it('Cancel buttons in the new-workflow and node-config dialogs close them without changes', async () => {
+    const user = userEvent.setup()
+    render(
+      <WorkflowBuilder
+        workflows={[makeWorkflow()]}
+        agents={agents}
+        onSaveWorkflow={onSaveWorkflow}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onExecuteWorkflow={onExecuteWorkflow}
+      />
+    )
+    // New workflow dialog Cancel
+    await user.click(screen.getByRole('button', { name: /new workflow/i }))
+    const newDialog = screen.getByRole('dialog', { name: /new workflow/i })
+    await user.click(within(newDialog).getByRole('button', { name: /^cancel$/i }))
+    expect(screen.queryByRole('dialog', { name: /new workflow/i })).not.toBeInTheDocument()
+
+    // Node config dialog Cancel
+    await user.click(screen.getByText('Existing Workflow'))
+    await user.click(screen.getAllByText('Draft Reply')[0].closest('button')!)
+    const cfg = screen.getByRole('dialog', { name: /configure node/i })
+    await user.click(within(cfg).getByRole('button', { name: /^cancel$/i }))
+    expect(screen.queryByRole('dialog', { name: /configure node/i })).not.toBeInTheDocument()
   })
 })
