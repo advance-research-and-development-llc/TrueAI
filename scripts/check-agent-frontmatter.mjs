@@ -113,6 +113,37 @@ for (const file of files) {
     seenNames.set(name, rel)
   }
 
+  // §R — optional permission-scoping fields. Parsed only for shape;
+  // enforcement against PR diffs lives in scripts/check-agent-permissions.mjs.
+  const allowedPaths = parseYamlList(block, 'allowed_paths')
+  const allowedLabels = parseYamlList(block, 'allowed_labels')
+  if (allowedPaths !== null) {
+    if (allowedPaths.length === 0) {
+      violations.push(
+        `${rel}: \`allowed_paths\` is declared but empty; either remove the key or list at least one glob`,
+      )
+    }
+    for (const p of allowedPaths) {
+      if (typeof p !== 'string' || p.trim() === '') {
+        violations.push(`${rel}: \`allowed_paths\` entries must be non-empty strings`)
+        break
+      }
+    }
+  }
+  if (allowedLabels !== null) {
+    if (allowedLabels.length === 0) {
+      violations.push(
+        `${rel}: \`allowed_labels\` is declared but empty; either remove the key or list at least one label`,
+      )
+    }
+    for (const l of allowedLabels) {
+      if (typeof l !== 'string' || l.trim() === '') {
+        violations.push(`${rel}: \`allowed_labels\` entries must be non-empty strings`)
+        break
+      }
+    }
+  }
+
   // Filename consistency: prefer <name>.agent.md. Allow the legacy
   // my-agent.agent.md (declared name: bug-fix-teammate) until that
   // file is renamed in a separate PR.
@@ -140,3 +171,57 @@ const out = summary.join('\n')
 console.error(out)
 console.log(out)
 process.exit(1)
+
+/**
+ * Minimal YAML block-list parser sufficient for `allowed_paths:` and
+ * `allowed_labels:` style fields. Handles:
+ *
+ *   key:
+ *     - "value-one"
+ *     - 'value-two'
+ *     - bare-value
+ *
+ * Returns null if `key:` is absent (so callers can distinguish "not
+ * declared" from "declared empty"). Values are returned as strings with
+ * surrounding quotes stripped. Indentation is permissive: any
+ * positive-indent dash line that follows the key (until a non-list line)
+ * is collected.
+ */
+function parseYamlList(block, key) {
+  const lines = block.split(/\r?\n/)
+  const keyRe = new RegExp(`^${key}\\s*:\\s*(.*)$`)
+  const out = []
+  let inList = false
+
+  for (const raw of lines) {
+    if (!inList) {
+      const m = keyRe.exec(raw)
+      if (m) {
+        const inline = m[1].trim()
+        if (inline.length > 0 && inline !== '|' && inline !== '>') {
+          // Inline flow form `key: [a, b]` — best-effort parse.
+          if (inline.startsWith('[') && inline.endsWith(']')) {
+            const inner = inline.slice(1, -1).trim()
+            if (inner === '') return []
+            return inner
+              .split(',')
+              .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+          }
+          return null // unsupported scalar form; treat as not-a-list
+        }
+        inList = true
+      }
+      continue
+    }
+    // In-list mode: collect `  - value` rows; stop at the first
+    // non-indented, non-dash line.
+    if (/^\s*-\s+/.test(raw)) {
+      const v = raw.replace(/^\s*-\s+/, '').trim().replace(/^["']|["']$/g, '')
+      out.push(v)
+      continue
+    }
+    if (/^\s*$/.test(raw)) continue
+    if (/^\S/.test(raw)) break
+  }
+  return inList ? out : null
+}

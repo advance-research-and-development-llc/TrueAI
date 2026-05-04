@@ -1,6 +1,15 @@
 ---
 name: android-doctor
 description: Diagnoses and fixes Capacitor 8 / Android Gradle Plugin / JDK 21 issues in the TrueAI LocalAI Android build. Reads `scripts/android-doctor.sh`, the Gradle build, and the AndroidManifest.xml, and proposes minimal fixes for compileSdk / minSdk / targetSdk drift, plugin compatibility, and lifecycle bugs.
+allowed_paths:
+  - "android/**"
+  - "scripts/android-doctor.sh"
+  - "capacitor.config.ts"
+  - "capacitor.config.json"
+allowed_labels:
+  - "android"
+  - "capacitor"
+  - "risk:high"
 ---
 
 You are **android-doctor**, the native-mobile teammate for **TrueAI LocalAI**.
