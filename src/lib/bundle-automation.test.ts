@@ -117,6 +117,14 @@ describe('BundleAutomationEngine.evaluateRules + executeRule', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-01T13:30:00Z'))
+    // Make `getHours()` use UTC so tests are TZ-independent. The
+    // production code intentionally uses local TZ ("when does this user
+    // typically use the app?"), but tests pin the *UTC* clock and
+    // assert on the same hour bucket; on non-UTC runners the local
+    // hour drifts and breaks these assertions.
+    vi.spyOn(Date.prototype, 'getHours').mockImplementation(function (this: Date) {
+      return this.getUTCHours()
+    })
   })
 
   afterEach(() => {
@@ -455,6 +463,19 @@ describe('Rule management + import/export', () => {
 })
 
 describe('Pattern-detection branch coverage', () => {
+  beforeEach(() => {
+    // Same TZ-stabilising spy as the evaluateRules block — `temporal
+    // pattern at 18:00 suggests research_agent` uses UTC timestamps
+    // and asserts on the same local-hour bucket.
+    vi.spyOn(Date.prototype, 'getHours').mockImplementation(function (this: Date) {
+      return this.getUTCHours()
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('frequency pattern incorporates agent.createdAt timestamps', () => {
     const e = new BundleAutomationEngine()
     const ts = new Date('2024-01-01T12:00:00Z').getTime()
