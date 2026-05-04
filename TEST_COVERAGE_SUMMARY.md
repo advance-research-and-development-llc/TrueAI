@@ -5,6 +5,45 @@
 
 ## Current snapshot
 
+_As of 2026-05-04 (post sidebar primitive coverage, on top of Phase 2.9)._
+
+| Metric | Value | Δ vs. Phase 2.9 snapshot |
+|---|---|---|
+| Test files | **209** | +2 |
+| Tests | **2909** | +57 |
+| Global lines | **84.31%** | +0.87 pp |
+| Global branches | **74.68%** | +1.16 pp |
+| Global functions | **74.79%** | +0.96 pp |
+| Global statements | **81.97%** | +0.85 pp |
+
+This sweep landed:
+
+- `src/components/ui/sidebar.test.tsx` — **+27 tests** taking
+  `src/components/ui/sidebar.tsx` (the only remaining ≥30 LOC file at
+  0% coverage) from **0 / 0 / 0 / 0** to **100 / 100 / 100 / 97.26**
+  (lines / functions / statements / branches). Unlike the thin
+  Radix wrappers exercised in `shadcn-primitives.test.tsx`, sidebar
+  ships substantial app logic — controlled and uncontrolled provider
+  state, cookie persistence, the Ctrl+B / Meta+B keyboard shortcut
+  (with its `preventDefault` and per-key gating), the
+  `useSidebar` context guard, the mobile-Sheet portal branch versus
+  the desktop variant matrix (`side` × `variant` × `collapsible`),
+  the `SidebarTrigger`/`SidebarRail` toggle paths, and every
+  `asChild` / `tooltip` / `showOnHover` / `size` permutation across
+  `SidebarMenuButton`, `SidebarMenuAction`, `SidebarMenuSubButton`,
+  `SidebarGroupLabel`, `SidebarGroupAction`, and `SidebarMenuSkeleton`
+  (with `Math.random` stubbed for the inline `--skeleton-width`
+  CSS-var assertion).
+
+After this sweep the largest remaining uncovered surface is the
+explicitly deferred App / Builder shell (`AppBuilder.tsx`,
+`LocalIDE.tsx`, the heavy event handlers in `App.tsx`/`App-Enhanced.tsx`)
+— see Phase 4 in the roadmap. `vitest.config.ts` thresholds are
+unchanged from the Phase 2.9 ratchet (lines 83 / fns 73 / branches 73 /
+stmts 81) and continue to pass with margin.
+
+## Earlier snapshot (post Phase 2.9 — leaf-hook branch density)
+
 _As of 2026-05-04 (post Phase 2.9 — leaf-hook branch density)._
 
 | Metric | Value | Δ vs. prior snapshot |
