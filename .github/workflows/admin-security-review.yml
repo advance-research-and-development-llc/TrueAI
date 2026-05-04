@@ -1,0 +1,292 @@
+name: Admin Security Review
+
+# Owner-only comprehensive security audit workflow. Performs deep security
+# analysis across all repository surfaces and generates both a committed
+# markdown report and a GitHub Issue with findings.
+#
+# This workflow has elevated read access to scan:
+# - .github/** (workflows, rulesets, CODEOWNERS)
+# - All source code for token/credential leaks
+# - Dependencies for supply-chain risks
+# - Access control configuration
+# - CI/CD pipeline security
+#
+# Dispatch: Manual only (owner-gated via GitHub environment)
+# Output: Markdown report + GitHub Issue
+# Agent: admin-security-reviewer
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_report:
+        description: 'Generate full detailed report (vs summary)'
+        required: false
+        default: 'true'
+        type: boolean
+      create_issue:
+        description: 'Create GitHub Issue with findings'
+        required: false
+        default: 'true'
+        type: boolean
+      dry_run:
+        description: 'Dry run (scan only, no files written)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write      # For committing report
+  issues: write        # For creating issue
+  pull-requests: write # For opening PR
+  security-events: read # For reading CodeQL alerts
+
+# Owner-gated environment for elevated operations
+environment:
+  name: admin-security-review
+  # Configure this environment in Settings → Environments
+  # Add owner as required reviewer for manual approval gate
+
+jobs:
+  security-review:
+    name: Run comprehensive security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for comprehensive analysis
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security review script
+        id: review
+        env:
+          FULL_REPORT: ${{ inputs.full_report }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set +e  # Don't fail on non-zero exit (script exits 1 if findings)
+
+          ARGS="--full-report"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          node scripts/admin-security-review.mjs $ARGS > review-output.txt 2>&1
+          EXIT_CODE=$?
+
+          cat review-output.txt
+
+          # Extract finding counts from output
+          TOTAL=$(grep "Found" review-output.txt | grep -oE '[0-9]+' | head -1 || echo "0")
+          CRITICAL=$(grep "Critical:" review-output.txt | grep -oE '[0-9]+' || echo "0")
+          HIGH=$(grep "High:" review-output.txt | grep -oE '[0-9]+' || echo "0")
+
+          echo "total_findings=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "critical_findings=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high_findings=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          # Exit with original code for job status
+          exit $EXIT_CODE
+
+      - name: Check if report was generated
+        id: check_report
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          REPORT_PATH="docs/security-reviews/${DATE}-admin-review.md"
+
+          if [ -f "$REPORT_PATH" ]; then
+            echo "report_exists=true" >> "$GITHUB_OUTPUT"
+            echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
+            echo "✅ Report generated at $REPORT_PATH"
+          else
+            echo "report_exists=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  No report file found (dry run mode?)"
+          fi
+
+      - name: Create branch and commit report
+        if: steps.check_report.outputs.report_exists == 'true' && inputs.dry_run == false
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          BRANCH="copilot/admin-security-review-$DATE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create and switch to branch
+          git checkout -b "$BRANCH"
+
+          # Add report file
+          git add "${{ steps.check_report.outputs.report_path }}"
+
+          # Commit
+          git commit -m "security: admin security review $DATE
+
+Automated comprehensive security audit findings.
+
+Total findings: ${{ steps.review.outputs.total_findings }}
+- Critical: ${{ steps.review.outputs.critical_findings }}
+- High: ${{ steps.review.outputs.high_findings }}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+
+          # Push branch
+          git push -u origin "$BRANCH"
+
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Create Pull Request
+        if: steps.check_report.outputs.report_exists == 'true' && inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TOTAL: ${{ steps.review.outputs.total_findings }}
+          CRITICAL: ${{ steps.review.outputs.critical_findings }}
+          HIGH: ${{ steps.review.outputs.high_findings }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+
+          gh pr create \
+            --repo "$REPO" \
+            --title "security: Admin Security Review $DATE" \
+            --body "$(cat <<'PR_EOF'
+## Admin Security Review — $DATE
+
+Automated comprehensive security audit of the TrueAI LocalAI repository.
+
+### Summary
+
+- **Total findings**: $TOTAL
+- **Critical**: $CRITICAL
+- **High**: $HIGH
+
+See the full report in this PR for details.
+
+### Review Checklist
+
+- [ ] All critical findings reviewed and triaged
+- [ ] High findings have remediation plan
+- [ ] False positives documented
+- [ ] Follow-up issues created for actionable items
+
+### Agent
+
+This PR was generated by the **admin-security-reviewer** agent with elevated read access to scan all repository surfaces including workflows, rulesets, and access controls.
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+PR_EOF
+)" \
+            --label "security,audit,admin-review" \
+            --assignee "${{ github.actor }}"
+
+      - name: Create summary issue
+        if: inputs.create_issue == true && inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TOTAL: ${{ steps.review.outputs.total_findings }}
+          CRITICAL: ${{ steps.review.outputs.critical_findings }}
+          HIGH: ${{ steps.review.outputs.high_findings }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          REPORT_PATH="${{ steps.check_report.outputs.report_path }}"
+
+          # Build severity indicator
+          if [ "$CRITICAL" -gt 0 ]; then
+            SEVERITY_ICON="🚨"
+            SEVERITY_TEXT="CRITICAL findings require immediate attention"
+          elif [ "$HIGH" -gt 0 ]; then
+            SEVERITY_ICON="⚠️"
+            SEVERITY_TEXT="HIGH priority findings detected"
+          else
+            SEVERITY_ICON="📋"
+            SEVERITY_TEXT="Review recommended"
+          fi
+
+          gh issue create \
+            --repo "$REPO" \
+            --title "[Admin Security Review] $DATE - $TOTAL findings" \
+            --body "$(cat <<ISSUE_EOF
+## $SEVERITY_ICON Admin Security Review — $DATE
+
+Comprehensive automated security audit completed.
+
+### Finding Summary
+
+| Severity | Count |
+|---|---|
+| Critical | $CRITICAL |
+| High | $HIGH |
+| Medium | (see report) |
+| Low | (see report) |
+
+**Total**: $TOTAL findings
+
+### $SEVERITY_TEXT
+
+${CRITICAL:-0} critical and ${HIGH:-0} high-priority findings require owner review.
+
+### Full Report
+
+See the detailed report with remediation recommendations:
+- 📄 Report: \`$REPORT_PATH\`
+- 🔗 PR: (will be linked automatically when created)
+
+### Review Actions
+
+For critical/high findings:
+1. Review each finding in the full report
+2. Triage as real issue vs false positive
+3. Create fix issues for real vulnerabilities
+4. Document accepted risks
+
+### Scan Coverage
+
+This review scanned:
+- ✅ Token and credential exposure
+- ✅ Dependency vulnerabilities
+- ✅ Access control configuration (rulesets, CODEOWNERS)
+- ✅ Code-level vulnerabilities (XSS, injection, etc.)
+- ✅ CI/CD pipeline security
+
+---
+
+**Agent**: admin-security-reviewer
+**Dispatch**: Manual (owner-only)
+**Environment**: admin-security-review
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+ISSUE_EOF
+)" \
+            --label "admin-review,security,audit" \
+            --assignee "${{ github.actor }}"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔐 Admin Security Review Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Findings**: ${{ steps.review.outputs.total_findings }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Critical**: ${{ steps.review.outputs.critical_findings }}" >> $GITHUB_STEP_SUMMARY
+          echo "**High**: ${{ steps.review.outputs.high_findings }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.review.outputs.exit_code }}" != "0" ]; then
+            echo "⚠️ **Action required**: Critical or high findings detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Status**: No critical/high findings" >> $GITHUB_STEP_SUMMARY
+          fi
