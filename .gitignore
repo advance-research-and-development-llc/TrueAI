@@ -34,11 +34,11 @@ pids
 .file-manifest
 .devcontainer/
 
-# Admin-Virtual-team-enhanced scaffold artifacts
-Admin-Virtual-team-enhanced/node_modules/
-Admin-Virtual-team-enhanced/packages/*/dist/
-Admin-Virtual-team-enhanced/packages/ui/dist/
-Admin-Virtual-team-enhanced/packages/*/*.tsbuildinfo
+# admin-virtual-team-enhanced scaffold artifacts
+admin-virtual-team-enhanced/node_modules/
+admin-virtual-team-enhanced/packages/*/dist/
+admin-virtual-team-enhanced/packages/ui/dist/
+admin-virtual-team-enhanced/packages/*/*.tsbuildinfo
 
 .spark-workbench-id
 **/*.tsbuildinfo
