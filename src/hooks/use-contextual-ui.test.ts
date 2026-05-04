@@ -24,6 +24,15 @@ describe('useContextualUI', () => {
     // deterministic.
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-01T13:00:00Z'))
+    // The hook uses `new Date().getHours()` (local TZ) to bucket usage into
+    // morning/afternoon/evening/night. Tests pin the *UTC* time, so on
+    // non-UTC runners the local hour differs and the bucket assertions
+    // become flaky. Force getHours() to return the UTC hour so the tests
+    // are TZ-independent without changing the production behaviour
+    // (which correctly uses the user's wall clock).
+    vi.spyOn(Date.prototype, 'getHours').mockImplementation(function (this: Date) {
+      return this.getUTCHours()
+    })
   })
 
   afterEach(() => {
