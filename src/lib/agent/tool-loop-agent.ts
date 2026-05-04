@@ -18,7 +18,13 @@
  */
 
 import { z } from 'zod'
-import { tool, ToolLoopAgent, type LanguageModel } from '@/lib/llm-runtime/ai-sdk'
+import {
+  generateText,
+  streamText,
+  tool,
+  ToolLoopAgent,
+  type LanguageModel,
+} from '@/lib/llm-runtime/ai-sdk'
 import { AgentToolExecutor, toolExecutor as defaultExecutor } from '../agent-tools'
 import type { AgentTool } from '../types'
 
@@ -167,25 +173,120 @@ answer instead of inventing tool output.`
  *     (the loop never produces a half-tool-call message).
  */
 export function buildTrueAIAgent(opts: BuildTrueAIAgentOptions) {
-  const budget: Required<BudgetOptions> = {
-    maxSteps: opts.budget?.maxSteps ?? DEFAULT_BUDGET.maxSteps,
-    maxToolCalls: opts.budget?.maxToolCalls ?? DEFAULT_BUDGET.maxToolCalls,
-    maxWallTimeMs: opts.budget?.maxWallTimeMs ?? DEFAULT_BUDGET.maxWallTimeMs,
-    maxOutputTokens:
-      opts.budget?.maxOutputTokens ?? DEFAULT_BUDGET.maxOutputTokens,
-  }
+  const budget = resolveBudget(opts.budget)
+  const stopWhen = buildBudgetStopWhen(budget)
 
-  // Capture run-start so the wall-clock predicate can be evaluated
-  // at every step boundary. ToolLoopAgent invokes `stopWhen` after
-  // each completed step (see `generateText` step loop in @ai-sdk/ai).
+  // Cast through unknown: the `system` setting on `ToolLoopAgent` and
+  // the per-tool generic narrowing both confuse TS's structural
+  // matcher when the tools map is a `Record<string, Tool>`. The
+  // runtime contract is correct.
+  return new ToolLoopAgent({
+    model: opts.model,
+    system: opts.system ?? DEFAULT_SYSTEM,
+    tools: buildAgentTools(opts),
+    stopWhen,
+    maxOutputTokens: budget.maxOutputTokens,
+  } as unknown as ConstructorParameters<typeof ToolLoopAgent>[0])
+}
+
+// ─── Run helpers (§N) ──────────────────────────────────────────────────
+//
+// `buildTrueAIAgent` returns a long-lived agent instance. For most
+// chat-UI use cases the caller wants to (a) stream tokens as they
+// arrive and (b) cancel the run mid-tool-call when the user clicks
+// "stop". Both are supplied below as standalone functions so callers
+// don't need to remember which property of the agent surfaces what.
+//
+// Local-first guarantee: identical tool gating + identical budget
+// caps as `buildTrueAIAgent` — only the SDK call shape changes.
+
+export interface RunOptions {
+  /** User-facing goal the agent should accomplish. */
+  goal: string
+  /**
+   * Optional AbortSignal threaded through every model call and tool
+   * invocation. Calling `controller.abort()` ends the run cleanly: the
+   * model rejects with an AbortError and any in-flight tool sees the
+   * signal in its execution context. The chat UI uses this to drive a
+   * "stop generation" button without re-instantiating the agent.
+   */
+  abortSignal?: AbortSignal
+}
+
+/**
+ * Run the TrueAI agent against `goal` and return the AI SDK's
+ * `streamText` result. Callers can read `.textStream` for token deltas,
+ * `.fullStream` for tool-call/tool-result events, or
+ * `.toUIMessageStreamResponse()` to bridge into a server-sent UI stream.
+ *
+ * Cancelling: pass `abortSignal` from an `AbortController` and call
+ * `controller.abort()`. The stream ends with the partial text emitted
+ * up to that point — the SDK does not surface a half-tool-call.
+ */
+export function streamTrueAIAgentRun(
+  opts: BuildTrueAIAgentOptions,
+  run: RunOptions,
+): ReturnType<typeof streamText> {
+  const budget = resolveBudget(opts.budget)
+  return streamText({
+    model: opts.model,
+    system: opts.system ?? DEFAULT_SYSTEM,
+    tools: buildAgentTools(opts) as unknown as Parameters<typeof streamText>[0]['tools'],
+    prompt: run.goal,
+    stopWhen: buildBudgetStopWhen(budget) as unknown as Parameters<
+      typeof streamText
+    >[0]['stopWhen'],
+    maxOutputTokens: budget.maxOutputTokens,
+    abortSignal: run.abortSignal,
+  })
+}
+
+/**
+ * Non-streaming counterpart to `streamTrueAIAgentRun`: identical tools,
+ * identical budget, identical abort wiring. Resolves to the AI SDK's
+ * `generateText` result. Use this when you only need the final answer
+ * (e.g. one-shot CLI mode, evaluation harness fixtures, server-side
+ * critic pre-pass).
+ */
+export function generateTrueAIAgentRun(
+  opts: BuildTrueAIAgentOptions,
+  run: RunOptions,
+): ReturnType<typeof generateText> {
+  const budget = resolveBudget(opts.budget)
+  return generateText({
+    model: opts.model,
+    system: opts.system ?? DEFAULT_SYSTEM,
+    tools: buildAgentTools(opts) as unknown as Parameters<typeof generateText>[0]['tools'],
+    prompt: run.goal,
+    stopWhen: buildBudgetStopWhen(budget) as unknown as Parameters<
+      typeof generateText
+    >[0]['stopWhen'],
+    maxOutputTokens: budget.maxOutputTokens,
+    abortSignal: run.abortSignal,
+  })
+}
+
+// ─── Internals ─────────────────────────────────────────────────────────
+
+function resolveBudget(b: BudgetOptions | undefined): Required<BudgetOptions> {
+  return {
+    maxSteps: b?.maxSteps ?? DEFAULT_BUDGET.maxSteps,
+    maxToolCalls: b?.maxToolCalls ?? DEFAULT_BUDGET.maxToolCalls,
+    maxWallTimeMs: b?.maxWallTimeMs ?? DEFAULT_BUDGET.maxWallTimeMs,
+    maxOutputTokens: b?.maxOutputTokens ?? DEFAULT_BUDGET.maxOutputTokens,
+  }
+}
+
+/**
+ * Build a fresh composite `stopWhen` predicate that ends the loop when
+ * any of `maxSteps`, `maxToolCalls`, or `maxWallTimeMs` is hit. Each
+ * call returns a NEW closure so multiple concurrent runs don't share
+ * the wall-clock or tool-call counter.
+ */
+function buildBudgetStopWhen(budget: Required<BudgetOptions>) {
   const startedAt = Date.now()
   let toolCallsSeen = 0
-
-  // Composite stop condition: ANY of these can end the loop. The
-  // SDK supports an array, but we collapse to a single predicate
-  // so we can reason about all caps in one place + emit a clean
-  // diagnostic via console.warn (visible in CI / device logs).
-  const stopWhen = ({ steps }: { steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<unknown> }> }) => {
+  return ({ steps }: { steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<unknown> }> }) => {
     const stepCount = steps.length
     toolCallsSeen = steps.reduce(
       (acc, s) => acc + (s.toolCalls?.length ?? 0),
@@ -212,16 +313,4 @@ export function buildTrueAIAgent(opts: BuildTrueAIAgentOptions) {
     }
     return false
   }
-
-  // Cast through unknown: the `system` setting on `ToolLoopAgent` and
-  // the per-tool generic narrowing both confuse TS's structural
-  // matcher when the tools map is a `Record<string, Tool>`. The
-  // runtime contract is correct.
-  return new ToolLoopAgent({
-    model: opts.model,
-    system: opts.system ?? DEFAULT_SYSTEM,
-    tools: buildAgentTools(opts),
-    stopWhen,
-    maxOutputTokens: budget.maxOutputTokens,
-  } as unknown as ConstructorParameters<typeof ToolLoopAgent>[0])
 }
