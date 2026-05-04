@@ -234,4 +234,69 @@ describe('checkForApkUpdate', () => {
     expect(second).toEqual(first)
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
+
+  it('returns null when no fetch is available (no fetchImpl + no global fetch)', async () => {
+    const originalFetch = (globalThis as { fetch?: typeof fetch }).fetch
+    ;(globalThis as { fetch?: typeof fetch }).fetch = undefined
+    try {
+      const result = await checkForApkUpdate({ currentVersion: '1.0.2', force: true })
+      expect(result).toBeNull()
+    } finally {
+      ;(globalThis as { fetch?: typeof fetch }).fetch = originalFetch
+    }
+  })
+
+  it('readCache returns null when JSON is malformed (catch branch)', async () => {
+    localStorage.setItem('truai.apk_update_check.v1', '{not json')
+    const fetchImpl = makeFetch({
+      tag_name: 'v1.0.5',
+      html_url: 'h',
+      assets: [],
+    })
+    const result = await checkForApkUpdate({
+      currentVersion: '1.0.2',
+      fetchImpl,
+    })
+    expect(result).not.toBeNull()
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('readCache returns null when checkedAt is not a number', async () => {
+    localStorage.setItem(
+      'truai.apk_update_check.v1',
+      JSON.stringify({ checkedAt: 'soon', appVersion: '1.0.2', result: null })
+    )
+    const fetchImpl = makeFetch({
+      tag_name: 'v1.0.5',
+      html_url: 'h',
+      assets: [],
+    })
+    const result = await checkForApkUpdate({
+      currentVersion: '1.0.2',
+      fetchImpl,
+    })
+    expect(result).not.toBeNull()
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('handles missing localStorage globally without throwing', async () => {
+    const originalLs = (globalThis as { localStorage?: Storage }).localStorage
+    ;(globalThis as { localStorage?: Storage }).localStorage =
+      undefined as unknown as Storage
+    try {
+      const fetchImpl = makeFetch({
+        tag_name: 'v1.0.5',
+        html_url: 'h',
+        assets: [],
+      })
+      const result = await checkForApkUpdate({
+        currentVersion: '1.0.2',
+        fetchImpl,
+      })
+      expect(result).not.toBeNull()
+      _clearApkUpdateCache()
+    } finally {
+      ;(globalThis as { localStorage?: Storage }).localStorage = originalLs
+    }
+  })
 })
