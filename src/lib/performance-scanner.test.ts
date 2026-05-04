@@ -223,4 +223,220 @@ describe('PerformanceScanner history', () => {
     await scanner.loadScanHistory()
     expect(scanner.getScanHistory()).toEqual([{ id: 'scan-1' }])
   })
+
+  it('caps scanHistory at 20 entries (ring-buffer slice)', async () => {
+    const scanner = new PerformanceScanner()
+    for (let i = 0; i < 21; i++) {
+      await scanner.performComprehensiveScan([], [], [])
+    }
+    expect(scanner.getScanHistory()).toHaveLength(20)
+  })
+})
+
+describe('PerformanceScanner edge branches', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('skips models that have zero chat events (modelEfficiency entry omitted)', async () => {
+    const scanner = new PerformanceScanner()
+    const m2: ModelConfig = { ...model, id: 'm2', name: 'M2' }
+    const events: AnalyticsEvent[] = [
+      evt({
+        type: 'chat_message_received',
+        duration: 1000,
+        metadata: { model: 'm1', responseLength: 200 },
+      }),
+    ]
+    const result = await scanner.performComprehensiveScan(events, [model, m2], [])
+    expect(result.currentMetrics.modelEfficiency.m1).toBeDefined()
+    expect(result.currentMetrics.modelEfficiency.m2).toBeUndefined()
+  })
+
+  it('flags hardware/network/error/battery bottlenecks under low-tier conditions', async () => {
+    ;(scanHardware as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      hardwareConcurrency: 2,
+      maxTouchPoints: 0,
+      platform: 'Linux',
+      userAgent: 'jsdom',
+      screen: { width: 800, height: 600, pixelRatio: 1, colorDepth: 24 },
+      performanceScore: 50,
+      tier: 'low' as const,
+      connection: { effectiveType: '2g', downlink: 0.1, rtt: 600, saveData: true },
+      battery: { level: 0.05, charging: false },
+    })
+    const scanner = new PerformanceScanner()
+    const events: AnalyticsEvent[] = []
+    for (let i = 0; i < 20; i++) {
+      events.push(
+        evt({
+          type: 'chat_message_received',
+          duration: 9000,
+          metadata: { model: 'm1', responseLength: 50 },
+        }),
+      )
+    }
+    for (let i = 0; i < 5; i++) {
+      events.push(
+        evt({ type: 'error_occurred', metadata: { model: 'm1' } }),
+      )
+    }
+    const result = await scanner.performComprehensiveScan(events, [model], [])
+    const types = new Set(result.bottlenecks.map(b => b.type))
+    expect(types.has('hardware')).toBe(true)
+    expect(types.has('network')).toBe(true)
+    expect(result.bottlenecks.some(b => b.type === 'model_config' && b.description.includes('error rate'))).toBe(true)
+    expect(result.bottlenecks.some(b => b.description.toLowerCase().includes('battery'))).toBe(true)
+    const optTypes = new Set(result.optimizations.map(o => o.type))
+    expect(optTypes.has('hardware_tuning')).toBe(true)
+    expect(optTypes.has('reduce_load')).toBe(true)
+    expect(result.estimatedImprovements.responseTimeReduction).toBeGreaterThan(0)
+  })
+
+  it('flags low-throughput model bottleneck when tokensPerSecond < 10', async () => {
+    const scanner = new PerformanceScanner()
+    const events: AnalyticsEvent[] = []
+    for (let i = 0; i < 10; i++) {
+      events.push(
+        evt({
+          type: 'chat_message_received',
+          duration: 10_000,
+          metadata: { model: 'm1', responseLength: 5 },
+        }),
+      )
+    }
+    const result = await scanner.performComprehensiveScan(events, [model], [])
+    expect(result.currentMetrics.modelEfficiency.m1.tokensPerSecond).toBeLessThan(10)
+    expect(
+      result.bottlenecks.some(b => b.type === 'model_config' && b.description.includes('throughput')),
+    ).toBe(true)
+  })
+
+  it('emits a general fallback optimization when p95 > 5000 and nothing else fires', async () => {
+    const scanner = new PerformanceScanner()
+    const events: AnalyticsEvent[] = []
+    // 9 fast + 1 slow with n=10 → p95 index = ceil(9.5)-1 = 9 → the slow sample.
+    // responseLength tuned so wastedTokens stays < 1000 (avoids parameter bottleneck).
+    for (let i = 0; i < 9; i++) {
+      events.push(
+        evt({
+          type: 'chat_message_received',
+          duration: 1500,
+          metadata: { model: 'm1', responseLength: 3500 },
+        }),
+      )
+    }
+    events.push(
+      evt({
+        type: 'chat_message_received',
+        duration: 6000,
+        metadata: { model: 'm1', responseLength: 3500 },
+      }),
+    )
+    const result = await scanner.performComprehensiveScan(events, [model], [])
+    expect(result.currentMetrics.p95ResponseTime).toBeGreaterThan(5000)
+    expect(result.currentMetrics.p95ResponseTime).toBeLessThanOrEqual(8000)
+    expect(result.optimizations.some(o => o.description.includes('general performance'))).toBe(true)
+  })
+
+  it('penalises high-temp/low-freq-penalty parameter combos and suggests freqPenalty bump', async () => {
+    const scanner = new PerformanceScanner()
+    const hotModel: ModelConfig = {
+      ...model,
+      id: 'hot',
+      temperature: 0.95,
+      frequencyPenalty: 0.1,
+      maxTokens: 4000,
+    }
+    const events: AnalyticsEvent[] = []
+    for (let i = 0; i < 10; i++) {
+      events.push(
+        evt({
+          type: 'chat_message_received',
+          duration: 1000,
+          metadata: { model: 'hot', responseLength: 50 },
+        }),
+      )
+    }
+    const result = await scanner.performComprehensiveScan(events, [hotModel], [])
+    expect(result.currentMetrics.modelEfficiency.hot.parameterEfficiency).toBeLessThan(70)
+    const paramOpt = result.optimizations.find(
+      o => o.type === 'adjust_parameter' && o.targetModel === 'hot',
+    )
+    expect(paramOpt).toBeDefined()
+    expect(paramOpt!.changes.frequencyPenalty).toBe(0.4)
+  })
+
+  it('penalises low-temp/high-topP combos and suggests topP reduction', async () => {
+    const scanner = new PerformanceScanner()
+    const coldModel: ModelConfig = {
+      ...model,
+      id: 'cold',
+      temperature: 0.1,
+      topP: 0.97,
+      frequencyPenalty: 0.1,
+      maxTokens: 4000,
+    }
+    const events: AnalyticsEvent[] = []
+    for (let i = 0; i < 10; i++) {
+      events.push(
+        evt({
+          type: 'chat_message_received',
+          duration: 1000,
+          metadata: { model: 'cold', responseLength: 50 },
+        }),
+      )
+    }
+    const result = await scanner.performComprehensiveScan(events, [coldModel], [])
+    expect(result.currentMetrics.modelEfficiency.cold.parameterEfficiency).toBeLessThan(70)
+    const paramOpt = result.optimizations.find(
+      o => o.type === 'adjust_parameter' && o.targetModel === 'cold',
+    )
+    expect(paramOpt).toBeDefined()
+    expect(paramOpt!.changes.topP).toBe(0.88)
+  })
+})
+
+describe('PerformanceScanner.applyOptimizations more types', () => {
+  it('applies hardware_tuning by clamping maxTokens to the configured cap', async () => {
+    const scanner = new PerformanceScanner()
+    const out = await scanner.applyOptimizations(
+      [
+        {
+          id: 'o-ht',
+          type: 'hardware_tuning',
+          priority: 'high',
+          description: '',
+          changes: { maxTokens: 1000 },
+          expectedGain: '',
+          confidence: 0.9,
+          autoApplicable: true,
+        },
+      ],
+      [model],
+    )
+    expect(out.applied).toBe(1)
+    expect(out.updated[0].maxTokens).toBe(1000)
+  })
+
+  it('applies reduce_load by clamping maxTokens to the configured cap', async () => {
+    const scanner = new PerformanceScanner()
+    const out = await scanner.applyOptimizations(
+      [
+        {
+          id: 'o-rl',
+          type: 'reduce_load',
+          priority: 'high',
+          description: '',
+          changes: { maxTokens: 800 },
+          expectedGain: '',
+          confidence: 0.85,
+          autoApplicable: true,
+        },
+      ],
+      [model],
+    )
+    expect(out.applied).toBe(1)
+    expect(out.updated[0].maxTokens).toBe(800)
+  })
 })
