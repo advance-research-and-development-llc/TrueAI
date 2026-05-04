@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # verify-owner-setup.sh — confirm the five owner-only setup steps for
-# the trueai-localai repo are actually live. Run from a workstation
+# the TrueAI repo are actually live. Run from a workstation
 # where `gh` is authenticated as a repo *admin* (so it can read repo
 # settings, environments, rulesets, and app installations).
 #
@@ -10,12 +10,30 @@
 # Usage:
 #   scripts/verify-owner-setup.sh [--owner OWNER] [--repo REPO]
 #
-# Defaults: OWNER=smackypants, REPO=trueai-localai.
+# Defaults are auto-detected from `git remote get-url origin` when run
+# inside a clone of this repo, falling back to
+# advance-research-and-development-llc/TrueAI otherwise.
 
 set -uo pipefail
 
-OWNER="smackypants"
-REPO="trueai-localai"
+# Auto-detect OWNER/REPO from the origin remote so the script keeps
+# working through future repo renames or org moves; flags still win.
+detect_slug() {
+  local url
+  url="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." remote get-url origin 2>/dev/null || true)"
+  # Strip protocol + trailing .git, then take the last two path segments.
+  url="${url%.git}"
+  url="${url#git@github.com:}"
+  url="${url#https://github.com/}"
+  url="${url#http://github.com/}"
+  echo "$url"
+}
+SLUG="$(detect_slug)"
+OWNER="${SLUG%%/*}"
+REPO="${SLUG##*/}"
+# Fallback if detection failed (e.g. running outside a clone).
+[[ -z "$OWNER" || "$OWNER" == "$SLUG" ]] && OWNER="advance-research-and-development-llc"
+[[ -z "$REPO"  || "$REPO"  == "$SLUG" ]] && REPO="TrueAI"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

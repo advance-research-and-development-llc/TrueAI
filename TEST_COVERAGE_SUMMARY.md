@@ -5,6 +5,50 @@
 
 ## Current snapshot
 
+_As of 2026-05-03 (post Phase 2.8 — `App.tsx` shell uplift)._
+
+| Metric | Value | Δ vs. prior snapshot |
+|---|---|---|
+| Test files | **207** | +18 |
+| Tests | **2833** | +743 |
+| Global lines | **83.37%** | +17.6 pp |
+| Global branches | **73.27%** | +18.7 pp |
+| Global functions | **73.72%** | +19.6 pp |
+| Global statements | **81.00%** | +17.4 pp |
+
+This sweep landed:
+
+- `src/App.routing.test.tsx` — **+12 tests** covering `App.tsx` seams the
+  existing smoke test (`src/App.test.tsx`) deliberately avoided due to
+  jsdom heap pressure. Per-file `App.tsx` coverage went from
+  **21.5 / 14.8 / 5.3 / 26.6** (stmt / br / fn / lines) to
+  **29.9 / 22.9 / 18.0 / 34.5** by carving testable seams without
+  modifying production code: `isTabName` guard (valid / invalid /
+  wrong-type persisted active-tab), top-level `handleTabChange`
+  routing across all six tabs, tab-trigger hover handlers, header
+  icon-button dialog open paths (Settings, Customize), the
+  `createConversation` create + cancel flows, the `useIsMobile=true`
+  shell (MobileBottomNav + chat-tab FloatingActionButton conditional),
+  and the agents-tab sub-tab walk plus the `createAgent` dialog flow
+  including `toggleAgentTool`.
+
+The remaining `App.tsx` gaps are the heavy event handlers (`runAgent`
+160 LOC, `executeWorkflow` 101 LOC, `sendMessage` 90 LOC,
+`triggerLearning` 76 LOC). Those require either (a) un-mocking lazy
+panels — heap-prohibitive per the existing test author's note — or
+(b) intricate per-test seeding of `useKV` state. Both are deferred to
+post-decomposition slices, consistent with the roadmap's Phase 4
+caveat for the App / AppBuilder / LocalIDE monoliths.
+
+`vitest.config.ts` thresholds were ratcheted up from the post-Phase-10
+floors (lines 82 / fns 72 / branches 72 / stmts 79) to the new
+rounded-down baseline (lines 83 / fns 73 / branches 73 / stmts 80).
+
+`npm test` and `npm run test:coverage` both pass cleanly. Coverage
+reports are written to `coverage/` (`text`, `json`, `html`, `lcov`).
+
+## Earlier snapshot (pre-Phase 2.8)
+
 _As of 2026-04-29 (post Phase A–E coverage push)._
 
 | Metric | Value | Δ vs. Phase 2 |
@@ -16,7 +60,7 @@ _As of 2026-04-29 (post Phase A–E coverage push)._
 | Global functions | **54.1%** | |
 | Global statements | **63.6%** | |
 
-This sweep landed:
+That earlier sweep landed:
 
 - `src/main.tsx` — bootstrap test (`createRoot.render`, service-worker
   registration handlers, APK update check gating on Capacitor presence,
@@ -40,17 +84,13 @@ This sweep landed:
 - `src/lib/native/network.ts` — listener-error isolation, unsubscribe
   semantics, cached `getNetworkStatusSync` post-init.
 
-`vitest.config.ts` thresholds were lowered from the aspirational
-80/80/75/80 (which silently failed on `main` for several PRs) to
-65/53/53/63 — a level that **locks in current gains without blocking
-non-coverage PRs**. Raising these is a follow-up gated on decomposing
-the three largest untested screens (`App.tsx` 21%, `AppBuilder.tsx`
-16%, `LocalIDE.tsx` 17%).
+That sweep also lowered `vitest.config.ts` thresholds from the
+aspirational 80/80/75/80 (which silently failed on `main` for several
+PRs) to 65/53/53/63 — a level that **locked in then-current gains
+without blocking non-coverage PRs**. Phases 1–10 + 2.1–2.7 + 2.8
+ratcheted those floors back up to today's 83/73/73/80.
 
-`npm test` and `npm run test:coverage` both pass cleanly. Coverage
-reports are written to `coverage/` (`text`, `json`, `html`, `lcov`).
-
-## Earlier snapshot
+## Pre-Phase A snapshot
 
 _As of 2026-04-29 (post Phase 2 — root `ErrorFallback.tsx` + `ThemeSwitcher`)._
 
