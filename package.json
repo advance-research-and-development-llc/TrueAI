@@ -22,6 +22,8 @@
         "check:model-policy": "node scripts/check-model-policy.mjs",
         "check:tool-docs": "node scripts/gen-tool-docs.mjs --check",
         "docs:tools": "node scripts/gen-tool-docs.mjs",
+        "mcp:server": "node scripts/mcp-server.mjs",
+        "mcp:smoke": "node scripts/mcp-server.smoke.mjs",
         "compact:learnings": "node scripts/compact-learnings.mjs",
         "agent:replay": "node scripts/agent-replay.mjs",
         "optimize": "vite optimize",
