@@ -273,4 +273,48 @@ describe('FineTuningUI', () => {
     fireEvent.click(screen.getByText('DS A'))
     expect(screen.getByText('No samples yet')).toBeInTheDocument()
   })
+
+  it('renders default status badge styling for non-running/completed/failed jobs (e.g. queued)', () => {
+    const jobs = [mkJob({ id: 'jq', status: 'queued' as unknown as FineTuningJob['status'], progress: 0 })]
+    renderUI({ jobs })
+    const badge = screen.getByText('queued')
+    expect(badge.className).toMatch(/bg-muted/)
+  })
+
+  it('Create Dataset format Select switches between jsonl/csv/parquet (covers onValueChange)', async () => {
+    const user = userEvent.setup()
+    const { onCreateDataset } = renderUI()
+    await user.click(screen.getByRole('button', { name: /New Dataset|^New$/ }))
+    const dialog = await screen.findByRole('dialog')
+    const formatTrigger = within(dialog).getByRole('combobox')
+    await user.click(formatTrigger)
+    await user.click(await screen.findByRole('option', { name: /CSV/ }))
+    await user.click(within(dialog).getByRole('button', { name: /Create Dataset/i }))
+    expect(onCreateDataset).toHaveBeenCalledWith(
+      expect.objectContaining({ format: 'csv' }),
+    )
+  })
+
+  it('Add Sample dialog Cancel button closes the dialog (covers line 461)', async () => {
+    const user = userEvent.setup()
+    const datasets = [mkDataset({ id: 'ds-1', name: 'DS A', samples: [] })]
+    renderUI({ datasets })
+    fireEvent.click(screen.getByText('DS A'))
+    await user.click(screen.getByRole('button', { name: /Add Sample/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Add Training Sample')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: /Cancel/i }))
+    expect(screen.queryByText('Add Training Sample')).toBeNull()
+  })
+
+  it('Start Training dialog Cancel button closes the dialog (covers line 558)', async () => {
+    const user = userEvent.setup()
+    const datasets = [mkDataset({ id: 'ds-1', name: 'DS A' })]
+    renderUI({ datasets })
+    await user.click(screen.getByRole('button', { name: /Start Training/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Configure fine-tuning|Start Fine-Tuning/i)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: /Cancel/i }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
 })
