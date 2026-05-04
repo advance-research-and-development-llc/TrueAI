@@ -2,6 +2,13 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react-swc'
 import { resolve } from 'path'
 
+// Force UTC for the test runner process so time-of-day branches in
+// hooks/lib (e.g. `new Date().getHours()`) are deterministic regardless of
+// the host machine's local timezone. Must be set before any Date is
+// constructed; the assignment in the worker env (`test.env.TZ`) below
+// covers Vitest's pool workers.
+process.env.TZ = 'UTC'
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -9,6 +16,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    env: {
+      // Force UTC in worker processes so hooks/lib time-of-day branches
+      // produce the same bucket regardless of where CI/dev machines run.
+      TZ: 'UTC',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
