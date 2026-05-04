@@ -172,7 +172,7 @@ describe('ConversationSettings', () => {
     }))
   })
 
-  describe('PR 4 — per-conversation sampling overrides (Top-P / Top-K / Min-P / Repeat Penalty)', () => {
+  describe('PR 1.d — per-conversation sampling overrides (Top-P / Top-K / Min-P / Repeat Penalty)', () => {
     it('renders Top-P with the conversation value', () => {
       render(
         <ConversationSettings

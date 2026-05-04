@@ -348,7 +348,7 @@ describe('LLMRuntimeSettings', () => {
     expect(screen.getByText(/model-0,.*model-11, …/)).toBeInTheDocument()
   })
 
-  describe('PR 3 — extended sampling knobs (Top-K / Min-P / Repeat Penalty / Context Size)', () => {
+  describe('PR 1.c — extended sampling knobs (Top-K / Min-P / Repeat Penalty / Context Size)', () => {
     it('renders Top-K, Min-P, and Repeat Penalty inputs with defaults for a local provider (ollama)', async () => {
       render(<LLMRuntimeSettings />)
       await act(async () => {})
@@ -499,7 +499,7 @@ describe('LLMRuntimeSettings', () => {
     })
   })
 
-  describe('PR 6 — local-wasm download progress panel', () => {
+  describe('PR 1.f — local-wasm download progress panel', () => {
     const localWasmConfig = { ...defaultConfig, provider: 'local-wasm' as const }
 
     it('does not render the on-device status panel when provider is hosted', async () => {

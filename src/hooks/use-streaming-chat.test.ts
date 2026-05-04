@@ -104,7 +104,7 @@ describe('useStreamingChat', () => {
     expect(['idle', 'done']).toContain(result.current.status)
   })
 
-  describe('PR 7 — sampling controls forwarded to streamText', () => {
+  describe('PR 1.g — sampling controls forwarded to streamText', () => {
     it('forwards temperature, topP, topK, frequency/presence penalty, maxOutputTokens, and providerOptions', async () => {
       const seen: Array<Record<string, unknown>> = []
       getLanguageModelMock.mockResolvedValue(

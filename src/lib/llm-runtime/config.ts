@@ -51,6 +51,26 @@ export type LLMProvider =
    * (Ollama, LM Studio, etc.) is unaffected.
    */
   | 'local-wasm'
+  /**
+   * Truly on-device inference via the in-tree Capacitor `Llama` plugin
+   * (`android/capacitor-llama/`, JS shim in `src/lib/native/llama.ts`,
+   * AI-SDK adapter in `local-native-provider.ts`). For this provider
+   * the `LLMRuntimeConfig` fields are reinterpreted:
+   *   - `baseUrl`: absolute path to a `.gguf` file on the device's
+   *     local filesystem (typically under
+   *     `Filesystem.Directory.Data/models/<sha256>.gguf`). The in-app
+   *     GGUF importer (PR 5) is the supported way to populate this.
+   *   - `defaultModel`: the logical model id reported back as
+   *     `LanguageModel.modelId`. Used only for display / cost-tracking.
+   *   - `apiKey`: ignored.
+   *   - `contextSize`: forwarded as `n_ctx` at model-load time.
+   *
+   * On platforms where the native runtime is not available (web, iOS,
+   * Android builds without the JNI .so) the adapter automatically
+   * falls back to `local-wasm` (wllama) so users always get *some*
+   * on-device runtime without reconfiguring.
+   */
+  | 'local-native'
 
 export interface LLMRuntimeConfig {
   /** Logical provider type (used for sensible default base URLs in the UI). */

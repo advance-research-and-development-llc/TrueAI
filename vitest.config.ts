@@ -108,10 +108,29 @@ export default defineConfig({
         // threshold calls neither, and past-threshold drags without
         // callbacks are no-ops). Took select.tsx, avatar.tsx, dialog.tsx,
         // popover.tsx, sheet.tsx all to 100% lines.
-        lines: 82,
-        functions: 72,
-        branches: 72,
-        statements: 79,
+        // Phase 2.8 (App shell — `src/App.tsx`): ratcheted up from
+        // lines 82/functions 72/branches 72/statements 79 to the
+        // rounded-down post-2.8 baseline (lines 83.37% · functions
+        // 73.72% · branches 73.27% · statements 81.00%) — +12 tests
+        // in `src/App.routing.test.tsx` covering `App.tsx` seams that
+        // the existing smoke test deliberately avoided: `isTabName`
+        // guard (valid / invalid / wrong-type persisted active-tab),
+        // top-level Tabs `handleTabChange` routing for all 6 tabs,
+        // tab-trigger hover handlers, header icon-button dialog open
+        // paths (Settings, Customize), `createConversation` create +
+        // cancel flows, mobile shell (`useIsMobile=true`)
+        // MobileBottomNav + chat-tab FloatingActionButton
+        // conditional, agents-tab sub-tab walk + `createAgent`
+        // dialog flow including `toggleAgentTool`. Took
+        // `src/App.tsx` from 21.5/14.8/5.3/26.6 (stmt/br/fn/lines)
+        // to 29.9/22.9/18.0/34.5. Heavy event handlers (`runAgent`,
+        // `executeWorkflow`, `sendMessage`, `triggerLearning`)
+        // remain follow-up slices per the roadmap's
+        // "post-decomposition" caveat.
+        lines: 83,
+        functions: 73,
+        branches: 73,
+        statements: 80,
       },
     },
   },

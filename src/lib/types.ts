@@ -19,7 +19,7 @@ export interface Conversation {
   temperature?: number
   maxTokens?: number
   /** Per-conversation overrides for the LLM-runtime sampling defaults.
-   *  When undefined, the runtime config defaults apply.  See PR 4 of
+   *  When undefined, the runtime config defaults apply.  See PR 1.d of
    *  the OfflineLLM-parity plan and `LLMRequestOptions` in
    *  `src/lib/llm-runtime/client.ts`. */
   topP?: number

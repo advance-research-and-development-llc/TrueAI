@@ -4,19 +4,22 @@
 // behind a Capacitor `@CapacitorPlugin` so JS can run on-device GGUF
 // inference on Android.
 //
-// PR-2 scope: load + one-shot complete only. Streaming and the AI SDK
-// `local-native` provider land in PR-3.
+// PR 2 scope: load + one-shot complete only. Streaming and the AI SDK
+// `local-native` provider land in PR 4.
 //
-// ABI strategy: PR-2 builds for `arm64-v8a` only — that is roughly 95% of
-// the active Android device population and keeps the diff (and APK size)
-// small. PR-3 adds `armeabi-v7a` and `x86_64`. We deliberately drop x86
-// to avoid bloating the APK for an effectively-dead device class.
+// ABI strategy: PR 4 expands from PR 2's `arm64-v8a`-only set to also
+// build `armeabi-v7a` and `x86_64`. arm64-v8a remains the primary
+// target (~95% of active devices); armeabi-v7a covers older 32-bit
+// ARM hardware still common in budget regions; x86_64 enables
+// running on Android emulators and Chrome OS containers without a
+// separate flavor. We deliberately drop x86 (32-bit) to avoid
+// bloating the APK for an effectively-dead device class.
 //
 // JDK strategy: kept at JavaVersion.VERSION_17 to match
 // `android/variables.gradle`; the toolchain doc pins JDK 21 only for the
 // app shell. Bumping the plugin's source/target compatibility above the
 // app's would force a coordinated app bump, which is explicitly out of
-// scope per the PR-2 plan in `.github/copilot-instructions.md`.
+// scope per the PR 2 plan in `.github/copilot-instructions.md`.
 
 apply plugin: 'com.android.library'
 
@@ -46,9 +49,10 @@ android {
                           '-DLLAMA_BUILD_SERVER=OFF'
             }
         }
-        // PR-2: arm64-v8a only. PR-3 expands the ABI matrix.
+        // PR 4: arm64-v8a (primary), armeabi-v7a (legacy 32-bit ARM),
+        // x86_64 (emulator + Chrome OS). 32-bit x86 deliberately excluded.
         ndk {
-            abiFilters 'arm64-v8a'
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
         }
     }
 
