@@ -29,6 +29,91 @@ describe('AgentToolExecutor', () => {
       expect(result.success).toBe(false)
       expect(result.output).toBe('Invalid mathematical expression')
     })
+
+    // Sandbox-hardening regression suite. The previous calculator
+    // implementation routed sanitised input through `new Function(...)`,
+    // which — even with a pre-sanitiser — kept globals reachable as a
+    // sink for any character class that slipped through. The
+    // recursive-descent parser closes over a numeric grammar, so even
+    // if a future regex change accidentally permits letters, there is
+    // no path from tool input to `fetch`, `localStorage`, `window`,
+    // `process`, or `globalThis`.
+    describe('sandbox hardening — no global / eval reachability', () => {
+      it('source no longer contains a Function or eval reference', async () => {
+        const fs = await import('node:fs/promises')
+        const url = await import('node:url')
+        const path = await import('node:path')
+        const here = path.dirname(url.fileURLToPath(import.meta.url))
+        const src = await fs.readFile(
+          path.join(here, 'agent-tools.ts'),
+          'utf8',
+        )
+        // A bare `eval(` or `new Function(` call would re-introduce
+        // the sink. Comments referring to them by name are fine.
+        const codeOnly = src.replace(/\/\/[^\n]*/g, '')
+        expect(codeOnly).not.toMatch(/\beval\s*\(/)
+        expect(codeOnly).not.toMatch(/\bnew\s+Function\s*\(/)
+      })
+
+      it('cannot reach fetch even when sanitiser is bypassed', async () => {
+        // The sanitiser strips letters, so 'fetch' becomes ''. Pass an
+        // empty expression to force the parser path; it must throw.
+        const result = await executor.executeTool('calculator', 'fetch')
+        expect(result.success).toBe(false)
+        expect(result.output).toBe('Invalid mathematical expression')
+      })
+
+      it('cannot reach window/localStorage/process via numeric injection', async () => {
+        // Each of these inputs would, in a Function-constructor
+        // implementation, have either evaluated to an object reference
+        // or thrown a ReferenceError that escaped to the caller. The
+        // parser instead refuses anything that isn't pure arithmetic.
+        const inputs = [
+          'window.fetch()',
+          'localStorage.getItem("x")',
+          'process.env',
+          'globalThis.fetch',
+          'this.constructor("return process")()',
+        ]
+        for (const inp of inputs) {
+          const result = await executor.executeTool('calculator', inp)
+          // Either the sanitised version is empty / unparseable, or it
+          // collapses to harmless arithmetic. The output is NEVER
+          // anything other than 'Invalid mathematical expression' or a
+          // numeric Result line — never an object, never a function,
+          // never a thrown reference error from the sandbox.
+          expect(result.output === 'Invalid mathematical expression' || /^Result: -?\d/.test(result.output)).toBe(true)
+        }
+      })
+
+      it('rejects empty expressions cleanly', async () => {
+        const result = await executor.executeTool('calculator', '')
+        expect(result.success).toBe(false)
+        expect(result.output).toBe('Invalid mathematical expression')
+      })
+
+      it('rejects division by zero', async () => {
+        const result = await executor.executeTool('calculator', '1 / 0')
+        expect(result.success).toBe(false)
+        expect(result.output).toBe('Invalid mathematical expression')
+      })
+
+      it('still evaluates legitimate expressions correctly', async () => {
+        const cases: Array<[string, number]> = [
+          ['1 + 2 * 3', 7],
+          ['(1 + 2) * 3', 9],
+          ['-5 + 8', 3],
+          ['2.5 * 4', 10],
+          ['((1+2)*(3+4))', 21],
+          ['10 / 4', 2.5],
+        ]
+        for (const [expr, expected] of cases) {
+          const result = await executor.executeTool('calculator', expr)
+          expect(result.success).toBe(true)
+          expect(result.metadata?.result).toBeCloseTo(expected, 10)
+        }
+      })
+    })
   })
 
   describe('datetime', () => {

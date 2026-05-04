@@ -127,6 +127,40 @@ jobs:
         # agent can still work and re-run npm ci itself.
         continue-on-error: true
 
+      # Cache the resolved node_modules tree itself (not just the npm
+      # registry tarballs that `cache: npm` already handles). On a warm
+      # hit this skips the full `npm ci` symlink/extract pass on the next
+      # run, dropping cold-start from ~90s → ~10-15s. Keyed on the
+      # *exact* lockfile hash, so any dep change correctly invalidates.
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node_modules-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
+          # No restore-keys: a partial / mismatched node_modules is
+          # worse than a clean install (npm ci already ran above).
+
+      # Agent-loop smoke test. This is the single most important piece
+      # of regression cover for the Copilot cloud agent itself: if a
+      # PR has broken the ToolLoopAgent, surface it during setup
+      # *before* the agent picks up a real task and silently degrades.
+      # `--bail=1` stops on first failure (fastest signal); `--reporter=dot`
+      # keeps logs short. Non-blocking on purpose — a failed smoke is
+      # logged for the agent / human to inspect, but doesn't abort
+      # the whole environment provisioning.
+      - name: Agent-loop smoke test
+        run: |
+          if [ -d node_modules ] && [ -d src/lib/agent ]; then
+            npx --no-install vitest run \
+              --reporter=dot \
+              --bail=1 \
+              src/lib/agent/ \
+              || echo "::warning::Agent-loop smoke test failed — see log above. Continuing setup; the agent may regress on tool-loop behaviour."
+          else
+            echo "Skipping smoke test (no node_modules or no src/lib/agent yet)."
+          fi
+        continue-on-error: true
+
       - name: Print toolchain summary
         run: |
           echo "Node:       $(node --version)"

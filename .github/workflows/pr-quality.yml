@@ -150,7 +150,15 @@ jobs:
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$COMMENT"
 
       # ── Copilot fix issue for copilot/* branches that fail ────────────────
+      # `continue-on-error: true` is intentional — see auto-lint-fix.yml for
+      # the same pattern. The GITHUB_TOKEN cannot always assign issues to
+      # `copilot` (returns "GraphQL: Bot does not have access to the
+      # repository. (replaceActorsForAssignable)"). When dispatch fails we
+      # MUST NOT add a second failure on top of the original test failure
+      # — that just inflates the red-check count without adding signal.
       - name: Create Copilot fix issue on test failure
+        id: dispatch_test_failure
+        continue-on-error: true
         if: >
           failure() &&
           startsWith(github.head_ref, 'copilot/') &&
@@ -203,7 +211,15 @@ jobs:
             --title "[Auto] Unit test failure on $BRANCH" \
             --body "$BODY" \
             --label "copilot-fix,test-failure,bug" \
-            --assignee "copilot")
+            --assignee "copilot" 2>/tmp/issue-err.txt) || ISSUE_URL=""
+          if [ -z "$ISSUE_URL" ]; then
+            echo "::warning ::Could not create dispatch issue (likely missing issues:write or assignee permission)."
+            cat /tmp/issue-err.txt || true
+            gh pr comment "$PR_NUMBER" \
+              --repo "$REPO" \
+              --body "🔴 Unit tests failed on this branch (auto-dispatch issue could not be created — likely a token permission issue). See the run log: $RUN_URL"
+            exit 0
+          fi
           echo "Created issue: $ISSUE_URL"
 
           gh pr comment "$PR_NUMBER" \
@@ -211,7 +227,10 @@ jobs:
             --body "🔴 Unit tests failed on this branch. A fix issue has been dispatched to Copilot: $ISSUE_URL"
 
       # ── Copilot fix issue for TypeScript errors on copilot/* branches ──────
+      # See dispatch_test_failure above for why this is `continue-on-error`.
       - name: Create Copilot fix issue on TypeScript errors
+        id: dispatch_tsc_failure
+        continue-on-error: true
         if: >
           steps.tsc.outputs.has_errors == 'true' &&
           startsWith(github.head_ref, 'copilot/') &&
@@ -268,7 +287,15 @@ jobs:
             --title "[Auto] TypeScript compile errors on $BRANCH" \
             --body "$BODY" \
             --label "copilot-fix,test-failure,bug" \
-            --assignee "copilot")
+            --assignee "copilot" 2>/tmp/issue-err.txt) || ISSUE_URL=""
+          if [ -z "$ISSUE_URL" ]; then
+            echo "::warning ::Could not create dispatch issue (likely missing issues:write or assignee permission)."
+            cat /tmp/issue-err.txt || true
+            gh pr comment "$PR_NUMBER" \
+              --repo "$REPO" \
+              --body "🔴 TypeScript type errors found on this branch (auto-dispatch issue could not be created — likely a token permission issue). See the run log: $RUN_URL"
+            exit 0
+          fi
           echo "Created issue: $ISSUE_URL"
 
           gh pr comment "$PR_NUMBER" \
