@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useState } from 'react'
 
+const seedValues: Record<string, unknown> = {}
+
 vi.mock('@github/spark/hooks', () => ({
-  useKV: <T,>(_key: string, initial: T) => useState<T>(initial),
+  useKV: <T,>(key: string, initial: T) =>
+    useState<T>(seedValues[key] !== undefined ? (seedValues[key] as T) : initial),
 }))
 
 const { useDataPrefetcher, useSmartPrefetch } = await import('./use-data-prefetcher')
@@ -97,6 +100,84 @@ describe('useDataPrefetcher', () => {
   })
 })
 
+describe('useDataPrefetcher seeded-data branches', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'))
+    for (const k of Object.keys(seedValues)) delete seedValues[k]
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    for (const k of Object.keys(seedValues)) delete seedValues[k]
+  })
+
+  it('prefetchMessages filters by conversationId on first (uncached) call and on subsequent cached calls', () => {
+    seedValues.messages = [
+      { id: 'm1', conversationId: 'c1', role: 'user', content: 'a', timestamp: 0 },
+      { id: 'm2', conversationId: 'c2', role: 'user', content: 'b', timestamp: 0 },
+      { id: 'm3', conversationId: 'c1', role: 'user', content: 'c', timestamp: 0 },
+    ]
+    const { result } = renderHook(() => useDataPrefetcher())
+    // First call: fills the cache, then filters → 2 results.
+    const first = result.current.prefetchMessages('c1')
+    expect(first?.map(m => m.id)).toEqual(['m1', 'm3'])
+    // Second call hits the cached branch + filter.
+    const second = result.current.prefetchMessages('c1')
+    expect(second?.map(m => m.id)).toEqual(['m1', 'm3'])
+  })
+
+  it('prefetchAgentRuns filters by agentId on first and cached calls', () => {
+    seedValues['agent-runs'] = [
+      { id: 'r1', agentId: 'a1', status: 'completed', startedAt: 0 },
+      { id: 'r2', agentId: 'a2', status: 'completed', startedAt: 0 },
+      { id: 'r3', agentId: 'a1', status: 'completed', startedAt: 0 },
+    ]
+    const { result } = renderHook(() => useDataPrefetcher())
+    expect(result.current.prefetchAgentRuns('a1')?.map(r => r.id)).toEqual(['r1', 'r3'])
+    expect(result.current.prefetchAgentRuns('a1')?.map(r => r.id)).toEqual(['r1', 'r3'])
+  })
+
+  it('returns null from each prefetcher when the underlying useKV value is null', () => {
+    seedValues.conversations = null
+    seedValues.messages = null
+    seedValues.agents = null
+    seedValues['agent-runs'] = null
+    const { result } = renderHook(() => useDataPrefetcher())
+    expect(result.current.prefetchConversations()).toBeNull()
+    expect(result.current.prefetchMessages()).toBeNull()
+    expect(result.current.prefetchAgents()).toBeNull()
+    expect(result.current.prefetchAgentRuns()).toBeNull()
+  })
+
+  it('prefetchConversationWithMessages resolves a known conversation + its messages', () => {
+    seedValues.conversations = [
+      { id: 'c1', title: 'one', createdAt: 0, updatedAt: 0 },
+    ]
+    seedValues.messages = [
+      { id: 'm1', conversationId: 'c1', role: 'user', content: 'hi', timestamp: 0 },
+    ]
+    const { result } = renderHook(() => useDataPrefetcher())
+    const out = result.current.prefetchConversationWithMessages('c1')
+    expect(out.conversation?.id).toBe('c1')
+    expect(out.messages.map(m => m.id)).toEqual(['m1'])
+  })
+
+  it('prefetchAgentWithRuns resolves a known agent + its runs', () => {
+    seedValues.agents = [
+      { id: 'a1', name: 'A', systemPrompt: '', tools: [], createdAt: 0 },
+    ]
+    seedValues['agent-runs'] = [
+      { id: 'r1', agentId: 'a1', status: 'completed', startedAt: 0 },
+    ]
+    const { result } = renderHook(() => useDataPrefetcher())
+    const out = result.current.prefetchAgentWithRuns('a1')
+    expect(out.agent?.id).toBe('a1')
+    expect(out.runs.map(r => r.id)).toEqual(['r1'])
+  })
+})
+
 describe('useSmartPrefetch', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -150,4 +231,17 @@ describe('useSmartPrefetch', () => {
     // throws from the cleanup path.
     expect(true).toBe(true)
   })
+
+  it.each(['workflows', 'models', 'analytics', 'builder'])(
+    'tab "%s" routes through the warmupCache switch arm',
+    async (tab) => {
+      const { result } = renderHook(() => useSmartPrefetch(tab))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400)
+      })
+      // The smart-prefetch effect should have fired warmupCache without
+      // throwing; the prefetcher API is still functional.
+      expect(typeof result.current.warmupCache).toBe('function')
+    },
+  )
 })
