@@ -76,6 +76,12 @@ outputs:
   issue-url:
     description: HTML URL of the created/updated/reopened issue.
     value: ${{ steps.dispatch.outputs.issue_url }}
+  fix-key:
+    description: >
+      The 16-char SHA-256 prefix of `bug-type::dedup-key` used as the
+      content-hash trailer for body-based dedup. Useful for callers
+      that want to correlate later observations to the same issue.
+    value: ${{ steps.render.outputs.fix_key }}
 
 runs:
   using: composite
@@ -160,8 +166,18 @@ runs:
           echo "Fill in the \`## Lessons learned\` section of the PR description"
           echo "when opening the fix PR — it is auto-ingested into"
           echo '`.github/copilot/LEARNINGS.md` on merge.'
+          echo
+          # Stable content-hash trailer for body-based dedup. Survives
+          # future title renames and beats race conditions where two
+          # runs see no open match by title and both create issues
+          # (the second create will be rejected by the body-search
+          # below the next time around, and one of them will be auto-
+          # closed by the dedup-housekeeping workflow).
+          FIX_KEY=$(printf '%s::%s' "${BUG_TYPE}" "${DEDUP_KEY}" | sha256sum | awk '{print substr($1,1,16)}')
+          echo "<!-- copilot-fix-key: ${FIX_KEY} -->"
         } > "$BODY_FILE"
         echo "body_file=$BODY_FILE" >> "$GITHUB_OUTPUT"
+        echo "fix_key=$FIX_KEY"     >> "$GITHUB_OUTPUT"
 
     - name: Throttle check + dedup + dispatch
       id: dispatch
@@ -173,6 +189,7 @@ runs:
         DEDUP_KEY: ${{ inputs.dedup-key }}
         LABELS: ${{ inputs.labels }}
         BODY_FILE: ${{ steps.render.outputs.body_file }}
+        FIX_KEY: ${{ steps.render.outputs.fix_key }}
         REOPEN: ${{ inputs.reopen-closed }}
         ASSIGNEE: ${{ inputs.assignee }}
         THROTTLE_CAP: ${{ inputs.throttle-cap }}
@@ -191,16 +208,32 @@ runs:
           fi
         fi
 
-        # ---- Dedup: open issue containing dedup key in title -----------------
-        # Uses --search "in:title" to scope the substring match to the title.
-        EXISTING_OPEN=$(gh issue list \
-          --repo "$REPO" \
-          --label "copilot-fix" \
-          --state open \
-          --search "\"${DEDUP_KEY}\" in:title" \
-          --json number,title \
-          --jq ".[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
-          2>/dev/null | head -n1 || echo "")
+        # ---- Dedup pass 1: body-trailer hash (most robust) -------------------
+        # Survives title renames and is stamped on every new dispatch
+        # below. The trailer format is `<!-- copilot-fix-key: $FIX_KEY -->`.
+        EXISTING_OPEN=""
+        if [ -n "${FIX_KEY:-}" ]; then
+          EXISTING_OPEN=$(gh issue list \
+            --repo "$REPO" \
+            --label "copilot-fix" \
+            --state open \
+            --search "\"copilot-fix-key: ${FIX_KEY}\" in:body" \
+            --json number,body \
+            --jq ".[] | select(.body | contains(\"copilot-fix-key: ${FIX_KEY}\")) | .number" \
+            2>/dev/null | head -n1 || echo "")
+        fi
+
+        # ---- Dedup pass 2: title substring (legacy, for older issues) --------
+        if [ -z "$EXISTING_OPEN" ]; then
+          EXISTING_OPEN=$(gh issue list \
+            --repo "$REPO" \
+            --label "copilot-fix" \
+            --state open \
+            --search "\"${DEDUP_KEY}\" in:title" \
+            --json number,title \
+            --jq ".[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
+            2>/dev/null | head -n1 || echo "")
+        fi
 
         if [ -n "$EXISTING_OPEN" ]; then
           echo "Found open dedup match: #$EXISTING_OPEN — updating body."
@@ -214,15 +247,30 @@ runs:
         fi
 
         # ---- Reopen recently-closed dedup match ------------------------------
+        # Same two-pass strategy: prefer the content-hash trailer, fall
+        # back to the legacy title substring.
         if [ "$REOPEN" = "true" ]; then
-          EXISTING_CLOSED=$(gh issue list \
-            --repo "$REPO" \
-            --label "copilot-fix" \
-            --state closed \
-            --search "\"${DEDUP_KEY}\" in:title" \
-            --json number,title,closedAt \
-            --jq "sort_by(.closedAt) | reverse | .[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
-            2>/dev/null | head -n1 || echo "")
+          EXISTING_CLOSED=""
+          if [ -n "${FIX_KEY:-}" ]; then
+            EXISTING_CLOSED=$(gh issue list \
+              --repo "$REPO" \
+              --label "copilot-fix" \
+              --state closed \
+              --search "\"copilot-fix-key: ${FIX_KEY}\" in:body" \
+              --json number,body,closedAt \
+              --jq "sort_by(.closedAt) | reverse | .[] | select(.body | contains(\"copilot-fix-key: ${FIX_KEY}\")) | .number" \
+              2>/dev/null | head -n1 || echo "")
+          fi
+          if [ -z "$EXISTING_CLOSED" ]; then
+            EXISTING_CLOSED=$(gh issue list \
+              --repo "$REPO" \
+              --label "copilot-fix" \
+              --state closed \
+              --search "\"${DEDUP_KEY}\" in:title" \
+              --json number,title,closedAt \
+              --jq "sort_by(.closedAt) | reverse | .[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
+              2>/dev/null | head -n1 || echo "")
+          fi
           if [ -n "$EXISTING_CLOSED" ]; then
             echo "Found recently-closed dedup match: #$EXISTING_CLOSED — reopening."
             gh issue reopen "$EXISTING_CLOSED" --repo "$REPO" >/dev/null
@@ -237,11 +285,24 @@ runs:
         fi
 
         # ---- Create fresh issue ---------------------------------------------
+        # If --assignee fails (e.g., the GITHUB_TOKEN cannot assign issues
+        # to the requested user — "GraphQL: Bot does not have access to
+        # the repository. (replaceActorsForAssignable)") we retry without
+        # the assignee rather than fail the whole dispatch. The issue
+        # still gets created and labelled; manual triage can pick the
+        # assignee up later.
         ARGS=(--repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE" --label "$LABELS")
+        URL=""
         if [ -n "$ASSIGNEE" ]; then
-          ARGS+=(--assignee "$ASSIGNEE")
+          URL=$(gh issue create "${ARGS[@]}" --assignee "$ASSIGNEE" 2>/tmp/dispatch-err.txt) || URL=""
+          if [ -z "$URL" ]; then
+            echo "::warning ::dispatch-fix-issue: --assignee '${ASSIGNEE}' rejected by API; retrying without assignee."
+            cat /tmp/dispatch-err.txt || true
+          fi
         fi
-        URL=$(gh issue create "${ARGS[@]}")
+        if [ -z "$URL" ]; then
+          URL=$(gh issue create "${ARGS[@]}")
+        fi
         NUM=$(echo "$URL" | grep -oE '[0-9]+$' || echo "")
         echo "Created issue: $URL"
         echo "action=create"      >> "$GITHUB_OUTPUT"
