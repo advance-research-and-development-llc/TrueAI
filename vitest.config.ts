@@ -165,10 +165,16 @@ export default defineConfig({
         // FeedbackDialog). All-files now sits at **85.76 stmts · 78.11 branch ·
         // 80.33 funcs · 87.80 lines**. Bumped from 85 / 77.5 / 79.5 / 87 to
         // 85.5 / 78 / 80 / 87.5 to lock in the gains.
-        lines: 87.5,
-        functions: 80,
-        branches: 78,
-        statements: 85.5,
+        // **Threshold ratchet #4 (post-PRs #131-#136):** 6 more coverage
+        // chunks landed (PromptTemplates, tool-registry, PerformanceWrapper,
+        // apkUpdateCheck, FineTuningUI, BundleAutomationPanel). All-files now
+        // sits at **86.07 stmts · 78.44 branch · 80.82 funcs · 88.00 lines**.
+        // Bumped from 85.5 / 78 / 80 / 87.5 to 85.75 / 78.25 / 80.5 / 87.75
+        // to lock in the gains.
+        lines: 87.75,
+        functions: 80.5,
+        branches: 78.25,
+        statements: 85.75,
       },
     },
   },
