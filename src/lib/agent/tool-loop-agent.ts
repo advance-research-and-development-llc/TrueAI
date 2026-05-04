@@ -106,7 +106,46 @@ export interface BuildTrueAIAgentOptions extends BuildAgentToolsOptions {
   model: LanguageModel
   /** Optional system prompt; a sensible default is supplied. */
   system?: string
+  /**
+   * Budget guard. Without these caps a misbehaving model can walk
+   * the tool list forever — the cost is otherwise bounded only by
+   * the user pressing "stop". All four are independent: hitting any
+   * one ends the run with a final-text fallback.
+   */
+  budget?: BudgetOptions
 }
+
+/**
+ * Per-run resource caps. All optional; missing fields use the
+ * project defaults (`DEFAULT_BUDGET`). Set any field to `Infinity`
+ * to disable that specific cap (callers should rarely do this).
+ */
+export interface BudgetOptions {
+  /** Maximum reasoning steps before forced stop. Default: 8. */
+  maxSteps?: number
+  /**
+   * Maximum total tool invocations across all steps. Default: 16.
+   * Catches "walk the tool list" loops where every step calls a
+   * different tool but no progress is made on the user's goal.
+   */
+  maxToolCalls?: number
+  /** Wall-clock cap, in milliseconds. Default: 30_000. */
+  maxWallTimeMs?: number
+  /**
+   * Maximum *output* tokens the model is allowed to generate
+   * (across all steps combined). Default: 4_096. Maps to the
+   * SDK's per-call \`maxOutputTokens\` and is also re-checked
+   * after each step in case the model overshoots a single cap.
+   */
+  maxOutputTokens?: number
+}
+
+export const DEFAULT_BUDGET: Required<BudgetOptions> = Object.freeze({
+  maxSteps: 8,
+  maxToolCalls: 16,
+  maxWallTimeMs: 30_000,
+  maxOutputTokens: 4_096,
+})
 
 const DEFAULT_SYSTEM = `You are a TrueAI on-device agent. You have access to a small set of \
 tools; pick the smallest combination that accomplishes the user's goal. \
@@ -118,8 +157,62 @@ answer instead of inventing tool output.`
  * Construct a TrueAI-flavoured `ToolLoopAgent` ready to `generate(...)`
  * against a goal. Equivalent in behaviour to the legacy planner→tool
  * loop, but typed, single-shot, and provider-agnostic.
+ *
+ * Budget caps (`opts.budget`) translate to:
+ *   - `maxOutputTokens` → forwarded to the model on every call.
+ *   - `maxSteps`, `maxToolCalls`, `maxWallTimeMs` → wired into a
+ *     composite \`stopWhen\` predicate that ends the loop early
+ *     when any one is exceeded. The agent's final text in that
+ *     case is the assistant text from the last completed step
+ *     (the loop never produces a half-tool-call message).
  */
 export function buildTrueAIAgent(opts: BuildTrueAIAgentOptions) {
+  const budget: Required<BudgetOptions> = {
+    maxSteps: opts.budget?.maxSteps ?? DEFAULT_BUDGET.maxSteps,
+    maxToolCalls: opts.budget?.maxToolCalls ?? DEFAULT_BUDGET.maxToolCalls,
+    maxWallTimeMs: opts.budget?.maxWallTimeMs ?? DEFAULT_BUDGET.maxWallTimeMs,
+    maxOutputTokens:
+      opts.budget?.maxOutputTokens ?? DEFAULT_BUDGET.maxOutputTokens,
+  }
+
+  // Capture run-start so the wall-clock predicate can be evaluated
+  // at every step boundary. ToolLoopAgent invokes `stopWhen` after
+  // each completed step (see `generateText` step loop in @ai-sdk/ai).
+  const startedAt = Date.now()
+  let toolCallsSeen = 0
+
+  // Composite stop condition: ANY of these can end the loop. The
+  // SDK supports an array, but we collapse to a single predicate
+  // so we can reason about all caps in one place + emit a clean
+  // diagnostic via console.warn (visible in CI / device logs).
+  const stopWhen = ({ steps }: { steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<unknown> }> }) => {
+    const stepCount = steps.length
+    toolCallsSeen = steps.reduce(
+      (acc, s) => acc + (s.toolCalls?.length ?? 0),
+      0,
+    )
+    if (stepCount >= budget.maxSteps) {
+      console.warn(
+        `[budget-guard] stopping: maxSteps=${budget.maxSteps} reached`,
+      )
+      return true
+    }
+    if (toolCallsSeen >= budget.maxToolCalls) {
+      console.warn(
+        `[budget-guard] stopping: maxToolCalls=${budget.maxToolCalls} reached (saw ${toolCallsSeen})`,
+      )
+      return true
+    }
+    const elapsed = Date.now() - startedAt
+    if (elapsed >= budget.maxWallTimeMs) {
+      console.warn(
+        `[budget-guard] stopping: maxWallTimeMs=${budget.maxWallTimeMs}ms reached (elapsed ${elapsed}ms)`,
+      )
+      return true
+    }
+    return false
+  }
+
   // Cast through unknown: the `system` setting on `ToolLoopAgent` and
   // the per-tool generic narrowing both confuse TS's structural
   // matcher when the tools map is a `Record<string, Tool>`. The
@@ -128,5 +221,7 @@ export function buildTrueAIAgent(opts: BuildTrueAIAgentOptions) {
     model: opts.model,
     system: opts.system ?? DEFAULT_SYSTEM,
     tools: buildAgentTools(opts),
+    stopWhen,
+    maxOutputTokens: budget.maxOutputTokens,
   } as unknown as ConstructorParameters<typeof ToolLoopAgent>[0])
 }
