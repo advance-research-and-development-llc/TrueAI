@@ -204,4 +204,35 @@ describe('PerformanceProfileManager', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('shows Excellent Match label/green color when params match conversation defaults exactly', () => {
+    const idealParams: ModelParameters = {
+      temperature: 0.7, maxTokens: 1500, topP: 0.9,
+      frequencyPenalty: 0.2, presencePenalty: 0.3,
+    }
+    render(<PerformanceProfileManager {...defaultProps} currentModelParams={idealParams} />)
+    const label = screen.getByText('Excellent Match')
+    expect(label).toBeInTheDocument()
+    expect(label.className).toContain('text-green-500')
+  })
+
+  it('shows Fair Match label when params are moderately off', () => {
+    const fairParams: ModelParameters = {
+      temperature: 0.5, maxTokens: 2500, topP: 0.7,
+      frequencyPenalty: 0.7, presencePenalty: 0.8,
+    }
+    render(<PerformanceProfileManager {...defaultProps} currentModelParams={fairParams} />)
+    expect(screen.getByText('Fair Match')).toBeInTheDocument()
+  })
+
+  it('shows Poor Match label/orange color when params are wildly off', () => {
+    const poorParams: ModelParameters = {
+      temperature: 1.7, maxTokens: 4500, topP: 0.4,
+      frequencyPenalty: 1.2, presencePenalty: 1.3,
+    }
+    render(<PerformanceProfileManager {...defaultProps} currentModelParams={poorParams} />)
+    const label = screen.getByText('Poor Match')
+    expect(label).toBeInTheDocument()
+    expect(label.className).toContain('text-orange-500')
+  })
 })
