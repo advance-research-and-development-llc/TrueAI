@@ -19,7 +19,7 @@
       "_comment": "Admin (repo owner). Keep this entry."
     },
     {
-      "actor_id": -1,
+      "actor_id": 15368,
       "actor_type": "Integration",
       "bypass_mode": "always",
       "_comment": "Replace -1 with the GitHub App ID for github-actions[bot] so release-bump.yml / tag-release.yml can push tags."

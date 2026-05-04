@@ -224,6 +224,45 @@ describe('llm-runtime/config', () => {
       expect(cfg.topP).toBe(0)
     })
 
+    it('applies and validates topK / minP / repeatPenalty from the stored config', async () => {
+      mockFetch(null)
+      await kvStore.set(LLM_RUNTIME_CONFIG_KEY, {
+        topK: 64,
+        minP: 0.1,
+        repeatPenalty: 1.2,
+      })
+      const cfg = await ensureLLMRuntimeConfigLoaded()
+      expect(cfg.topK).toBe(64)
+      expect(cfg.minP).toBe(0.1)
+      expect(cfg.repeatPenalty).toBe(1.2)
+    })
+
+    it('floors fractional topK and accepts 0 (disabled)', async () => {
+      mockFetch(null)
+      await kvStore.set(LLM_RUNTIME_CONFIG_KEY, { topK: 7.9 })
+      const cfg = await ensureLLMRuntimeConfigLoaded()
+      expect(cfg.topK).toBe(7)
+      __resetLLMRuntimeConfigForTests()
+      __resetKvStoreForTests()
+      mockFetch(null)
+      await kvStore.set(LLM_RUNTIME_CONFIG_KEY, { topK: 0 })
+      const cfg2 = await ensureLLMRuntimeConfigLoaded()
+      expect(cfg2.topK).toBe(0)
+    })
+
+    it('rejects out-of-range minP (>1, <0) and repeatPenalty (<1) — defaults preserved', async () => {
+      mockFetch(null)
+      await kvStore.set(LLM_RUNTIME_CONFIG_KEY, {
+        topK: -3,
+        minP: 1.5,
+        repeatPenalty: 0.5,
+      })
+      const cfg = await ensureLLMRuntimeConfigLoaded()
+      expect(cfg.topK).toBe(DEFAULT_LLM_RUNTIME_CONFIG.topK)
+      expect(cfg.minP).toBe(DEFAULT_LLM_RUNTIME_CONFIG.minP)
+      expect(cfg.repeatPenalty).toBe(DEFAULT_LLM_RUNTIME_CONFIG.repeatPenalty)
+    })
+
     it('strips a legacy apiKey field from the stored config blob', async () => {
       mockFetch(null)
       // Simulate a record persisted by an older app version that put apiKey

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # verify-owner-setup.sh — confirm the five owner-only setup steps for
-# the trueai-localai repo are actually live. Run from a workstation
+# the TrueAI repo are actually live. Run from a workstation
 # where `gh` is authenticated as a repo *admin* (so it can read repo
 # settings, environments, rulesets, and app installations).
 #
@@ -10,12 +10,30 @@
 # Usage:
 #   scripts/verify-owner-setup.sh [--owner OWNER] [--repo REPO]
 #
-# Defaults: OWNER=smackypants, REPO=trueai-localai.
+# Defaults are auto-detected from `git remote get-url origin` when run
+# inside a clone of this repo, falling back to
+# advance-research-and-development-llc/TrueAI otherwise.
 
 set -uo pipefail
 
-OWNER="smackypants"
-REPO="trueai-localai"
+# Auto-detect OWNER/REPO from the origin remote so the script keeps
+# working through future repo renames or org moves; flags still win.
+detect_slug() {
+  local url
+  url="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." remote get-url origin 2>/dev/null || true)"
+  # Strip protocol + trailing .git, then take the last two path segments.
+  url="${url%.git}"
+  url="${url#git@github.com:}"
+  url="${url#https://github.com/}"
+  url="${url#http://github.com/}"
+  echo "$url"
+}
+SLUG="$(detect_slug)"
+OWNER="${SLUG%%/*}"
+REPO="${SLUG##*/}"
+# Fallback if detection failed (e.g. running outside a clone).
+[[ -z "$OWNER" || "$OWNER" == "$SLUG" ]] && OWNER="advance-research-and-development-llc"
+[[ -z "$REPO"  || "$REPO"  == "$SLUG" ]] && REPO="TrueAI"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -105,22 +123,29 @@ echo
 
 # --- 5. Bot installations ---------------------------------------------------
 echo "[5/7] Bot app installations"
+
+# github-actions[bot] — built-in; active whenever Actions is enabled
+if gh api "/repos/$OWNER/$REPO/actions/permissions" --jq '.enabled' 2>/dev/null | grep -q "true"; then
+  ok "github-actions[bot] active (Actions enabled)"
+else
+  fail "github-actions[bot] unavailable — Actions not enabled on this repo"
+fi
+
+# dependabot[bot] — check via vulnerability alerts API (enabled earlier)
+if gh api "/repos/$OWNER/$REPO/vulnerability-alerts" >/dev/null 2>&1; then
+  ok "dependabot[bot] active (vulnerability alerts enabled)"
+else
+  fail "dependabot[bot] not active — enable via Settings → Code security"
+fi
+
+# copilot-swe-agent — optional; check via installations endpoint with fallback
 INSTALL_JSON="$(gh api "/repos/$OWNER/$REPO/installations" --paginate 2>/dev/null || echo '{"installations":[]}')"
-for slug_label in \
-  "github-actions:github-actions[bot]" \
-  "copilot-swe-agent:copilot-swe-agent[bot]" \
-  "dependabot:dependabot[bot]"; do
-  slug="${slug_label%%:*}"
-  label="${slug_label##*:}"
-  app_id="$(printf '%s' "$INSTALL_JSON" | jq -r --arg s "$slug" '.installations[]? | select(.app_slug == $s) | .app_id' | head -n1)"
-  if [[ -n "$app_id" ]]; then
-    ok "$label installed (app_id $app_id)"
-  elif [[ "$slug" == "copilot-swe-agent" ]]; then
-    warn "$label not installed (optional — install via https://github.com/apps/copilot-swe-agent)"
-  else
-    fail "$label not installed"
-  fi
-done
+copilot_id="$(printf '%s' "$INSTALL_JSON" | jq -r '.installations[]? | select(.app_slug == "copilot-swe-agent") | .app_id' | head -n1)"
+if [[ -n "$copilot_id" ]]; then
+  ok "copilot-swe-agent[bot] installed (app_id $copilot_id)"
+else
+  warn "copilot-swe-agent[bot] not installed (optional — install via https://github.com/apps/copilot-swe-agent)"
+fi
 echo
 
 # --- 6. Agent infra: variables, secrets, and dispatcher workflows -----------
@@ -143,7 +168,36 @@ else
 fi
 
 # Dispatcher workflows present + active
+# GitHub sometimes indexes a workflow by its file path instead of its `name:`
+# field (e.g. when the trigger event is plan-gated). Fall back to path lookup.
 WORKFLOWS_JSON="$(gh api "/repos/$OWNER/$REPO/actions/workflows" --paginate 2>/dev/null || echo '{"workflows":[]}')"
+
+# Map "Display Name" -> "filename-slug.yml" for path fallback
+declare -A WF_PATH_FALLBACK=(
+  ["CodeQL Auto-Fix Dispatch"]="codeql-autofix.yml"
+  ["Test Failure Auto-Fix Dispatch"]="test-failure-autofix.yml"
+  ["Secret Scanning Auto-Fix Dispatch"]="secret-scanning-autofix.yml"
+)
+
+check_workflow() {
+  local wf="$1"
+  local state
+  # Primary: match by name
+  state="$(printf '%s' "$WORKFLOWS_JSON" | jq -r --arg n "$wf" '.workflows[]? | select(.name == $n) | .state' | head -n1)"
+  # Fallback: match by file path suffix
+  if [[ -z "$state" && -n "${WF_PATH_FALLBACK[$wf]+x}" ]]; then
+    local fname="${WF_PATH_FALLBACK[$wf]}"
+    state="$(printf '%s' "$WORKFLOWS_JSON" | jq -r --arg p "$fname" '.workflows[]? | select(.path | endswith($p)) | .state' | head -n1)"
+  fi
+  if [[ "$state" == "active" ]]; then
+    ok "workflow '$wf' is active"
+  elif [[ -n "$state" ]]; then
+    warn "workflow '$wf' state = '$state' (expected active)"
+  else
+    fail "workflow '$wf' not found"
+  fi
+}
+
 for wf in \
   "Copilot Setup Steps" \
   "CodeQL Auto-Fix Dispatch" \
@@ -157,14 +211,7 @@ for wf in \
   "PR Risk Labeller" \
   "Fix Verification Harness" \
   "Bug Report from Logs Dispatcher"; do
-  state="$(printf '%s' "$WORKFLOWS_JSON" | jq -r --arg n "$wf" '.workflows[]? | select(.name == $n) | .state' | head -n1)"
-  if [[ "$state" == "active" ]]; then
-    ok "workflow '$wf' is active"
-  elif [[ -n "$state" ]]; then
-    warn "workflow '$wf' state = '$state' (expected active)"
-  else
-    fail "workflow '$wf' not found"
-  fi
+  check_workflow "$wf"
 done
 
 # Composite actions present in the working tree (the only place we can check).

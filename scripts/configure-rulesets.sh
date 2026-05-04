@@ -2,7 +2,7 @@
 #
 # BEGIN_HELP
 # configure-rulesets.sh — one-shot ruleset bootstrap for the
-# trueai-localai repository.
+# TrueAI repository.
 #
 # Reads the GitHub App installations on the repository, looks up the
 # numeric `app_id` for each bot we rely on (github-actions[bot],
@@ -27,13 +27,29 @@
 # Usage:
 #   scripts/configure-rulesets.sh [--owner OWNER] [--repo REPO] [--dry-run]
 #
-# Defaults: OWNER=smackypants, REPO=trueai-localai.
+# Defaults are auto-detected from `git remote get-url origin` when run
+# inside a clone of this repo, falling back to
+# advance-research-and-development-llc/TrueAI otherwise.
 # END_HELP
 
 set -euo pipefail
 
-OWNER="smackypants"
-REPO="trueai-localai"
+# Auto-detect OWNER/REPO from the origin remote so the script keeps
+# working through future repo renames or org moves; flags still win.
+detect_slug() {
+  local url
+  url="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." remote get-url origin 2>/dev/null || true)"
+  url="${url%.git}"
+  url="${url#git@github.com:}"
+  url="${url#https://github.com/}"
+  url="${url#http://github.com/}"
+  echo "$url"
+}
+SLUG="$(detect_slug)"
+OWNER="${SLUG%%/*}"
+REPO="${SLUG##*/}"
+[[ -z "$OWNER" || "$OWNER" == "$SLUG" ]] && OWNER="advance-research-and-development-llc"
+[[ -z "$REPO"  || "$REPO"  == "$SLUG" ]] && REPO="TrueAI"
 DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
