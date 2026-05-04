@@ -78,21 +78,54 @@ jobs:
           # Strip HTML comments — those are template hints, not content.
           section = re.sub(r'<!--.*?-->', '', section, flags=re.S).strip()
 
+          # Treat the boilerplate "no lessons recorded" stub as empty.
+          # Older versions of this workflow appended that stub to every
+          # bot PR, polluting the log; we now skip them entirely.
+          if re.fullmatch(r'-?\s*\(No explicit lessons recorded\.\)', section, flags=re.I):
+              section = ''
+
           # Detect SUPERSEDES markers to record explicitly. Note the
           # escaped dash: `[ \t-*]` would be interpreted as the ASCII
           # range \t (9) → * (42), which excludes `-` (45).
           supersedes = re.findall(r'(?im)^[ \t\-*]*SUPERSEDES:[ \t]*(.+)$', section)
 
           if not section:
-              # Fallback stub. Skip noise from bot PRs that didn't volunteer a lesson.
-              if author in ('dependabot[bot]', 'github-actions[bot]', 'copilot-swe-agent[bot]'):
-                  print(f'No lessons-learned section and bot author ({author}); skipping.')
-                  sys.exit(0)
-              section = f"- (No explicit lessons recorded.) PR title: _{title}_."
+              # No useful lesson — skip rather than write a noise stub.
+              # The PR is still findable via git log + the dashboard.
+              print(f'PR #{number} ({author}) had no lessons-learned content; skipping.')
+              sys.exit(0)
+
+          # Dedupe: if an entry with the same lesson hash already
+          # exists in the most recent 30 entries, skip. Prevents
+          # repeated PRs that rediscover the same lesson from
+          # bloating the log. We count actual entry headers
+          # (`## YYYY-MM-DD`) rather than a fixed byte window — the
+          # byte heuristic shrank the effective window when entries
+          # were verbose.
+          import hashlib
+          # 16 hex chars = 64 bits of SHA-256 = ~1 in 2^32 collision
+          # probability after 4 billion entries (birthday bound). At
+          # the realistic rate of <1000 lessons/year over the project's
+          # lifetime, collision is effectively impossible while keeping
+          # the hash short enough to read in `git log` output.
+          lesson_hash = hashlib.sha256(section.encode('utf-8')).hexdigest()[:16]
+
+          existing = target.read_text(encoding='utf-8')
+          # Slice off after the 30th dated entry so the dedupe scan
+          # has a deterministic window regardless of entry verbosity.
+          DEDUPE_ENTRIES = 30
+          headers = list(re.finditer(r'(?m)^##\s+\d{4}-\d{2}-\d{2}\s+—\s+PR\s+#', existing))
+          if len(headers) > DEDUPE_ENTRIES:
+              recent_window = existing[: headers[DEDUPE_ENTRIES].start()]
+          else:
+              recent_window = existing
+          if lesson_hash in recent_window:
+              print(f'PR #{number}: lesson hash {lesson_hash} already in recent window; skipping.')
+              sys.exit(0)
 
           # Build the new entry.
           entry = [f"## {today} — PR #{number}: {title}", ""]
-          entry.append(f"_Source: [{url}]({url}) · merged {sha} · author @{author}_")
+          entry.append(f"_Source: [{url}]({url}) · merged {sha} · author @{author} · hash `{lesson_hash}`_")
           entry.append("")
           entry.append(section)
           if supersedes:
@@ -104,7 +137,23 @@ jobs:
           entry.append("")
           new_block = "\n".join(entry)
 
-          existing = target.read_text(encoding='utf-8')
+          # If SUPERSEDES is present, additionally remove the
+          # superseded entry's body (keep the heading as a tombstone)
+          # so the active learning is the one anyone reads. We match
+          # by the literal title text the author named — no fuzzy
+          # matching, to avoid corrupting unrelated entries.
+          if supersedes:
+              for s in supersedes:
+                  s_title = re.escape(s.strip())
+                  pattern = re.compile(
+                      r'(##\s+\d{4}-\d{2}-\d{2}\s+—\s+PR\s+#\d+:\s+' + s_title + r'\s*\n)'
+                      r'(.*?)(?=^##\s+\d{4}-\d{2}-\d{2}\s+—\s+PR\s+#|\Z)',
+                      flags=re.S | re.M,
+                  )
+                  existing = pattern.sub(
+                      lambda m: m.group(1) + f"\n_Superseded by PR #{number} on {today}._\n\n---\n\n",
+                      existing, count=1,
+                  )
 
           # Insert immediately after the file's top-level intro (before
           # the first dated entry) so newest-first ordering is preserved.

@@ -65,6 +65,13 @@ new label automatically. No PR / workflow edit required.
 > ⚠️ Larger Linux x64 runners are supported. macOS / ARM runners are
 > not compatible with the coding agent.
 
+> 💡 An optional second variable `COPILOT_RUNNER_LARGE` is **reserved
+> for future heavyweight workflows** (mutation tests, full Android
+> matrix). Nothing in the current workflow set consumes it yet — it is
+> defined here so that when those workflows land they can reference
+> `vars.COPILOT_RUNNER_LARGE || vars.COPILOT_RUNNER || 'ubuntu-latest'`
+> without requiring a coordinated docs+workflow PR.
+
 ## 3. Copilot coding agent — firewall (curated allowlist)
 
 By default the coding agent runs behind GitHub's integrated firewall,
@@ -109,7 +116,13 @@ every legitimate build / install / scan succeed.
    **Optional — security scanners** (only if running OSV-Scanner /
    Trivy locally; CI provides them already):
    - `osv-vulnerabilities.storage.googleapis.com`
+   - `api.osv.dev`
    - `ghcr.io`
+
+   **Optional — Semgrep** (rule-pack downloads when running `semgrep
+   ci` locally; CI rule-packs are pulled by the workflow):
+   - `semgrep.dev`
+   - `auth.semgrep.dev`
 
 3. Save.
 
@@ -164,6 +177,76 @@ Workflows that need broader scopes than `GITHUB_TOKEN` provides should
 read this token via `${{ secrets.AGENT_AUTOMATION_TOKEN }}` and fall
 back to `${{ secrets.GITHUB_TOKEN }}` only when the secret is unset
 (so a fresh fork still builds without it).
+
+## 3b. Optional read-only PAT — `AGENT_TELEMETRY_TOKEN`
+
+Telemetry workflows (`agent-metrics.yml`, `agent-dashboard.yml`,
+future prompt-tuner) only need to **read** Issues / PRs / Actions /
+Checks. Wiring them to the high-write `AGENT_AUTOMATION_TOKEN`
+violates least-privilege. The optional `AGENT_TELEMETRY_TOKEN` is
+the read-only counterpart.
+
+**Required scopes (and only these):**
+
+| Scope | Why |
+|---|---|
+| `Contents: Read` | clone the repo for nightly regen |
+| `Pull requests: Read` | win/loss telemetry over merged PRs |
+| `Issues: Read` | `copilot-fix` queue depth + label distribution |
+| `Actions: Read` | dispatcher run history (success/failure rates) |
+| `Checks: Read` | required-status-check pass/fail signal |
+
+**Explicitly NOT granted:** any `write` scope, anything outside this
+single repo.
+
+**Setup:** identical to `AGENT_AUTOMATION_TOKEN` (one-time fine-grained
+PAT, scoped to this repo, store as `AGENT_TELEMETRY_TOKEN`). Workflows
+should reference it as
+`${{ secrets.AGENT_TELEMETRY_TOKEN || secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}`
+so the chain degrades gracefully if it's unset.
+
+## 3c. Agent code index — `.agent/index.json`
+
+Every agent session reads `.agent/index.json` at startup. The file is
+a compact, deterministic map of:
+
+- exported symbols per `src/**/*.{ts,tsx}` file
+- every `useKV<...>('key', ...)` literal key
+- every `<TabsTrigger value="...">` route in `App.tsx`
+- registered Capacitor plugins (parsed from `MainActivity.java`)
+- every file under `src/lib/native/`
+- every workflow that calls the `dispatch-fix-issue` composite action
+- every named fragment defined in `.github/copilot/PROMPTS.md`
+
+Generation: pure local, zero deps —
+[`scripts/build-agent-index.mjs`](../../scripts/build-agent-index.mjs).
+Refresh paths:
+
+1. **Push to `main`** — `.github/workflows/code-index.yml` regenerates
+   and commits the file (also uploads it as an artifact for branches
+   that need the latest map without merging).
+2. **Session start** — `copilot-setup-steps.yml` regenerates as a
+   safety net for branches that diverged from `main`.
+
+Agents should **read** `.agent/index.json` first, then `grep` only the
+files actually relevant to the task. This eliminates the "where does X
+live?" rediscovery phase that dominated session-start cost in
+older runs.
+
+## 3d. MCP servers (optional, owner-toggled)
+
+The repo is wired for two MCP (Model Context Protocol) servers when
+the agent platform supports them:
+
+- **GitHub MCP server** — already used by every coding-agent task; no
+  setup required.
+- **Code-index MCP** — proposed; would expose `.agent/index.json` as
+  a queryable tool so the agent doesn't have to grep the JSON. Track
+  in a future PR; no blocker today (the agent can `grep .agent/index.json`).
+
+If/when the platform reads a per-repo MCP manifest, it will live at
+`.github/copilot/mcp.json`. Until then, keep server pointers in this
+file so they're reviewable.
 
 ## 4. Copilot coding agent — task timeout
 

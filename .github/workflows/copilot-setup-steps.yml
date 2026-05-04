@@ -127,6 +127,37 @@ jobs:
         # agent can still work and re-run npm ci itself.
         continue-on-error: true
 
+      # Pre-install scanner CLIs the agent uses for self-checks. Each
+      # is best-effort; if the firewall blocks a download or the
+      # release URL changes, the agent can still work — these are
+      # purely additive capabilities, not required-path tools.
+      - name: Pre-install scanner CLIs (osv-scanner, semgrep)
+        run: |
+          set -eux
+          # OSV-Scanner — single Go binary; tiny download.
+          OSV_VERSION="${OSV_VERSION:-v1.9.2}"
+          if curl -fsSL -o /tmp/osv-scanner \
+               "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"; then
+            sudo install -m 0755 /tmp/osv-scanner /usr/local/bin/osv-scanner || true
+            osv-scanner --version || true
+          fi
+          # Semgrep via pipx for an isolated install.
+          python3 -m pip install --quiet --user pipx 2>/dev/null || true
+          python3 -m pipx ensurepath 2>/dev/null || true
+          pipx install --quiet semgrep 2>/dev/null || \
+            python3 -m pip install --quiet --user semgrep || true
+          (semgrep --version || true) 2>/dev/null
+        continue-on-error: true
+
+      # Regenerate the agent codebase index so the agent reads a
+      # fresh map of exports / KV keys / routes / dispatchers /
+      # prompt fragments at session start. Cheap (sub-second) and
+      # purely additive; never fail setup on it.
+      - name: Refresh agent code index (.agent/index.json)
+        run: |
+          node scripts/build-agent-index.mjs || true
+        continue-on-error: true
+
       - name: Print toolchain summary
         run: |
           echo "Node:       $(node --version)"
@@ -138,4 +169,7 @@ jobs:
           echo "ripgrep:    $(rg --version 2>/dev/null | head -1 || echo 'missing')"
           echo "shellcheck: $(shellcheck --version 2>/dev/null | grep '^version:' || echo 'missing')"
           echo "actionlint: $(actionlint -version 2>/dev/null | head -1 || echo 'missing')"
+          echo "osv-scan:   $(osv-scanner --version 2>/dev/null | head -1 || echo 'missing')"
+          echo "semgrep:    $(semgrep --version 2>/dev/null | head -1 || echo 'missing')"
+          echo "code-index: $(test -f .agent/index.json && jq -r '.generatedAt' .agent/index.json 2>/dev/null || echo 'missing')"
           echo "Runner:     ${{ runner.name }} (label resolved from COPILOT_RUNNER='${{ vars.COPILOT_RUNNER || 'ubuntu-latest' }}')"

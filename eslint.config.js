@@ -69,5 +69,19 @@ export default [
       'no-useless-assignment': 'warn',
     },
   },
+  {
+    // Node-side scripts (build helpers, dispatchers, dashboard regen,
+    // agent metrics, code-index generator). They run under Node and
+    // need the Node globals (`process`, `URL`, etc.); without this
+    // block, every `process.env.X` reference is flagged `no-undef`.
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 ]
 

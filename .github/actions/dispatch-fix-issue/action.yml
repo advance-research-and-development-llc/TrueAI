@@ -65,10 +65,19 @@ inputs:
       the queue drains). Set to '0' or empty to disable.
     required: false
     default: '25'
+  escalate-after:
+    description: >
+      After this many *failed* prior attempts (closed-unmerged PRs
+      referencing the dedup-matched issue) the action stops re-
+      assigning Copilot, applies the `human-only` label, and posts a
+      "manual triage required" notice. Set to '0' or empty to
+      disable escalation. Phase 4.2 of the agent-upgrade plan.
+    required: false
+    default: '3'
 
 outputs:
   action:
-    description: 'create | update | reopen | skip-duplicate | skip-throttled'
+    description: 'create | update | reopen | escalate | skip-duplicate | skip-throttled | skip-escalated'
     value: ${{ steps.dispatch.outputs.action }}
   issue-number:
     description: Issue number that was created/updated/reopened (empty on skip).
@@ -76,6 +85,9 @@ outputs:
   issue-url:
     description: HTML URL of the created/updated/reopened issue.
     value: ${{ steps.dispatch.outputs.issue_url }}
+  prior-attempts:
+    description: 'Number of failed prior attempts detected (closed-unmerged PRs referencing the matched issue). Zero for new issues.'
+    value: ${{ steps.dispatch.outputs.prior_attempts }}
 
 runs:
   using: composite
@@ -100,6 +112,7 @@ runs:
         gh label create "coverage-gap" --color "0e8a16" --description "Test coverage below threshold"        --repo "$REPO" --force >/dev/null
         gh label create "audit"        --color "bfd4f2" --description "Scheduled audit finding"             --repo "$REPO" --force >/dev/null
         gh label create "compatibility" --color "1d76db" --description "Compatibility-matrix finding"       --repo "$REPO" --force >/dev/null
+        gh label create "human-only"   --color "b60205" --description "Do not assign Copilot — manual triage required" --repo "$REPO" --force >/dev/null
         # Risk labels (consumed by selective auto-merge)
         for risk in trivial low medium high; do
           gh label create "risk:${risk}" --color "ededed" --description "Risk classification: ${risk}" --repo "$REPO" --force >/dev/null
@@ -176,8 +189,97 @@ runs:
         REOPEN: ${{ inputs.reopen-closed }}
         ASSIGNEE: ${{ inputs.assignee }}
         THROTTLE_CAP: ${{ inputs.throttle-cap }}
+        ESCALATE_AFTER: ${{ inputs.escalate-after }}
       run: |
         set -euo pipefail
+
+        # Default outputs (overwritten on each terminal branch).
+        echo "prior_attempts=0" >> "$GITHUB_OUTPUT"
+
+        # ---- Helper: count failed prior-attempt PRs for an issue -------------
+        # Walks the issue's timeline events for cross-referenced PRs,
+        # then queries each PR's state. A "failed attempt" is a PR
+        # closed without merge AND authored by the agent (so a manual
+        # operator close doesn't count). Echoes count on first line,
+        # then a markdown bullet list of the failed PRs.
+        count_prior_attempts() {
+          local issue="$1"
+          local count=0
+          local lines=""
+          local events
+          events=$(gh api "repos/${REPO}/issues/${issue}/timeline" \
+            -H "Accept: application/vnd.github.mockingbird-preview+json" \
+            --paginate --jq '
+              [ .[]
+                | select(.event=="cross-referenced")
+                | select(.source.type=="issue")
+                | select(.source.issue.pull_request != null)
+                | .source.issue.number ]
+              | unique
+              | .[]
+            ' 2>/dev/null || true)
+          if [ -z "$events" ]; then
+            printf '0\n'
+            return 0
+          fi
+          while IFS= read -r pr; do
+            [ -z "$pr" ] && continue
+            local pr_json
+            pr_json=$(gh pr view "$pr" --repo "$REPO" \
+              --json number,state,merged,author,title,url,closedAt 2>/dev/null || echo "")
+            if [ -z "$pr_json" ]; then
+              echo "::warning ::dispatch-fix-issue: failed to fetch PR #${pr} (rate-limit / permissions / deleted?); skipping in prior-attempts count."
+              continue
+            fi
+            local merged state author title url closed_at
+            merged=$(printf '%s' "$pr_json" | jq -r '.merged // false')
+            state=$(printf  '%s' "$pr_json" | jq -r '.state // ""')
+            author=$(printf '%s' "$pr_json" | jq -r '.author.login // ""')
+            title=$(printf  '%s' "$pr_json" | jq -r '.title // ""')
+            url=$(printf    '%s' "$pr_json" | jq -r '.url // ""')
+            closed_at=$(printf '%s' "$pr_json" | jq -r '.closedAt // ""')
+            if [ "$merged" = "false" ] && [ "$state" = "CLOSED" ]; then
+              case "$author" in
+                Copilot|copilot-swe-agent*|github-actions*)
+                  count=$((count + 1))
+                  lines="${lines}- [#${pr}](${url}) — _${title}_ — closed without merge on ${closed_at%T*} by @${author}"$'\n'
+                  ;;
+              esac
+            fi
+          done <<< "$events"
+          printf '%s\n' "$count"
+          printf '%s'   "$lines"
+        }
+
+        # ---- Helper: append "### Prior attempts" to BODY_FILE, return count --
+        append_prior_attempts() {
+          local issue="$1"
+          local result count lines
+          result="$(count_prior_attempts "$issue")"
+          count="$(printf '%s' "$result" | head -n1)"
+          # Defensive: ensure we never write a non-numeric value to
+          # GITHUB_OUTPUT or compare against ESCALATE_AFTER. The helper
+          # always emits an integer on the first line, but bash arith
+          # later does not tolerate stray whitespace or junk.
+          count="${count//[^0-9]/}"
+          count="${count:-0}"
+          lines="$(printf '%s' "$result" | tail -n +2)"
+          # Re-emit the prior_attempts output (overwrites the default 0).
+          echo "prior_attempts=${count}" >> "$GITHUB_OUTPUT"
+          if [ "${count:-0}" -gt 0 ] 2>/dev/null; then
+            {
+              echo
+              echo "### Prior attempts (${count} failed)"
+              echo
+              echo "Earlier agent PRs that targeted this issue but did not"
+              echo "merge. **Read each one** before opening a new PR — do"
+              echo "not repeat the approach that already failed."
+              echo
+              printf '%s\n' "$lines"
+            } >> "$BODY_FILE"
+          fi
+          printf '%s' "$count"
+        }
 
         # ---- Throttle (D5) ---------------------------------------------------
         if [ -n "${THROTTLE_CAP:-}" ] && [ "${THROTTLE_CAP}" -gt 0 ] 2>/dev/null; then
@@ -203,9 +305,46 @@ runs:
           2>/dev/null | head -n1 || echo "")
 
         if [ -n "$EXISTING_OPEN" ]; then
-          echo "Found open dedup match: #$EXISTING_OPEN — updating body."
+          echo "Found open dedup match: #$EXISTING_OPEN — checking prior attempts."
+          ATTEMPTS=$(append_prior_attempts "$EXISTING_OPEN")
+
+          # ---- Escalation gate (Phase 4.2) ---------------------------------
+          if [ -n "${ESCALATE_AFTER:-}" ] && [ "${ESCALATE_AFTER}" -gt 0 ] 2>/dev/null \
+             && [ "${ATTEMPTS:-0}" -ge "${ESCALATE_AFTER}" ]; then
+            {
+              echo
+              echo "### ⛔ Escalation — manual triage required"
+              echo
+              echo "This issue has been attempted **${ATTEMPTS}** times by the"
+              echo "Copilot agent without a successful merge (threshold:"
+              echo "\`escalate-after=${ESCALATE_AFTER}\`). Further auto-"
+              echo "dispatch is suppressed; the \`human-only\` label has been"
+              echo "applied. A maintainer should:"
+              echo
+              echo "1. Read the prior-attempt PRs above and identify the"
+              echo "   shared blocker (missing context, broken test infra,"
+              echo "   ambiguous requirements, etc.)."
+              echo "2. Either fix the blocker and remove the \`human-only\`"
+              echo "   label, or close the issue as wont-fix if the finding"
+              echo "   is a false positive."
+            } >> "$BODY_FILE"
+            gh issue edit "$EXISTING_OPEN" --repo "$REPO" \
+              --body-file "$BODY_FILE" --add-label "human-only" >/dev/null
+            # Best-effort un-assign; failures are non-fatal (e.g. issue
+            # was never assigned to begin with on the first escalation).
+            gh issue edit "$EXISTING_OPEN" --repo "$REPO" \
+              --remove-assignee "${ASSIGNEE:-copilot}" >/dev/null 2>&1 || true
+            gh issue comment "$EXISTING_OPEN" --repo "$REPO" \
+              --body "⛔ Escalated to \`human-only\` after ${ATTEMPTS} failed agent attempts (run #${GITHUB_RUN_ID:-unknown})." >/dev/null || true
+            URL=$(gh issue view "$EXISTING_OPEN" --repo "$REPO" --json url --jq .url)
+            echo "action=escalate"               >> "$GITHUB_OUTPUT"
+            echo "issue_number=$EXISTING_OPEN"   >> "$GITHUB_OUTPUT"
+            echo "issue_url=$URL"                >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           gh issue edit "$EXISTING_OPEN" --repo "$REPO" --body-file "$BODY_FILE" >/dev/null
-          gh issue comment "$EXISTING_OPEN" --repo "$REPO" --body "🔄 Re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0})." >/dev/null || true
+          gh issue comment "$EXISTING_OPEN" --repo "$REPO" --body "🔄 Re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0}). Prior failed attempts: ${ATTEMPTS}." >/dev/null || true
           URL=$(gh issue view "$EXISTING_OPEN" --repo "$REPO" --json url --jq .url)
           echo "action=update"            >> "$GITHUB_OUTPUT"
           echo "issue_number=$EXISTING_OPEN" >> "$GITHUB_OUTPUT"
@@ -224,10 +363,38 @@ runs:
             --jq "sort_by(.closedAt) | reverse | .[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
             2>/dev/null | head -n1 || echo "")
           if [ -n "$EXISTING_CLOSED" ]; then
+            echo "Found recently-closed dedup match: #$EXISTING_CLOSED — checking prior attempts."
+            ATTEMPTS=$(append_prior_attempts "$EXISTING_CLOSED")
+
+            # Escalation gate (Phase 4.2) — same logic as open-issue path.
+            if [ -n "${ESCALATE_AFTER:-}" ] && [ "${ESCALATE_AFTER}" -gt 0 ] 2>/dev/null \
+               && [ "${ATTEMPTS:-0}" -ge "${ESCALATE_AFTER}" ]; then
+              {
+                echo
+                echo "### ⛔ Escalation — manual triage required"
+                echo
+                echo "This issue has been attempted **${ATTEMPTS}** times by"
+                echo "the Copilot agent without a successful merge"
+                echo "(threshold: \`escalate-after=${ESCALATE_AFTER}\`)."
+                echo "Re-detected, but auto-assignment to Copilot is"
+                echo "suppressed; the \`human-only\` label has been applied."
+              } >> "$BODY_FILE"
+              gh issue reopen "$EXISTING_CLOSED" --repo "$REPO" >/dev/null
+              gh issue edit   "$EXISTING_CLOSED" --repo "$REPO" \
+                --body-file "$BODY_FILE" --add-label "human-only" >/dev/null
+              gh issue comment "$EXISTING_CLOSED" --repo "$REPO" \
+                --body "⛔ Reopened and escalated to \`human-only\` after ${ATTEMPTS} failed agent attempts (run #${GITHUB_RUN_ID:-unknown})." >/dev/null || true
+              URL=$(gh issue view "$EXISTING_CLOSED" --repo "$REPO" --json url --jq .url)
+              echo "action=escalate"                >> "$GITHUB_OUTPUT"
+              echo "issue_number=$EXISTING_CLOSED"  >> "$GITHUB_OUTPUT"
+              echo "issue_url=$URL"                 >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
             echo "Found recently-closed dedup match: #$EXISTING_CLOSED — reopening."
             gh issue reopen "$EXISTING_CLOSED" --repo "$REPO" >/dev/null
             gh issue edit   "$EXISTING_CLOSED" --repo "$REPO" --body-file "$BODY_FILE" >/dev/null
-            gh issue comment "$EXISTING_CLOSED" --repo "$REPO" --body "🔁 Reopened: defect re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0})." >/dev/null || true
+            gh issue comment "$EXISTING_CLOSED" --repo "$REPO" --body "🔁 Reopened: defect re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0}). Prior failed attempts: ${ATTEMPTS}." >/dev/null || true
             URL=$(gh issue view "$EXISTING_CLOSED" --repo "$REPO" --json url --jq .url)
             echo "action=reopen"               >> "$GITHUB_OUTPUT"
             echo "issue_number=$EXISTING_CLOSED" >> "$GITHUB_OUTPUT"

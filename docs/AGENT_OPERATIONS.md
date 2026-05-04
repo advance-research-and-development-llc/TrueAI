@@ -177,6 +177,62 @@ gh issue list --repo $REPO --label copilot-fix --state open \
 
 ---
 
+## 7b. Prior-attempts tracking and escalation to `human-only`
+
+Every `dispatch-fix-issue` invocation that *reuses* an existing issue
+(via the dedup or reopen paths) now walks the issue's timeline,
+counts cross-referenced PRs that were **closed without merging by an
+agent author**, and embeds a `### Prior attempts` section into the
+issue body listing each one. Copilot reads this on its next session
+start and is told explicitly **not** to repeat the failed approach.
+
+A "failed attempt" requires both:
+
+- PR `state == CLOSED` and `merged == false`, **and**
+- PR `author.login` matches `Copilot`, `copilot-swe-agent[bot]`, or
+  `github-actions[bot]`.
+
+PRs closed by an operator (manual triage) or merged successfully are
+not counted, so the threshold reflects genuine agent failures.
+
+### Escalation threshold
+
+When the failed-attempt count reaches the `escalate-after` input
+(default **3**), the dispatcher:
+
+1. Applies the `human-only` label (auto-created on first use, red).
+2. Removes the `copilot` assignee (best-effort; non-fatal if absent).
+3. Appends an `### ⛔ Escalation — manual triage required` section to
+   the body explaining the threshold and the maintainer next-steps.
+4. Comments on the issue and emits `action=escalate` as the action
+   output.
+
+The `human-only` label is the canonical "do not assign Copilot"
+marker; downstream dispatchers should treat it as a hard skip.
+
+### Operator workflow on escalation
+
+1. Read the prior-attempt PRs listed in the issue body. They almost
+   always share a root cause — missing context, broken test infra,
+   ambiguous requirements, or a CodeQL false positive.
+2. Either:
+   - Fix the shared blocker (add fixtures, clarify the prompt
+     fragment in `PROMPTS.md`, etc.) and **remove the `human-only`
+     label** — the next scheduled scan will re-detect and re-dispatch
+     normally. The attempt counter does not auto-reset; it counts
+     across the full lifetime of the issue, so a successful merge is
+     required to bring it back to zero.
+   - Close the issue as wont-fix if the finding is a false positive,
+     and add a silencing entry per §3.
+
+### Disabling escalation per-call
+
+Pass `escalate-after: '0'` (or empty) on a specific dispatcher
+invocation to disable the gate. This is rarely needed — the cap is
+designed to bound waste, not to suppress genuine fixes.
+
+---
+
 ## 8. Health checks
 
 ```bash

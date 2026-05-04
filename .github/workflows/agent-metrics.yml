@@ -1,0 +1,66 @@
+name: Agent Metrics
+
+# Nightly regeneration of docs/AGENT_METRICS.md — the win/loss
+# telemetry for the autonomous fix pipeline. Pure local-first
+# analytics (no third-party services); the only data source is the
+# public GitHub PRs API via `gh`.
+#
+# Companion to .github/workflows/agent-dashboard.yml: dashboard
+# tracks live queue depth, this workflow tracks outcomes over time.
+
+on:
+  schedule:
+    - cron: '15 7 * * *'   # 07:15 UTC daily — 15 min after agent-dashboard
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: 'Lookback window in days'
+        required: false
+        default: '90'
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: agent-metrics
+  cancel-in-progress: false
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Regenerate metrics
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          WINDOW_DAYS: ${{ github.event.inputs.window_days || '90' }}
+        run: node scripts/agent-metrics.mjs
+
+      - name: Commit if changed
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet docs/AGENT_METRICS.md; then
+            echo "Metrics unchanged."
+            exit 0
+          fi
+          git add docs/AGENT_METRICS.md
+          git commit -m "chore(metrics): nightly regen [skip ci]"
+          if ! git push origin HEAD:main; then
+            echo "::warning ::metrics commit could not be pushed (likely ruleset enforcement)"
+          fi
