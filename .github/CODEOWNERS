@@ -28,3 +28,22 @@
 /package.json               @smackypants
 /package-lock.json          @smackypants
 /android/app/build.gradle   @smackypants
+
+# Agent surface — every prompt, instruction file, sub-agent definition, tool
+# registry, and runtime adapter that an LLM-driven agent reads or executes
+# *must* be approved by the project owner. These paths control how Copilot
+# and any external agents behave inside this repository, so unreviewed changes
+# here have outsized blast radius (prompt injection, tool drift, data leaks).
+#
+# Keep this list in sync with the `risk:agent-surface` classifier in
+# scripts/classify-pr-risk.mjs — both should match the same path set.
+/AGENTS.md                                  @smackypants
+/.github/copilot-instructions.md            @smackypants
+/.github/copilot/                           @smackypants
+/.github/agents/                            @smackypants
+/src/lib/agent/                             @smackypants
+/src/lib/llm-runtime/ai-sdk/                @smackypants
+/scripts/classify-pr-risk.mjs               @smackypants
+/scripts/check-prompts-lock.mjs             @smackypants
+/scripts/check-instructions-drift.mjs       @smackypants
+/scripts/check-agents.mjs                   @smackypants
