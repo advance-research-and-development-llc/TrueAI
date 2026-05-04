@@ -17,8 +17,8 @@
  *     ignored on this provider.
  *
  * This is the foundation for PR 1 of the OfflineLLM-comparison plan.
- * Native Capacitor llama.cpp (PRs 2–3), the in-app GGUF importer
- * (PR 4), sampling UX (PR 7) and friends layer on top of this adapter.
+ * Native Capacitor llama.cpp (PRs 2 & 4), the in-app GGUF importer
+ * (PR 5), sampling UX (PR 7) and friends layer on top of this adapter.
  */
 
 import type {
@@ -102,11 +102,28 @@ export interface LocalWllamaOptions {
   maxOutputTokens?: number
   /**
    * Asset path config for wllama. When omitted the bundled CDN URLs
-   * (`@wllama/wllama/esm/wasm-from-cdn`) are used. PR 13 (offline
+   * (`@wllama/wllama/esm/wasm-from-cdn`) are used. PR 17 (offline
    * product flavor) will switch this to a self-hosted asset path.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assetsPath?: any
+  /**
+   * Default context window in tokens, forwarded to wllama as `n_ctx`
+   * at model-load time. Sourced from `LLMRuntimeConfig.contextSize`.
+   * `undefined` lets wllama pick its own default.
+   */
+  contextSize?: number
+  /**
+   * Default sampling knobs sourced from `LLMRuntimeConfig`. Per-call
+   * `LanguageModelV3CallOptions` (passed by the AI SDK / chat hook)
+   * win over these — these are only the fallback when the caller
+   * doesn't specify a value.
+   */
+  defaultSampling?: {
+    topK?: number
+    minP?: number
+    repeatPenalty?: number
+  }
 }
 
 /**
@@ -121,7 +138,7 @@ export interface LocalWllamaOptions {
  * JS bindings and the WASM blobs cannot drift even across patch
  * upgrades. If you bump the npm dependency, update both numbers.
  *
- * PR 13 of the OfflineLLM-comparison plan (offline product flavor)
+ * PR 17 of the OfflineLLM-comparison plan (offline product flavor)
  * will swap this for a self-hosted asset path baked into the APK so
  * the offline flavor never touches the network.
  */
@@ -131,14 +148,91 @@ const DEFAULT_WLLAMA_ASSETS = {
   'multi-thread/wllama.wasm': `https://cdn.jsdelivr.net/npm/@wllama/wllama@${WLLAMA_PINNED_VERSION}/esm/multi-thread/wllama.wasm`,
 }
 
+/**
+ * Lifecycle / download-progress event for the on-device runtime.
+ *
+ * Emitted to subscribers from `subscribeToLocalWllamaProgress()`. The
+ * Settings → LLM Runtime panel renders the latest event so users can
+ * see *why* the first chat send is slow (one-shot multi-GB GGUF
+ * download) instead of staring at a spinner.
+ */
+export interface LocalWllamaProgressEvent {
+  /** Coarse state machine. */
+  state: 'idle' | 'downloading' | 'ready' | 'error'
+  /** Bytes downloaded so far across all model shards (downloading). */
+  loaded?: number
+  /** Total bytes across all model shards (downloading). */
+  total?: number
+  /**
+   * The resolved model source (`https://…` URL or `hf:owner/repo:file`
+   * shortcut) the lifecycle event refers to. Helps the UI ignore stale
+   * events after the user reconfigures the runtime.
+   */
+  source?: string
+  /** Human-readable error message, present only when state is 'error'. */
+  error?: string
+}
+
+type ProgressListener = (event: LocalWllamaProgressEvent) => void
+
+const progressListeners = new Set<ProgressListener>()
+let lastProgressEvent: LocalWllamaProgressEvent = { state: 'idle' }
+
+function emitProgress(event: LocalWllamaProgressEvent): void {
+  lastProgressEvent = event
+  for (const listener of progressListeners) {
+    try {
+      listener(event)
+    } catch {
+      // Swallow listener errors so one bad subscriber can't break the
+      // load. Keeps the runtime decoupled from any UI-side bugs.
+    }
+  }
+}
+
+/**
+ * Subscribe to download / lifecycle events from the on-device runtime.
+ * Listeners are invoked synchronously when the provider hits a load,
+ * download-progress, ready, or error transition. Returns an unsubscribe
+ * function. The current state is delivered immediately on subscribe so
+ * the UI can render the right initial status without racing.
+ */
+export function subscribeToLocalWllamaProgress(
+  listener: ProgressListener,
+): () => void {
+  progressListeners.add(listener)
+  // Replay current state synchronously so a freshly mounted Settings
+  // panel doesn't flash an "idle" frame mid-download.
+  try {
+    listener(lastProgressEvent)
+  } catch {
+    /* see emitProgress */
+  }
+  return () => {
+    progressListeners.delete(listener)
+  }
+}
+
+/** Read the most recent lifecycle event without subscribing. */
+export function getLocalWllamaProgressSnapshot(): LocalWllamaProgressEvent {
+  return lastProgressEvent
+}
+
 let cachedInstance: WllamaInstance | null = null
 let cachedModelSource: string | null = null
+/**
+ * The `n_ctx` value the cached model was loaded with. wllama bakes the
+ * context size into the loaded model, so a config change must
+ * invalidate the cache and reload.
+ */
+let cachedContextSize: number | undefined = undefined
 /**
  * In-flight load for a *specific* normalized model source. Keyed so that
  * a concurrent call for a different source cannot piggy-back on the
  * wrong promise (which would resolve to the wrong loaded model).
  */
 let loadInFlightSource: string | null = null
+let loadInFlightContextSize: number | undefined = undefined
 let loadInFlight: Promise<WllamaInstance> | null = null
 
 /**
@@ -148,8 +242,12 @@ let loadInFlight: Promise<WllamaInstance> | null = null
 export function __resetLocalWllamaForTests(): void {
   cachedInstance = null
   cachedModelSource = null
+  cachedContextSize = undefined
   loadInFlightSource = null
+  loadInFlightContextSize = undefined
   loadInFlight = null
+  progressListeners.clear()
+  lastProgressEvent = { state: 'idle' }
 }
 
 async function importWllama(): Promise<WllamaModule> {
@@ -170,14 +268,27 @@ async function getOrCreateInstance(opts: LocalWllamaOptions): Promise<WllamaInst
         "(or a 'hf:owner/repo:path/to/file.gguf' shortcut).",
     )
   }
-  if (cachedInstance && cachedModelSource === src) {
+  const ctx = typeof opts.contextSize === 'number' && opts.contextSize > 0
+    ? opts.contextSize
+    : undefined
+  if (cachedInstance && cachedModelSource === src && cachedContextSize === ctx) {
     return cachedInstance
   }
   // Only piggy-back on an in-flight load when it is for the *same*
-  // normalized source. Otherwise we'd hand callers an instance loaded
-  // with the wrong model.
-  if (loadInFlight && loadInFlightSource === src) {
+  // normalized source AND the same n_ctx. Otherwise we'd hand callers
+  // an instance loaded with the wrong model or wrong context window.
+  if (loadInFlight && loadInFlightSource === src && loadInFlightContextSize === ctx) {
     return loadInFlight
+  }
+
+  // Build the load config: n_ctx (when explicit) plus a wllama
+  // `progressCallback` that fans out to the pub-sub. Always present —
+  // the only cost when nothing is subscribed is a single Set iteration
+  // per shard chunk, which wllama already invokes sparingly.
+  const loadCfg: Record<string, unknown> = {}
+  if (ctx !== undefined) loadCfg.n_ctx = ctx
+  loadCfg.progressCallback = ({ loaded, total }: { loaded: number; total: number }) => {
+    emitProgress({ state: 'downloading', loaded, total, source: src })
   }
 
   const inFlight = (async (): Promise<WllamaInstance> => {
@@ -188,32 +299,49 @@ async function getOrCreateInstance(opts: LocalWllamaOptions): Promise<WllamaInst
     }
     const assets = opts.assetsPath ?? DEFAULT_WLLAMA_ASSETS
     const instance = new Ctor(assets)
-    if (src.startsWith('hf:')) {
-      // Format: hf:<owner>/<repo>:<path>
-      const rest = src.slice(3)
-      const colon = rest.lastIndexOf(':')
-      if (colon < 0) {
-        throw new Error(
-          `Invalid hf: shortcut '${src}'. Expected 'hf:<owner>/<repo>:<path/to/file.gguf>'.`,
-        )
+    // Seed a 0/0 downloading event so the UI can show a panel
+    // immediately even before wllama emits its first progress tick
+    // (which only fires once the HTTP response starts streaming).
+    emitProgress({ state: 'downloading', loaded: 0, total: 0, source: src })
+    try {
+      if (src.startsWith('hf:')) {
+        // Format: hf:<owner>/<repo>:<path>
+        const rest = src.slice(3)
+        const colon = rest.lastIndexOf(':')
+        if (colon < 0) {
+          throw new Error(
+            `Invalid hf: shortcut '${src}'. Expected 'hf:<owner>/<repo>:<path/to/file.gguf>'.`,
+          )
+        }
+        const repo = rest.slice(0, colon)
+        const file = rest.slice(colon + 1)
+        await instance.loadModelFromHF(repo, file, loadCfg)
+      } else {
+        await instance.loadModelFromUrl(src, loadCfg)
       }
-      const repo = rest.slice(0, colon)
-      const file = rest.slice(colon + 1)
-      await instance.loadModelFromHF(repo, file)
-    } else {
-      await instance.loadModelFromUrl(src)
+    } catch (err) {
+      emitProgress({
+        state: 'error',
+        source: src,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      throw err
     }
     cachedInstance = instance
     cachedModelSource = src
+    cachedContextSize = ctx
+    emitProgress({ state: 'ready', source: src })
     return instance
   })()
 
   loadInFlightSource = src
+  loadInFlightContextSize = ctx
   loadInFlight = inFlight.finally(() => {
     // Clear only if no newer load has replaced us in the meantime.
     if (loadInFlight === inFlight) {
       loadInFlight = null
       loadInFlightSource = null
+      loadInFlightContextSize = undefined
     }
   })
   return loadInFlight
@@ -222,7 +350,7 @@ async function getOrCreateInstance(opts: LocalWllamaOptions): Promise<WllamaInst
 /**
  * Flatten a `LanguageModelV3` prompt into a wllama chat message list.
  * Non-text parts (files, tool calls, reasoning) are skipped — surface
- * a warning so the AI SDK's caller knows. PR 17 (vision) will lift
+ * a warning so the AI SDK's caller knows. PR 16 (vision) will lift
  * this restriction by routing image parts through wllama-vision.
  */
 function toWllamaMessages(
@@ -252,7 +380,7 @@ function toWllamaMessages(
         // Reasoning, file, tool-call, tool-result, tool-approval — none
         // are supported by the local-wasm provider yet. Drop them and
         // emit a single warning per message so the caller can decide
-        // how to surface the omission. PR 17 (vision) will lift the
+        // how to surface the omission. PR 16 (vision) will lift the
         // restriction for image parts.
         droppedNonText = true
       }
@@ -268,17 +396,33 @@ function toWllamaMessages(
   return { messages, warnings }
 }
 
-function toWllamaSampling(opts: LanguageModelV3CallOptions): WllamaSamplingConfig {
+function toWllamaSampling(
+  callOpts: LanguageModelV3CallOptions,
+  defaults?: LocalWllamaOptions['defaultSampling'],
+): WllamaSamplingConfig {
   const out: WllamaSamplingConfig = {}
-  if (typeof opts.temperature === 'number') out.temp = opts.temperature
-  if (typeof opts.topP === 'number') out.top_p = opts.topP
-  if (typeof opts.topK === 'number') out.top_k = opts.topK
+  if (typeof callOpts.temperature === 'number') out.temp = callOpts.temperature
+  if (typeof callOpts.topP === 'number') out.top_p = callOpts.topP
+  // Per-call top_k wins; otherwise fall back to the runtime-config
+  // default (`LLMRuntimeConfig.topK`). `0` is treated as "neutral"
+  // (top-k disabled) and the field is left unset.
+  const topK = typeof callOpts.topK === 'number' ? callOpts.topK : defaults?.topK
+  if (typeof topK === 'number' && topK > 0) {
+    out.top_k = topK
+  }
+  // min_p has no AI-SDK call-option, so it always comes from the
+  // runtime-config default. `0` = disabled.
+  if (typeof defaults?.minP === 'number' && defaults.minP > 0) {
+    out.min_p = defaults.minP
+  }
   // OpenAI-style frequency/presence penalty don't map cleanly to
   // llama.cpp's `penalty_repeat`. Surface frequencyPenalty as
-  // penalty_repeat when it's strictly > 0; otherwise leave undefined
-  // and wllama uses its own defaults.
-  if (typeof opts.frequencyPenalty === 'number' && opts.frequencyPenalty > 0) {
-    out.penalty_repeat = 1 + opts.frequencyPenalty
+  // penalty_repeat when it's strictly > 0; otherwise fall back to
+  // the runtime-config `repeatPenalty` (treating `<= 1` as neutral).
+  if (typeof callOpts.frequencyPenalty === 'number' && callOpts.frequencyPenalty > 0) {
+    out.penalty_repeat = 1 + callOpts.frequencyPenalty
+  } else if (typeof defaults?.repeatPenalty === 'number' && defaults.repeatPenalty > 1) {
+    out.penalty_repeat = defaults.repeatPenalty
   }
   return out
 }
@@ -319,7 +463,7 @@ export function createLocalWllamaModel(opts: LocalWllamaOptions): LanguageModelV
       const { messages, warnings } = toWllamaMessages(callOpts.prompt)
       const text = await instance.createChatCompletion(messages, {
         nPredict: callOpts.maxOutputTokens ?? opts.maxOutputTokens,
-        sampling: toWllamaSampling(callOpts),
+        sampling: toWllamaSampling(callOpts, opts.defaultSampling),
         abortSignal: callOpts.abortSignal,
         stream: false,
       })
@@ -337,7 +481,7 @@ export function createLocalWllamaModel(opts: LocalWllamaOptions): LanguageModelV
       const { messages, warnings } = toWllamaMessages(callOpts.prompt)
       const iterable = await instance.createChatCompletion(messages, {
         nPredict: callOpts.maxOutputTokens ?? opts.maxOutputTokens,
-        sampling: toWllamaSampling(callOpts),
+        sampling: toWllamaSampling(callOpts, opts.defaultSampling),
         abortSignal: callOpts.abortSignal,
         stream: true,
       })

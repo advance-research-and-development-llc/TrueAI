@@ -1,0 +1,249 @@
+name: Dispatch Copilot fix issue
+description: >
+  Create (or update / reopen) a GitHub issue assigned to the Copilot
+  coding agent for a single defect. Encapsulates dedup, label creation,
+  body templating, and the universal hard-constraints contract from
+  .github/copilot/PROMPTS.md so every dispatcher workflow produces
+  consistent issues.
+
+inputs:
+  github-token:
+    description: Token with issues:write (use AGENT_AUTOMATION_TOKEN if available, else GITHUB_TOKEN).
+    required: true
+  repo:
+    description: 'owner/repo'
+    required: true
+  bug-type:
+    description: >
+      One of: codeql-alert, lint-error, test-failure, dependency-vuln,
+      coverage-gap, secret-leak, compatibility, android-lint, other.
+    required: true
+  fragment:
+    description: >
+      Prompt fragment name from .github/copilot/PROMPTS.md. One of:
+      fix-codeql, fix-lint, fix-test-failure, fix-android-lint,
+      dep-vuln-bump, coverage-gap-fill, fix-secret-leak,
+      fix-compatibility.
+    required: true
+  title:
+    description: Issue title. The dedup search uses a substring of this title.
+    required: true
+  dedup-key:
+    description: >
+      Substring used to find existing open issues for the same defect.
+      Typically the alert number, file path, or rule id. The action
+      will not open a duplicate if any open issue contains this
+      substring in its title AND has all of the requested labels.
+    required: true
+  labels:
+    description: Comma-separated label list (always includes `copilot-fix`).
+    required: false
+    default: 'copilot-fix,bug'
+  severity:
+    description: 'critical | high | medium | low | info'
+    required: false
+    default: 'medium'
+  finding-body:
+    description: >
+      Markdown describing the specific finding (file, line, message,
+      excerpt). Will be embedded into the issue body under
+      `### Finding`.
+    required: true
+  reopen-closed:
+    description: 'If `true`, reopen a recently-closed dedup match instead of creating a new issue.'
+    required: false
+    default: 'true'
+  assignee:
+    description: GitHub username to assign the issue to.
+    required: false
+    default: 'copilot'
+  throttle-cap:
+    description: >
+      Optional max number of open `copilot-fix` issues. If the cap is
+      reached the action skips creation and exits cleanly (the
+      finding is dropped on the floor — re-runs will pick it up once
+      the queue drains). Set to '0' or empty to disable.
+    required: false
+    default: '25'
+
+outputs:
+  action:
+    description: 'create | update | reopen | skip-duplicate | skip-throttled'
+    value: ${{ steps.dispatch.outputs.action }}
+  issue-number:
+    description: Issue number that was created/updated/reopened (empty on skip).
+    value: ${{ steps.dispatch.outputs.issue_number }}
+  issue-url:
+    description: HTML URL of the created/updated/reopened issue.
+    value: ${{ steps.dispatch.outputs.issue_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure required labels exist
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        LABELS: ${{ inputs.labels }}
+      run: |
+        set -euo pipefail
+        # Always ensure the canonical labels exist (idempotent --force).
+        gh label create "copilot-fix"  --color "7057ff" --description "Automated fix dispatched to Copilot" --repo "$REPO" --force >/dev/null
+        gh label create "bug"          --color "ee0701" --description "Something is not working"            --repo "$REPO" --force >/dev/null
+        gh label create "security"     --color "d73a4a" --description "Security finding"                    --repo "$REPO" --force >/dev/null
+        gh label create "needs-triage" --color "e4e669" --description "Low-priority finding awaiting triage" --repo "$REPO" --force >/dev/null
+        gh label create "lint-error"   --color "fbca04" --description "ESLint / lint error"                 --repo "$REPO" --force >/dev/null
+        gh label create "android-lint" --color "f9c74f" --description "Android Gradle lint failure"         --repo "$REPO" --force >/dev/null
+        gh label create "test-failure" --color "e4e669" --description "CI / test failure"                   --repo "$REPO" --force >/dev/null
+        gh label create "dependency-vuln" --color "5319e7" --description "Vulnerable dependency"            --repo "$REPO" --force >/dev/null
+        gh label create "coverage-gap" --color "0e8a16" --description "Test coverage below threshold"        --repo "$REPO" --force >/dev/null
+        gh label create "audit"        --color "bfd4f2" --description "Scheduled audit finding"             --repo "$REPO" --force >/dev/null
+        gh label create "compatibility" --color "1d76db" --description "Compatibility-matrix finding"       --repo "$REPO" --force >/dev/null
+        # Risk labels (consumed by selective auto-merge)
+        for risk in trivial low medium high; do
+          gh label create "risk:${risk}" --color "ededed" --description "Risk classification: ${risk}" --repo "$REPO" --force >/dev/null
+        done
+        # And the user-requested ones
+        IFS=',' read -ra REQ <<< "$LABELS"
+        for L in "${REQ[@]}"; do
+          L="$(echo "$L" | xargs)"
+          [ -z "$L" ] && continue
+          gh label create "$L" --color "cccccc" --description "Auto-created by dispatch-fix-issue" --repo "$REPO" --force >/dev/null || true
+        done
+
+    - name: Render universal constraints + fragment
+      id: render
+      shell: bash
+      env:
+        FRAGMENT: ${{ inputs.fragment }}
+        BUG_TYPE: ${{ inputs.bug-type }}
+        SEVERITY: ${{ inputs.severity }}
+        FINDING: ${{ inputs.finding-body }}
+      run: |
+        set -euo pipefail
+        BODY_FILE="$(mktemp)"
+        {
+          echo "## Auto-generated fix issue"
+          echo
+          echo "| Field | Value |"
+          echo "|---|---|"
+          echo "| **Bug type** | \`${BUG_TYPE}\` |"
+          echo "| **Severity** | \`${SEVERITY}\` |"
+          echo "| **Prompt fragment** | [\`${FRAGMENT}\`](../blob/main/.github/copilot/PROMPTS.md#fragment-${FRAGMENT}) |"
+          echo
+          echo "### Finding"
+          echo
+          echo "${FINDING}"
+          echo
+          echo "### Universal hard constraints (do not skip any)"
+          echo
+          echo '- [ ] `npm ci` succeeds'
+          echo '- [ ] `npm run lint` exits 0 (no new errors)'
+          echo '- [ ] `npm run build:dev` succeeds'
+          echo '- [ ] `npm test` passes — no newly failing tests'
+          echo '- [ ] CodeQL must not introduce new alerts'
+          echo '- [ ] `package.json` `overrides` pins must NOT be weakened'
+          echo '- [ ] No telemetry, analytics, or third-party network calls added'
+          echo '- [ ] `LICENSE`, `NOTICE`, and copyright headers are preserved'
+          echo '- [ ] No edits under `.github/**` unless this issue explicitly requests them'
+          echo
+          echo "### Instructions for Copilot agent"
+          echo
+          echo "Read the prompt fragment **\`${FRAGMENT}\`** in"
+          echo '[`.github/copilot/PROMPTS.md`](../blob/main/.github/copilot/PROMPTS.md)'
+          echo "and follow it step-by-step. The fragment is the canonical contract;"
+          echo "do not improvise an alternative workflow."
+          echo
+          echo "### Lessons learned"
+          echo
+          echo "Fill in the \`## Lessons learned\` section of the PR description"
+          echo "when opening the fix PR — it is auto-ingested into"
+          echo '`.github/copilot/LEARNINGS.md` on merge.'
+        } > "$BODY_FILE"
+        echo "body_file=$BODY_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Throttle check + dedup + dispatch
+      id: dispatch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        TITLE: ${{ inputs.title }}
+        DEDUP_KEY: ${{ inputs.dedup-key }}
+        LABELS: ${{ inputs.labels }}
+        BODY_FILE: ${{ steps.render.outputs.body_file }}
+        REOPEN: ${{ inputs.reopen-closed }}
+        ASSIGNEE: ${{ inputs.assignee }}
+        THROTTLE_CAP: ${{ inputs.throttle-cap }}
+      run: |
+        set -euo pipefail
+
+        # ---- Throttle (D5) ---------------------------------------------------
+        if [ -n "${THROTTLE_CAP:-}" ] && [ "${THROTTLE_CAP}" -gt 0 ] 2>/dev/null; then
+          OPEN_COUNT=$(gh issue list --repo "$REPO" --label "copilot-fix" --state open --limit 200 --json number --jq 'length' 2>/dev/null || echo 0)
+          if [ "${OPEN_COUNT:-0}" -ge "${THROTTLE_CAP}" ]; then
+            echo "::warning ::dispatch-fix-issue throttled: ${OPEN_COUNT} open copilot-fix issues ≥ cap ${THROTTLE_CAP}; skipping."
+            echo "action=skip-throttled" >> "$GITHUB_OUTPUT"
+            echo "issue_number=" >> "$GITHUB_OUTPUT"
+            echo "issue_url="    >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        fi
+
+        # ---- Dedup: open issue containing dedup key in title -----------------
+        # Uses --search "in:title" to scope the substring match to the title.
+        EXISTING_OPEN=$(gh issue list \
+          --repo "$REPO" \
+          --label "copilot-fix" \
+          --state open \
+          --search "\"${DEDUP_KEY}\" in:title" \
+          --json number,title \
+          --jq ".[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
+          2>/dev/null | head -n1 || echo "")
+
+        if [ -n "$EXISTING_OPEN" ]; then
+          echo "Found open dedup match: #$EXISTING_OPEN — updating body."
+          gh issue edit "$EXISTING_OPEN" --repo "$REPO" --body-file "$BODY_FILE" >/dev/null
+          gh issue comment "$EXISTING_OPEN" --repo "$REPO" --body "🔄 Re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0})." >/dev/null || true
+          URL=$(gh issue view "$EXISTING_OPEN" --repo "$REPO" --json url --jq .url)
+          echo "action=update"            >> "$GITHUB_OUTPUT"
+          echo "issue_number=$EXISTING_OPEN" >> "$GITHUB_OUTPUT"
+          echo "issue_url=$URL"           >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # ---- Reopen recently-closed dedup match ------------------------------
+        if [ "$REOPEN" = "true" ]; then
+          EXISTING_CLOSED=$(gh issue list \
+            --repo "$REPO" \
+            --label "copilot-fix" \
+            --state closed \
+            --search "\"${DEDUP_KEY}\" in:title" \
+            --json number,title,closedAt \
+            --jq "sort_by(.closedAt) | reverse | .[] | select(.title | contains(\"${DEDUP_KEY}\")) | .number" \
+            2>/dev/null | head -n1 || echo "")
+          if [ -n "$EXISTING_CLOSED" ]; then
+            echo "Found recently-closed dedup match: #$EXISTING_CLOSED — reopening."
+            gh issue reopen "$EXISTING_CLOSED" --repo "$REPO" >/dev/null
+            gh issue edit   "$EXISTING_CLOSED" --repo "$REPO" --body-file "$BODY_FILE" >/dev/null
+            gh issue comment "$EXISTING_CLOSED" --repo "$REPO" --body "🔁 Reopened: defect re-detected by [run #${GITHUB_RUN_ID:-unknown}](https://github.com/$REPO/actions/runs/${GITHUB_RUN_ID:-0})." >/dev/null || true
+            URL=$(gh issue view "$EXISTING_CLOSED" --repo "$REPO" --json url --jq .url)
+            echo "action=reopen"               >> "$GITHUB_OUTPUT"
+            echo "issue_number=$EXISTING_CLOSED" >> "$GITHUB_OUTPUT"
+            echo "issue_url=$URL"              >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        fi
+
+        # ---- Create fresh issue ---------------------------------------------
+        ARGS=(--repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE" --label "$LABELS")
+        if [ -n "$ASSIGNEE" ]; then
+          ARGS+=(--assignee "$ASSIGNEE")
+        fi
+        URL=$(gh issue create "${ARGS[@]}")
+        NUM=$(echo "$URL" | grep -oE '[0-9]+$' || echo "")
+        echo "Created issue: $URL"
+        echo "action=create"      >> "$GITHUB_OUTPUT"
+        echo "issue_number=$NUM"  >> "$GITHUB_OUTPUT"
+        echo "issue_url=$URL"     >> "$GITHUB_OUTPUT"

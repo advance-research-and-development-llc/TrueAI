@@ -124,6 +124,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // In-tree Capacitor plugin: on-device llama.cpp runtime. The plugin
+    // is dormant in PR 2 (no JS callsite invokes it yet) but must be
+    // linked so MainActivity can register it for PR 4.
+    implementation project(':capacitor-llama')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

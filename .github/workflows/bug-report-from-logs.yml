@@ -1,0 +1,96 @@
+name: Bug Report from Logs Dispatcher
+
+# Watches for runtime-crash-report issues (created via the
+# `runtime-crash-report.yml` issue template). When one opens, parses
+# the JSON blob, extracts the top stack frame, dedups against open
+# fix issues, and creates a `copilot-fix` companion issue assigned to
+# the Copilot agent.
+#
+# This is the **local-first telemetry-free** crash pipeline: the user
+# explicitly pastes the report; nothing is auto-collected.
+
+on:
+  issues:
+    types: [opened, labeled, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dispatch:
+    name: Triage runtime crash report
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'runtime-crash')
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract crash JSON
+        id: extract
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          gh issue view "$ISSUE" --repo "$REPO" --json body > /tmp/issue.json
+          # Pull the first ```json ... ``` fenced block from the body.
+          jq -r '.body' /tmp/issue.json \
+            | awk '/^```json/{flag=1;next}/^```/{flag=0}flag' \
+            > /tmp/crash.json || true
+          if [ ! -s /tmp/crash.json ]; then
+            echo "::warning ::No JSON block found in issue body."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          # Best-effort extract: top stack frame, error message, component
+          MSG=$(jq -r '.error.message // .message // "unknown"' /tmp/crash.json 2>/dev/null || echo "unknown")
+          STACK=$(jq -r '(.error.stack // .stack // "") | split("\n") | .[0:5] | join("\n")' /tmp/crash.json 2>/dev/null || echo "")
+          COMP=$(jq -r '.componentStack // .errorBoundary // ""' /tmp/crash.json 2>/dev/null | head -c 500 || echo "")
+          # Pull the first source file:line out of the stack trace
+          TOP=$(echo "$STACK" | grep -oE '[a-zA-Z_./-]+\.(ts|tsx|js|jsx):[0-9]+' | head -1 || echo "unknown")
+          {
+            echo "msg<<EOF"; echo "$MSG"; echo "EOF"
+            echo "stack<<EOF"; echo "$STACK"; echo "EOF"
+            echo "comp<<EOF"; echo "$COMP"; echo "EOF"
+            echo "top=$TOP"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch fix issue
+        if: steps.extract.outputs.found == 'true'
+        uses: ./.github/actions/dispatch-fix-issue
+        with:
+          github-token: ${{ secrets.AGENT_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
+          bug-type: 'other'
+          fragment: 'fix-test-failure'
+          severity: 'high'
+          title: "[Crash] ${{ steps.extract.outputs.top }} (from #${{ github.event.issue.number }})"
+          dedup-key: "from #${{ github.event.issue.number }}"
+          labels: 'copilot-fix,bug,runtime-crash'
+          finding-body: |
+            **Source crash report:** #${{ github.event.issue.number }}
+
+            **Top frame:** `${{ steps.extract.outputs.top }}`
+
+            **Error message:**
+            ```
+            ${{ steps.extract.outputs.msg }}
+            ```
+
+            **Stack (top 5 frames):**
+            ```
+            ${{ steps.extract.outputs.stack }}
+            ```
+
+            **Component stack (truncated):**
+            ```
+            ${{ steps.extract.outputs.comp }}
+            ```
+
+            > Local-first context: this report came from a user copying
+            > the JSON blob out of the in-app Error Boundary. The
+            > project ships no telemetry; future occurrences need
+            > another manual report unless we can reproduce locally.

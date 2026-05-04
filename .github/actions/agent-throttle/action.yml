@@ -1,0 +1,46 @@
+name: Agent throttle check
+description: >
+  Read-only check that returns whether the open `copilot-fix` issue
+  queue has reached its cap. Use this from a workflow that may want to
+  short-circuit additional work (e.g. expensive scanners) before any
+  issue would be dispatched.
+
+inputs:
+  github-token:
+    description: Token with issues:read.
+    required: true
+  repo:
+    description: 'owner/repo'
+    required: true
+  cap:
+    description: 'Maximum allowed open copilot-fix issues (default 25).'
+    required: false
+    default: '25'
+
+outputs:
+  throttled:
+    description: '`true` if the open queue ≥ cap, else `false`.'
+    value: ${{ steps.check.outputs.throttled }}
+  open-count:
+    description: 'Current open copilot-fix issue count.'
+    value: ${{ steps.check.outputs.open_count }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        CAP: ${{ inputs.cap }}
+      run: |
+        set -euo pipefail
+        OPEN=$(gh issue list --repo "$REPO" --label "copilot-fix" --state open --limit 200 --json number --jq 'length' 2>/dev/null || echo 0)
+        echo "open_count=$OPEN" >> "$GITHUB_OUTPUT"
+        if [ "${OPEN:-0}" -ge "${CAP}" ]; then
+          echo "throttled=true" >> "$GITHUB_OUTPUT"
+          echo "::warning ::agent-throttle: $OPEN open copilot-fix issues ≥ cap $CAP"
+        else
+          echo "throttled=false" >> "$GITHUB_OUTPUT"
+        fi

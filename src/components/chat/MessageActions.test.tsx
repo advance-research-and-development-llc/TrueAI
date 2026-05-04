@@ -19,8 +19,14 @@ vi.mock('@/lib/native/haptics', () => ({
   haptics: { tap: vi.fn().mockResolvedValue(undefined) },
 }))
 
+vi.mock('@/lib/native/share', () => ({
+  share: vi.fn(),
+  canShare: vi.fn(() => true),
+}))
+
 import { toast } from 'sonner'
 import { copyText } from '@/lib/native/clipboard'
+import { share, canShare } from '@/lib/native/share'
 
 const makeMessage = (overrides: Partial<Message> = {}): Message => ({
   id: 'msg-42',
@@ -183,6 +189,34 @@ describe('MessageActions', () => {
     render(<MessageActions {...defaultProps} onExport={onExport} message={msg} />)
     await user.click(screen.getByRole('button', { name: /^export$/i }))
     expect(onExport).toHaveBeenCalledWith(msg)
+  })
+
+  describe('Share button', () => {
+    it('renders the Share button when canShare() is true', () => {
+      vi.mocked(canShare).mockReturnValue(true)
+      render(<MessageActions {...defaultProps} />)
+      expect(screen.getByRole('button', { name: /^share$/i })).toBeInTheDocument()
+    })
+
+    it('does not render the Share button when canShare() is false', () => {
+      vi.mocked(canShare).mockReturnValue(false)
+      render(<MessageActions {...defaultProps} />)
+      expect(screen.queryByRole('button', { name: /^share$/i })).not.toBeInTheDocument()
+    })
+
+    it('calls share() with the message content when the Share button is clicked', async () => {
+      const user = userEvent.setup()
+      vi.mocked(canShare).mockReturnValue(true)
+      vi.mocked(share).mockResolvedValue(true)
+      render(<MessageActions {...defaultProps} message={makeMessage({ content: 'Hello world' })} />)
+      await user.click(screen.getByRole('button', { name: /^share$/i }))
+      await waitFor(() => {
+        expect(share).toHaveBeenCalledWith({
+          text: 'Hello world',
+          dialogTitle: 'Share message',
+        })
+      })
+    })
   })
 })
 

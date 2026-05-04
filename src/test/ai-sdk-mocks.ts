@@ -31,6 +31,13 @@ export interface MockTextOptions {
   modelId?: string
   /** Provider id reported by the mock. Default `'mock-provider'`. */
   provider?: string
+  /**
+   * Invoked with the `LanguageModelV3CallOptions` passed to either
+   * `doGenerate` or `doStream`. Lets tests assert which sampling /
+   * provider knobs the caller forwarded — the AI SDK's own
+   * `MockLanguageModelV3` doesn't expose this otherwise.
+   */
+  onCall?: (callOpts: unknown) => void
 }
 
 const DEFAULT_USAGE = {
@@ -56,13 +63,17 @@ export function mockLanguageModel(opts: MockTextOptions = {}): LanguageModel {
   return new MockLanguageModelV3({
     provider,
     modelId,
-    doGenerate: async () => ({
-      content: [{ type: 'text', text }],
-      finishReason,
-      usage,
-      warnings: [],
-    }),
-    doStream: async () => {
+    doGenerate: async (callOpts: unknown) => {
+      opts.onCall?.(callOpts)
+      return {
+        content: [{ type: 'text', text }],
+        finishReason,
+        usage,
+        warnings: [],
+      }
+    },
+    doStream: async (callOpts: unknown) => {
+      opts.onCall?.(callOpts)
       const id = 'mock-text-id'
       const stream = simulateReadableStream({
         chunks: [

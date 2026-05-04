@@ -51,6 +51,26 @@ export type LLMProvider =
    * (Ollama, LM Studio, etc.) is unaffected.
    */
   | 'local-wasm'
+  /**
+   * Truly on-device inference via the in-tree Capacitor `Llama` plugin
+   * (`android/capacitor-llama/`, JS shim in `src/lib/native/llama.ts`,
+   * AI-SDK adapter in `local-native-provider.ts`). For this provider
+   * the `LLMRuntimeConfig` fields are reinterpreted:
+   *   - `baseUrl`: absolute path to a `.gguf` file on the device's
+   *     local filesystem (typically under
+   *     `Filesystem.Directory.Data/models/<sha256>.gguf`). The in-app
+   *     GGUF importer (PR 5) is the supported way to populate this.
+   *   - `defaultModel`: the logical model id reported back as
+   *     `LanguageModel.modelId`. Used only for display / cost-tracking.
+   *   - `apiKey`: ignored.
+   *   - `contextSize`: forwarded as `n_ctx` at model-load time.
+   *
+   * On platforms where the native runtime is not available (web, iOS,
+   * Android builds without the JNI .so) the adapter automatically
+   * falls back to `local-wasm` (wllama) so users always get *some*
+   * on-device runtime without reconfiguring.
+   */
+  | 'local-native'
 
 export interface LLMRuntimeConfig {
   /** Logical provider type (used for sensible default base URLs in the UI). */
@@ -75,23 +95,33 @@ export interface LLMRuntimeConfig {
   /** Default top_p (0..1). */
   topP: number
   /**
-   * Default top_k. Limits sampling to the K most likely tokens. `0` means
-   * disabled (consider all tokens). Forwarded as `top_k` on llama.cpp /
-   * Ollama compatible endpoints.
+   * Default top_k. `0` disables top-k filtering — treated as the
+   * "neutral" value, which is what hosted OpenAI-style endpoints
+   * expect (the `top_k` field is omitted entirely from the request
+   * when this is `<= 0`). Defaults to `40`, aligned with OfflineLLM
+   * and llama.cpp's own default.
    */
   topK: number
   /**
-   * Default min_p (0..1). Filters tokens whose probability is below this
-   * fraction of the top token's probability. `0` means disabled.
-   * Forwarded as `min_p` on llama.cpp / Ollama compatible endpoints.
+   * Default min_p. `0` disables min-p filtering — treated as the
+   * "neutral" value. Defaults to `0.05` (OfflineLLM-aligned). Hosted
+   * providers that don't support `min_p` (OpenAI, Anthropic, Google)
+   * see no change — the field is omitted unless `> 0`.
    */
   minP: number
   /**
-   * Default repeat penalty. `1` means no penalty; values >1 discourage
-   * the model from repeating tokens (llama.cpp convention). Forwarded as
-   * `repeat_penalty` on llama.cpp / Ollama compatible endpoints.
+   * Default repeat penalty. `1` disables the penalty — treated as the
+   * "neutral" value. Defaults to `1.1` (OfflineLLM-aligned). Emitted
+   * over the wire only when `> 1`.
    */
   repeatPenalty: number
+  /**
+   * Default context window size, in tokens. Used by on-device runtimes
+   * (wllama / native llama.cpp) at model-load time as `n_ctx`. Hosted
+   * HTTP providers ignore this. Defaults to `2048` (OfflineLLM-aligned
+   * and a reasonable floor for small instruct models).
+   */
+  contextSize: number
   /** Default response token cap. */
   maxTokens: number
 }
@@ -102,17 +132,12 @@ export const DEFAULT_LLM_RUNTIME_CONFIG: LLMRuntimeConfig = {
   apiKey: '',
   defaultModel: 'llama3.2',
   requestTimeoutMs: 120_000,
-  // Sampling defaults align with the OfflineLLM Android app's documented
-  // table (Temperature 0.7, Top-P 0.9, Top-K 40, Min-P 0.05, Repeat 1.1)
-  // so the two apps produce comparable output for parity testing. Top-P
-  // is intentionally kept at the previous TrueAI default of 1 to avoid
-  // changing observed behaviour for users on existing configs; it can be
-  // tightened per-call or via Settings.
   temperature: 0.7,
   topP: 1,
   topK: 40,
   minP: 0.05,
   repeatPenalty: 1.1,
+  contextSize: 2048,
   maxTokens: 2000,
 }
 
@@ -153,17 +178,23 @@ function mergeConfig(
         : base.temperature,
     topP: typeof patch.topP === 'number' && patch.topP >= 0 ? patch.topP : base.topP,
     topK:
-      typeof patch.topK === 'number' && Number.isFinite(patch.topK) && patch.topK >= 0
-        ? Math.floor(patch.topK)
+      typeof patch.topK === 'number' && patch.topK >= 0 && Number.isFinite(patch.topK)
+        ? patch.topK
         : base.topK,
     minP:
       typeof patch.minP === 'number' && patch.minP >= 0 && patch.minP <= 1
         ? patch.minP
         : base.minP,
     repeatPenalty:
-      typeof patch.repeatPenalty === 'number' && patch.repeatPenalty >= 1
+      typeof patch.repeatPenalty === 'number' &&
+      patch.repeatPenalty >= 0 &&
+      Number.isFinite(patch.repeatPenalty)
         ? patch.repeatPenalty
         : base.repeatPenalty,
+    contextSize:
+      typeof patch.contextSize === 'number' && patch.contextSize > 0
+        ? patch.contextSize
+        : base.contextSize,
     maxTokens:
       typeof patch.maxTokens === 'number' && patch.maxTokens > 0 ? patch.maxTokens : base.maxTokens,
   }

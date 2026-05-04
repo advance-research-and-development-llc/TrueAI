@@ -52,11 +52,37 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
+      # Refuse to enable auto-merge on PRs classified `risk:high` —
+      # these touch governance / credentials / overrides and MUST be
+      # reviewed manually. The PR Risk Labeller workflow assigns the
+      # label; this step is a defence-in-depth check that does not
+      # weaken any existing branch-protection rule (CODEOWNERS approval
+      # is still required by the ruleset for everything).
+      - name: Refuse on risk:high
+        if: contains(github.event.pull_request.labels.*.name, 'risk:high')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "::warning ::PR #${PR_NUMBER} is risk:high — auto-merge will NOT be enabled."
+          # Leave a one-time comment if not already present
+          MARKER='<!-- risk:high-no-automerge -->'
+          if ! gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq '.comments[].body' | grep -q "$MARKER"; then
+            BODY="$MARKER"$'\n'"🛡️ This PR is classified \`risk:high\` (touches governance files, credentials, or dependency overrides). Auto-merge is intentionally disabled — please review and merge manually after CODEOWNERS approval."
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
+          fi
+          exit 0
+
       - name: Enable auto-merge (squash)
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'risk:high') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           # `gh pr merge --auto` is idempotent — calling it on a PR that
-          # already has auto-merge enabled is a no-op.
+          # already has auto-merge enabled is a no-op. Branch protection
+          # still gates the actual merge on required checks + CODEOWNERS
+          # approval; this just flips the toggle.
           gh pr merge --auto --squash "$PR_URL"

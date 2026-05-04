@@ -65,26 +65,105 @@ new label automatically. No PR / workflow edit required.
 > ⚠️ Larger Linux x64 runners are supported. macOS / ARM runners are
 > not compatible with the coding agent.
 
-## 3. Copilot coding agent — firewall (unrestricted network)
+## 3. Copilot coding agent — firewall (curated allowlist)
 
 By default the coding agent runs behind GitHub's integrated firewall,
-which limits outbound HTTP to a curated allowlist. To give the agent
-broader (or fully unrestricted) network access for `npm install`,
-Gradle dependency resolution, container pulls, etc.:
+which limits outbound HTTP to a curated allowlist. **Recommended
+posture for this repo: enable a custom allowlist (NOT "Disabled")** —
+the local-first design means no agent ever needs blanket internet
+access; an allowlist preserves the threat model while still letting
+every legitimate build / install / scan succeed.
 
 1. **Settings → Copilot → Coding agent**.
-2. Under **Firewall**, choose one of:
-   - **Custom allowlist** — add the hosts your build needs
-     (e.g. `dl.google.com`, `services.gradle.org`, `repo.maven.apache.org`,
-     `objects.githubusercontent.com`, `github.com`,
-     `registry.npmjs.org`, `*.googleapis.com`).
-   - **Disabled** — no outbound restriction. Use only if you trust
-     the threat model on this private repo.
+2. Under **Firewall**, choose **Custom allowlist** and add **all** of
+   the hosts below. Each is required by at least one build, install,
+   scan, or LLM-runtime path that an agent task may exercise:
+
+   **Package & build registries** (npm install, Gradle resolve)
+   - `registry.npmjs.org`
+   - `dl.google.com` — Android SDK + Gradle plugin metadata
+   - `services.gradle.org` — Gradle wrapper distribution
+   - `repo.maven.apache.org` — Maven Central (Capacitor, Android libs)
+   - `plugins.gradle.org` — Gradle plugin portal
+   - `jcenter.bintray.com` — legacy Android deps still pinned by some plugins
+
+   **GitHub itself** (clone, gh CLI, action artifacts)
+   - `github.com`
+   - `api.github.com`
+   - `objects.githubusercontent.com`
+   - `*.githubusercontent.com`
+   - `codeload.github.com`
+   - `uploads.github.com`
+
+   **Model weights & runtime data** (GGUF prefetch, native llama runtime)
+   - `huggingface.co`
+   - `cdn-lfs.huggingface.co`
+
+   **Optional — only if the agent task will exercise hosted LLM APIs at
+   runtime** (configurable in Settings → LLM Runtime; off by default
+   in the local-first build):
+   - `api.anthropic.com`
+   - `api.openai.com`
+   - `generativelanguage.googleapis.com`
+
+   **Optional — security scanners** (only if running OSV-Scanner /
+   Trivy locally; CI provides them already):
+   - `osv-vulnerabilities.storage.googleapis.com`
+   - `ghcr.io`
+
 3. Save.
 
-Tip: starting with the **custom allowlist** preset for "JavaScript /
-TypeScript + Android" is usually enough; only fully disable if you
-hit repeated firewall blocks during setup.
+> ⚠️ Avoid **"Disabled"**. Even on a private repo it widens the blast
+> radius of a compromised agent or a malicious dependency download
+> (typosquatting, postinstall scripts, etc.). The list above is the
+> **smallest set known to work** for this repo — if you discover a
+> host that legitimately needs to be added, edit this section in your
+> PR so future agents inherit the allowlist.
+
+## 3a. Fine-grained PAT — `AGENT_AUTOMATION_TOKEN`
+
+Some workflows (release tagging, cross-cutting fix dispatchers, the
+verification harness) need write scopes broader than the default
+`GITHUB_TOKEN` provides — without granting any agent or workflow the
+ability to push code arbitrarily. The contract is a single
+**fine-grained personal access token** scoped to *this repository
+only*, stored as the repo secret `AGENT_AUTOMATION_TOKEN`.
+
+**Required scopes (and only these):**
+
+| Scope | Why |
+|---|---|
+| `Contents: Read and write` | tag release commits, ratchet coverage thresholds |
+| `Pull requests: Read and write` | open / label / merge agent PRs |
+| `Issues: Read and write` | dispatch & dedupe `copilot-fix` issues |
+| `Actions: Read` | look up failed-run artifacts for the verification harness |
+| `Code scanning alerts: Read` | re-check CodeQL alerts in the verification harness |
+| `Secret scanning alerts: Read` | feed `secret_scanning_alert` dispatcher |
+| `Workflows: Read` | introspect workflow runs (no `Workflows: write` — never) |
+
+**Explicitly NOT granted:**
+
+- `Administration: write` (would let the token rewrite branch protection)
+- `Workflows: write` (would let the token modify `.github/workflows/**`)
+- Any organisation-level scope
+- Any other repository
+
+**One-time setup:**
+
+1. Generate at <https://github.com/settings/personal-access-tokens/new>
+   as a *fine-grained* PAT, **resource owner = the repo owner**,
+   **only-select-repositories = this repo**, expiry ≤ 1 year.
+2. Apply the scopes above; save.
+3. Repo → Settings → Secrets and variables → Actions → New repository
+   secret. Name: `AGENT_AUTOMATION_TOKEN`. Value: the token.
+4. Rotate yearly (or immediately on any suspected compromise). The
+   verification harness will start failing the moment the token expires
+   — that is intentional, treat it as the rotation alarm.
+
+Workflows that need broader scopes than `GITHUB_TOKEN` provides should
+read this token via `${{ secrets.AGENT_AUTOMATION_TOKEN }}` and fall
+back to `${{ secrets.GITHUB_TOKEN }}` only when the secret is unset
+(so a fresh fork still builds without it).
 
 ## 4. Copilot coding agent — task timeout
 

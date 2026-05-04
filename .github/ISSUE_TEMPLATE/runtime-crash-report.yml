@@ -1,0 +1,80 @@
+name: 🐛 Runtime crash report (local-first)
+description: >
+  Submit a JSON crash report copied from the in-app Error Boundary
+  ("Copy debug info" button). No telemetry — you control what is
+  shared. The dispatcher workflow will create a follow-up
+  `copilot-fix` issue for the agent.
+title: "[Crash] <short summary>"
+labels: ["bug", "runtime-crash", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🛑 Read this first
+        TrueAI LocalAI is **local-first**: we ship NO telemetry. This
+        form is the only way runtime errors reach maintainers, and you
+        are 100% in control of what gets shared.
+
+        Before pasting, please **redact any secrets / personal data**
+        from the JSON blob (the in-app copy button already strips
+        `apiKey`, but double-check).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One-liner describing what you were doing when it crashed.
+      placeholder: "Switching from Local LLM to OpenAI provider in Settings"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Found in Settings → About.
+      placeholder: "8.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Web (browser)
+        - Android (Capacitor)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: report-json
+    attributes:
+      label: Crash report JSON (from in-app "Copy debug info")
+      description: >
+        Paste the JSON blob exactly as copied. The dispatcher will
+        parse it for stack frames and component tree.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Open the app
+        2. ...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I have redacted any secrets / API keys from the JSON blob.
+          required: true
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
