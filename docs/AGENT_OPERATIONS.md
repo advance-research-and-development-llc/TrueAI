@@ -35,6 +35,7 @@ Or via the GitHub UI:
 | `coverage-gap` | `coverage-dispatch.yml` | `coverage-gap-fill` |
 | `compatibility` | `compatibility-matrix.yml` | `fix-compatibility` |
 | `security` (+ optionally `runtime-crash`) | `codeql-autofix.yml` / `secret-scanning-autofix.yml` / `bug-report-from-logs.yml` | `fix-codeql` / `fix-secret-leak` / `fix-test-failure` |
+| `admin-review` | `admin-security-review.yml` (manual, owner-only) | `admin-security-review` |
 
 ### Risk labels (assigned to PRs, not issues)
 
@@ -207,3 +208,104 @@ gh issue list --repo $REPO --label copilot-fix --sort updated --limit 10
   coverage:** scaffolded as plan items but not enabled — each adds
   significant CI minutes and is best landed as its own PR with
   before/after benchmarks.
+
+---
+
+## 10. Admin Security Review (Owner-Only)
+
+The **admin-security-review** workflow provides comprehensive security
+auditing with elevated read access to all repository surfaces.
+
+### When to run
+
+- Before major releases
+- After significant dependency updates
+- After architectural changes to sensitive areas (workflows, auth, storage)
+- Quarterly as part of maintenance cycle
+- On-demand when security concerns arise
+
+### How to dispatch
+
+```bash
+# Manual dispatch via GitHub UI
+Actions → Admin Security Review → Run workflow
+
+# Or via gh CLI
+gh workflow run admin-security-review.yml \
+  --repo advance-research-and-development-llc/TrueAI \
+  -f full_report=true \
+  -f create_issue=true \
+  -f dry_run=false
+```
+
+### What it scans
+
+1. **Token/Credential Detection**: Pattern matching for API keys, GitHub
+   tokens, private keys across all files
+2. **Secure Storage Verification**: Validates secureStorage and
+   kvStore.setSecure() usage, no localStorage fallback for sensitive data
+3. **Dependency Audit**: npm audit + override pin verification +
+   suspicious script detection
+4. **Access Control**: Rulesets active status, bypass actor validation,
+   CODEOWNERS completeness, workflow permissions review
+5. **Code Vulnerabilities**: eval(), dangerouslySetInnerHTML, insecure
+   randomness, XSS vectors
+6. **CI/CD Security**: pull_request_target validation, command injection
+   risks, secret exposure paths
+
+### Output
+
+- **Committed report**: `docs/security-reviews/YYYY-MM-DD-admin-review.md`
+- **Pull request**: With report file, titled "security: Admin Security
+  Review YYYY-MM-DD"
+- **GitHub Issue** (optional): Executive summary with finding counts and
+  link to full report
+
+### Findings workflow
+
+1. Review all findings in generated report
+2. Triage: real vulnerability vs false positive
+3. For CRITICAL findings: immediate owner action required
+4. For HIGH findings: create fix issues via normal dispatcher
+5. For MEDIUM/LOW: document, schedule for next maintenance
+6. Document accepted risks in issue comments
+7. Re-run after fixes: `node scripts/admin-security-review.mjs --full-report`
+
+### Agent privileges
+
+- **Read access**: All files including `.github/**`, rulesets, workflows
+- **Write access**: None — changes require normal PR + CODEOWNERS approval
+- **Dispatch**: Owner-only via `admin-security-review` environment
+- **Agent identity**: admin-security-reviewer
+
+### Environment setup (one-time, owner)
+
+```bash
+# In repository Settings → Environments:
+1. Create environment: "admin-security-review"
+2. Add required reviewer: @smackypants (owner)
+3. No branch protection rules needed (manual dispatch only)
+```
+
+### Script usage (local development)
+
+```bash
+# Full scan with report
+node scripts/admin-security-review.mjs --full-report
+
+# Dry run (scan only, no files written)
+node scripts/admin-security-review.mjs --full-report --dry-run
+
+# JSON output
+node scripts/admin-security-review.mjs --json
+
+# Custom output path
+node scripts/admin-security-review.mjs --output /tmp/review.md
+```
+
+### Integration with fix dispatchers
+
+The admin security review can optionally trigger follow-up fix issues
+for high/critical findings by calling the `dispatch-fix-issue` composite
+action. This is disabled by default to avoid flooding the `copilot-fix`
+queue — owner must manually create fix issues based on report triage.

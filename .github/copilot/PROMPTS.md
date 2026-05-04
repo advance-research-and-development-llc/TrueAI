@@ -195,6 +195,33 @@ Node-engines mismatch, peer-dep conflict, Android compatSdk fallout).
    the finding clears.
 ```
 
+## Fragment: `admin-security-review`
+
+Use for owner-dispatched comprehensive security audits via
+`admin-security-review.yml`.
+
+```
+1. Run the full security review script:
+     node scripts/admin-security-review.mjs --full-report
+2. Review generated findings at docs/security-reviews/YYYY-MM-DD-admin-review.md.
+3. For CRITICAL findings: create separate issue immediately with
+   `security` + `bug` + `risk:high` labels and notify owner.
+4. For HIGH findings: create fix issues using dispatch-fix-issue
+   composite action, assigned to appropriate agent.
+5. For MEDIUM/LOW findings: document in report; no immediate action
+   unless combined risk is significant.
+6. Validate compliance checklist in report against AGENTS.md and
+   copilot-instructions.md hard constraints.
+7. Create GitHub Issue with executive summary + link to full report.
+   Title: `[Admin Security Review] YYYY-MM-DD - N findings`
+   Labels: `admin-review`, `security`, `audit`
+8. Use branch name: `copilot/admin-security-review-${YYYY_MM_DD}`.
+9. Commit report file only (no code changes in this PR unless fixing
+   trivial findings like typos in comments).
+10. In `## Lessons learned`, note any new attack surfaces or security
+    patterns discovered that should inform future code reviews.
+```
+
 ---
 
 ## Authoring rules
