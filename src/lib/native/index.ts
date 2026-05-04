@@ -30,6 +30,13 @@ export {
   type CopyImportedModelResult,
 } from './filesystem'
 export {
+  pickGgufFile,
+  isNativePickerAvailable,
+  deleteStagedFile,
+  getFreeSpaceBytes as getNativePickerFreeSpaceBytes,
+  type PickedGguf,
+} from './file-picker'
+export {
   getInstallerSource,
   isInstalledFromFDroid,
   classifyInstallerPackage,

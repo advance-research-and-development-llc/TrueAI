@@ -8,4 +8,11 @@ project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor
 include ':capacitor-llama'
 project(':capacitor-llama').projectDir = new File('./capacitor-llama/')
 
+// In-tree SAF file-picker (PR 5 — local GGUF importer). Pure-Java,
+// no NDK; depended on by the JS-side `src/lib/native/file-picker.ts`
+// shim. See `android/capacitor-file-picker/README.md` for the rationale
+// behind keeping it in-tree.
+include ':capacitor-file-picker'
+project(':capacitor-file-picker').projectDir = new File('./capacitor-file-picker/')
+
 apply from: 'capacitor.settings.gradle'
