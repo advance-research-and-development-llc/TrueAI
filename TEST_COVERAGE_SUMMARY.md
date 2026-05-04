@@ -5,6 +5,69 @@
 
 ## Current snapshot
 
+_As of 2026-05-04 (post Phase 2.9 — leaf-hook branch density)._
+
+| Metric | Value | Δ vs. prior snapshot |
+|---|---|---|
+| Test files | **207** | +0 |
+| Tests | **2852** | +19 |
+| Global lines | **83.44%** | +0.07 pp |
+| Global branches | **73.52%** | +0.25 pp |
+| Global functions | **73.83%** | +0.11 pp |
+| Global statements | **81.12%** | +0.12 pp |
+
+This sweep landed targeted **branch-density** uplift on two leaf hooks
+both of which had a large `lines% − branches%` gap that suggested cheap
+edge-case coverage wins:
+
+- **`src/hooks/use-streaming-chat.ts`** — L 94.83% → **96.55%**, B
+  **68.18% → 86.36%** (+18 pp), F → **100%**. Five new tests in
+  `src/hooks/use-streaming-chat.test.ts`:
+  1. `system` prompt prepended to messages (and skipped when empty).
+  2. Mid-stream `error` parts surfaced via the `streamText({ onError })`
+     callback → `streamError` → for-await `throw`.
+  3. Non-Error `onError` payload (a bare string) wrapped into an Error
+     before rethrowing.
+  4. Non-Error thrown by `model.doStream` wrapped in the catch block's
+     `err instanceof Error ? err : new Error(String(err))` fallback.
+  5. `abort()` during an in-flight `send()` against a never-ending
+     ReadableStream that calls `controller.error(new DOMException(...))`
+     on the AbortSignal — exercises the `userAbortedRef`
+     for-await-break and catch-block branches deterministically.
+- **`src/hooks/use-contextual-ui.ts`** — L 94.39% → **100%**, B 67.74% →
+  **100%** (+32 pp), F → **100%**. 12 new tests:
+  - **Time-of-day branches:** parametrized `it.each` over four pinned
+    `vi.setSystemTime` values to exercise every branch of the
+    `morning / afternoon / evening / night` if-else ladder in both
+    `trackTimeOfDay` and `generateSuggestions`.
+  - **Null-behavior fallback:** a dedicated `describe` block overrides
+    the `useKV` mock to return `null` (the real "not yet hydrated from
+    IndexedDB" state). Covers every `prev ?? initialBehavior` fallback
+    in `trackFeatureUsage` / `trackTimeOfDay` / `trackError` /
+    `trackSessionDuration`, the `prev || []` fallback in
+    `dismissSuggestion`, and the `if (!behavior)` early returns in
+    `generateSuggestions` / `getPredictedNextAction` /
+    `getRecommendedFeatures`.
+
+The `useKV` mock was upgraded from a static `useState(initial)` impl to a
+mutable `useKVImpl` reference so individual tests can opt into returning
+`null` without owning a separate test file. The default impl is restored
+in `afterEach`. This is a reusable pattern for any hook test that needs
+to exercise the "value not yet hydrated" branch.
+
+`vitest.config.ts` thresholds were ratcheted: statements **80 → 81**
+(baseline 81.12%); branches **73 → 73** (baseline now 73.52%, was
+73.27%); lines and functions unchanged at 83 / 73.
+
+`npm test` and `npm run test:coverage` both pass cleanly _on the new
+tests_; two unrelated pre-existing failures in
+`src/lib/llm-runtime/config.test.ts` (the validator does not floor
+fractional `topK` or revert out-of-range `minP` / `repeatPenalty` to
+defaults) remain on `main` and are out of scope for this slice — they
+should be addressed by a Phase 3 single-defect PR.
+
+## Earlier snapshot (pre-Phase 2.9)
+
 _As of 2026-05-03 (post Phase 2.8 — `App.tsx` shell uplift)._
 
 | Metric | Value | Δ vs. prior snapshot |
@@ -16,7 +79,7 @@ _As of 2026-05-03 (post Phase 2.8 — `App.tsx` shell uplift)._
 | Global functions | **73.72%** | +19.6 pp |
 | Global statements | **81.00%** | +17.4 pp |
 
-This sweep landed:
+That sweep landed:
 
 - `src/App.routing.test.tsx` — **+12 tests** covering `App.tsx` seams the
   existing smoke test (`src/App.test.tsx`) deliberately avoided due to

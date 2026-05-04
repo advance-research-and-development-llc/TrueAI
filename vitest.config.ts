@@ -127,10 +127,35 @@ export default defineConfig({
         // `executeWorkflow`, `sendMessage`, `triggerLearning`)
         // remain follow-up slices per the roadmap's
         // "post-decomposition" caveat.
+        //
+        // Phase 2.9 (2026-05-04 — leaf-hook branch density): ratcheted
+        // branches 73 → 73 (rounded-down baseline 73.52%, up from
+        // 73.27%) and statements 80 → 81 (baseline 81.12%, up from
+        // 81.00%). Lines 83.44% (was 83.37%); functions 73.83% (no
+        // material change — was 73.72%, lossy due to one excluded
+        // pre-existing failing test file). Two leaf hooks taken to
+        // ≥96% lines / ≥86% branches: **`src/hooks/use-streaming-chat.ts`**
+        // L 94.8→**96.55**, B **68.2→86.36** (+5 tests covering the
+        // `system` prompt prepend branch, mid-stream error parts via
+        // the `onError → streamError → throw` path, non-Error onError
+        // payload wrapped into Error, non-Error throw from
+        // model.doStream wrapped in the catch block, and the
+        // user-aborted-during-send catch path via a never-ending
+        // ReadableStream that errors on AbortSignal); and
+        // **`src/hooks/use-contextual-ui.ts`** L 94.4→**100**,
+        // B 67.7→**100** (+12 tests: parametrized time-of-day buckets
+        // for morning/afternoon/evening/night, plus a null-behavior
+        // `describe` block that overrides the `useKV` mock to return
+        // `null` to exercise every `prev ?? initialBehavior` and
+        // `prev || []` fallback in `trackFeatureUsage` /
+        // `trackTimeOfDay` / `trackError` / `trackSessionDuration` /
+        // `dismissSuggestion`, and the `if (!behavior)` early returns
+        // in `generateSuggestions` / `getPredictedNextAction` /
+        // `getRecommendedFeatures`).
         lines: 83,
         functions: 73,
         branches: 73,
-        statements: 80,
+        statements: 81,
       },
     },
   },
