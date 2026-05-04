@@ -174,6 +174,16 @@ describe('llm client', () => {
     await expect(llm('hi')).rejects.toBeInstanceOf(LLMRuntimeError)
   })
 
+  it('reports "(empty body)" when a non-2xx response carries no body text', async () => {
+    // Covers the `text || '(empty body)'` arm in the !response.ok branch
+    // — provider gateways (esp. Cloudflare 502s) frequently return empty
+    // 5xx responses, and the user-facing message must still be useful.
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 502, statusText: 'Bad Gateway' })) as unknown as typeof fetch
+    await expect(llm('hi')).rejects.toThrow(/502 Bad Gateway - \(empty body\)/)
+  })
+
   it('throws LLMRuntimeError when content is missing', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: { message: 'no model' } }), { status: 200 }),
