@@ -30,6 +30,7 @@ If you are an agent (or human) about to open a PR in this series:
 | **PR 3** | this branch | ✅ landed | Numbering reconciliation + this tracker doc |
 | **PR 4.a** | this branch | 🚧 in flight | Native streaming JNI surface + `local-native` AI-SDK provider + ABI matrix expansion (`armeabi-v7a`, `x86_64`) + `local-wasm` auto-fallback |
 | **PR 4.b** | _follow-up_ | ⏳ deferred | Small LRU of loaded models (relax the bridge's single-model invariant) |
+| **PR 5** | this branch | 🚧 in flight | In-app GGUF importer + on-disk model registry: pure-TS GGUF parser, native SAF picker (`android/capacitor-file-picker/`), web `<input type=file>` fallback, app-private storage (`Filesystem.Directory.Data/models/<sha>.gguf` on native, Cache Storage on web), free-space guard, idempotent SHA-256 dedupe; `local-wllama` accepts `cache://` and `file://` model sources; `local-native` error message points at the new UI. No schema migration — the existing `gguf-models` KV key is reused and legacy entries lacking `path`/`metadata` are pruned at first read. |
 
 ---
 

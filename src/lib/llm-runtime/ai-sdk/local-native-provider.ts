@@ -251,9 +251,9 @@ async function ensureModelLoaded(
   const path = opts.modelPath?.trim() ?? ''
   if (path.length === 0) {
     throw new Error(
-      "Local on-device runtime is selected but no model is configured. " +
-        'Use the in-app GGUF importer (PR 5) or set Settings → LLM Runtime → ' +
-        "'Base URL' to a local .gguf path.",
+      'Local on-device runtime is selected but no model is configured. ' +
+        'Open Models → Library → Import .gguf to add one, then click ' +
+        '"Set active" on the imported row.',
     )
   }
   if (
