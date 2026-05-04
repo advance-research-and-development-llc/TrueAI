@@ -1308,18 +1308,95 @@ Describe what input you would give to the ${tool} tool (one sentence).`
     }
   }
 
-  const addGGUFModel = (model: Omit<GGUFModel, 'id' | 'downloadedAt'>) => {
-    const newModel: GGUFModel = {
-      ...model,
-      id: `gguf-${Date.now()}`,
-      downloadedAt: Date.now()
-    }
-    setGgufModels(prev => [newModel, ...(prev || [])])
-  }
+  const [importingGguf, setImportingGguf] = useState(false)
+  const [ggufFreeBytes, setGgufFreeBytes] = useState<number | null>(null)
 
-  const deleteGGUFModel = (id: string) => {
-    setGgufModels(prev => (prev || []).filter(m => m.id !== id))
-  }
+  const refreshGgufFreeBytes = useCallback(async () => {
+    try {
+      const { isNativePickerAvailable, getFreeSpaceBytes: pickerFree } = await import(
+        '@/lib/native/file-picker'
+      )
+      if (isNativePickerAvailable()) {
+        setGgufFreeBytes(await pickerFree())
+        return
+      }
+      const { getFreeSpaceBytes } = await import('@/lib/native/filesystem')
+      setGgufFreeBytes(await getFreeSpaceBytes())
+    } catch {
+      setGgufFreeBytes(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshGgufFreeBytes()
+  }, [refreshGgufFreeBytes])
+
+  const handleImportGGUF = useCallback(async () => {
+    if (importingGguf) return
+    setImportingGguf(true)
+    try {
+      const [{ pickGgufFile }, { importFromPicked, list, LowDiskSpaceError, InvalidGGUFError }] =
+        await Promise.all([
+          import('@/lib/native/file-picker'),
+          import('@/lib/gguf/registry'),
+        ])
+      const picked = await pickGgufFile()
+      if (picked.cancelled) return
+      const record = await importFromPicked(picked)
+      const fresh = await list()
+      setGgufModels(fresh)
+      void refreshGgufFreeBytes()
+      const formatBytes = (bytes: number) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)))
+        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
+      }
+      toast.success(`Imported ${record.name} (${formatBytes(record.size)})`)
+      // The two error classes are referenced via the destructure so
+      // TypeScript narrows them in the catch — use them as the narrow.
+      void LowDiskSpaceError
+      void InvalidGGUFError
+    } catch (err) {
+      if (err instanceof Error && /cancelled/i.test(err.message)) return
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Import failed: ${msg}`)
+    } finally {
+      setImportingGguf(false)
+    }
+  }, [importingGguf, refreshGgufFreeBytes, setGgufModels])
+
+  const handleDeleteGGUF = useCallback(
+    async (id: string) => {
+      try {
+        const { removeById, list } = await import('@/lib/gguf/registry')
+        await removeById(id)
+        setGgufModels(await list())
+        void refreshGgufFreeBytes()
+        toast.success('Model removed')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast.error(`Remove failed: ${msg}`)
+      }
+    },
+    [refreshGgufFreeBytes, setGgufModels],
+  )
+
+  const handleSetActiveGGUF = useCallback(
+    async (id: string) => {
+      try {
+        const { pickActiveModel, list } = await import('@/lib/gguf/registry')
+        const record = await pickActiveModel(id)
+        setGgufModels(await list())
+        toast.success(`${record.name} is now the active model`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast.error(`Set active failed: ${msg}`)
+      }
+    },
+    [setGgufModels],
+  )
 
   const _createPerformanceProfile = (profile: Omit<PerformanceProfile, 'id' | 'createdAt'>) => {
     const newProfile: PerformanceProfile = {
@@ -2280,8 +2357,11 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                   <LazyErrorBoundary componentName="GGUF Library">
                     <GGUFLibrary
                       models={ggufModels || []}
-                      onAddModel={addGGUFModel}
-                      onDeleteModel={deleteGGUFModel}
+                      onImport={handleImportGGUF}
+                      onDeleteModel={(id) => { void handleDeleteGGUF(id) }}
+                      onSetActive={handleSetActiveGGUF}
+                      freeBytes={ggufFreeBytes}
+                      isImporting={importingGguf}
                     />
                   </LazyErrorBoundary>
                 </Suspense>

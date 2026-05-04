@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -16,41 +15,53 @@ import {
   HardDrives,
   ChartBar,
   Calendar,
-  Tag
+  Tag,
+  CheckCircle,
 } from '@phosphor-icons/react'
-import { toast } from 'sonner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { emptyStateModels } from '@/assets'
 import type { GGUFModel } from '@/lib/types'
 
 interface GGUFLibraryProps {
   models: GGUFModel[]
-  onAddModel: (model: Omit<GGUFModel, 'id' | 'downloadedAt'>) => void
+  /** Triggered when the user clicks "Import .gguf file". The host
+   *  (App.tsx) is responsible for the picker → registry pipeline and
+   *  for surfacing toasts. */
+  onImport: () => void | Promise<void>
   onDeleteModel: (id: string) => void
+  /** Triggered when the user marks a row as the active model. */
+  onSetActive?: (id: string) => void | Promise<void>
+  /** Best-effort free-space estimate in bytes; rendered when known. */
+  freeBytes?: number | null
+  /** Disable the import button while an import is in flight. */
+  isImporting?: boolean
 }
 
-export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryProps) {
+export function GGUFLibrary({
+  models,
+  onImport,
+  onDeleteModel,
+  onSetActive,
+  freeBytes,
+  isImporting,
+}: GGUFLibraryProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedModel, setSelectedModel] = useState<GGUFModel | null>(null)
-  const [addModelDialog, setAddModelDialog] = useState(false)
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('date')
-  
-  const [newModelForm, setNewModelForm] = useState({
-    name: '',
-    filename: '',
-    path: '',
-    size: '',
-    quantization: 'Q4_K_M',
-    architecture: '',
-    contextLength: '4096',
-    parameterCount: '',
-  })
+
+  // Derive the live selected model from the props every render so a
+  // model removed externally clears the details panel without an
+  // effect-based round-trip (avoids the react-hooks/set-state-in-effect
+  // warning).
+  const selectedModel = selectedModelId
+    ? models.find((m) => m.id === selectedModelId) ?? null
+    : null
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)))
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
   }
 
@@ -63,7 +74,7 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
   }
 
   const filterModels = () => {
-    const filtered = models.filter(model => 
+    const filtered = models.filter(model =>
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.quantization.toLowerCase().includes(searchQuery.toLowerCase())
@@ -79,43 +90,14 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
     return filtered
   }
 
-  const handleAddModel = () => {
-    const sizeInBytes = parseFloat(newModelForm.size) * 1024 * 1024 * 1024
-    
-    const model: Omit<GGUFModel, 'id' | 'downloadedAt'> = {
-      name: newModelForm.name,
-      filename: newModelForm.filename,
-      path: newModelForm.path || `/models/${newModelForm.filename}`,
-      size: sizeInBytes,
-      quantization: newModelForm.quantization,
-      architecture: newModelForm.architecture || undefined,
-      contextLength: parseInt(newModelForm.contextLength) || undefined,
-      parameterCount: newModelForm.parameterCount ? parseFloat(newModelForm.parameterCount) * 1000000000 : undefined,
-      metadata: {
-        format: 'GGUF',
-        maxSequenceLength: parseInt(newModelForm.contextLength) || undefined,
-      }
-    }
-
-    onAddModel(model)
-    setAddModelDialog(false)
-    setNewModelForm({
-      name: '',
-      filename: '',
-      path: '',
-      size: '',
-      quantization: 'Q4_K_M',
-      architecture: '',
-      contextLength: '4096',
-      parameterCount: '',
-    })
-    toast.success('Model added to library')
-  }
-
   const handleDeleteModel = (id: string) => {
     onDeleteModel(id)
-    setSelectedModel(null)
-    toast.success('Model removed from library')
+    setSelectedModelId(null)
+  }
+
+  const handleSetActive = async (id: string) => {
+    if (!onSetActive) return
+    await onSetActive(id)
   }
 
   const filteredModels = filterModels()
@@ -126,12 +108,22 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
         <div>
           <h2 className="text-xl sm:text-2xl font-bold">GGUF Model Library</h2>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage your downloaded GGUF model files
+            Import a <code>.gguf</code> file from your device. The model is
+            validated, hashed, and stored under app-private storage.
           </p>
+          {typeof freeBytes === 'number' && freeBytes > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Available storage: <span className="font-mono">{formatBytes(freeBytes)}</span>
+            </p>
+          )}
         </div>
-        <Button onClick={() => setAddModelDialog(true)} className="gap-2 w-full sm:w-auto h-10">
+        <Button
+          onClick={() => { void onImport() }}
+          disabled={isImporting}
+          className="gap-2 w-full sm:w-auto h-10"
+        >
           <FilePlus weight="bold" size={18} />
-          Add Model
+          {isImporting ? 'Importing…' : 'Import .gguf file'}
         </Button>
       </div>
 
@@ -165,13 +157,21 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
                 <EmptyState
                   illustration={emptyStateModels}
                   title="No Models Found"
-                  description={searchQuery ? 'Try a different search term' : 'Add your first GGUF model to get started'}
+                  description={
+                    searchQuery
+                      ? 'Try a different search term'
+                      : 'Import your first GGUF model to get started'
+                  }
                   size="lg"
                   action={
                     !searchQuery ? (
-                      <Button onClick={() => setAddModelDialog(true)} className="gap-2 mt-4 w-full sm:w-auto">
+                      <Button
+                        onClick={() => { void onImport() }}
+                        disabled={isImporting}
+                        className="gap-2 mt-4 w-full sm:w-auto"
+                      >
                         <FilePlus weight="bold" size={18} />
-                        Add Model
+                        Import .gguf file
                       </Button>
                     ) : undefined
                   }
@@ -181,16 +181,16 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
 
             <div className="grid gap-3 sm:gap-4">
               {filteredModels.map(model => (
-                <Card 
-                  key={model.id} 
+                <Card
+                  key={model.id}
                   className={`p-3 sm:p-5 cursor-pointer transition-all hover:shadow-md ${selectedModel?.id === model.id ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => setSelectedModel(model)}
+                  onClick={() => setSelectedModelId(model.id)}
                 >
                   <div className="flex items-start gap-3 sm:gap-4">
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <File weight="duotone" size={24} className="text-primary sm:w-7 sm:h-7" />
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0">
@@ -237,16 +237,30 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
             <Card className="p-4 sm:p-6 sticky top-6">
               {selectedModel ? (
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold text-base sm:text-lg">Model Details</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteModel(selectedModel.id)}
-                      className="text-destructive hover:text-destructive h-8 w-8"
-                    >
-                      <Trash weight="bold" size={16} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {onSetActive && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { void handleSetActive(selectedModel.id) }}
+                          className="gap-1 h-8"
+                        >
+                          <CheckCircle weight="bold" size={14} />
+                          Set active
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Delete model"
+                        onClick={() => handleDeleteModel(selectedModel.id)}
+                        className="text-destructive hover:text-destructive h-8 w-8"
+                      >
+                        <Trash weight="bold" size={16} />
+                      </Button>
+                    </div>
                   </div>
 
                   <Separator />
@@ -306,7 +320,7 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
                       <Separator />
 
                       <div>
-                        <Label className="text-muted-foreground text-xs">Downloaded</Label>
+                        <Label className="text-muted-foreground text-xs">Imported</Label>
                         <p className="font-medium mt-1 text-sm sm:text-base">{formatDate(selectedModel.downloadedAt)}</p>
                       </div>
 
@@ -360,148 +374,6 @@ export function GGUFLibrary({ models, onAddModel, onDeleteModel }: GGUFLibraryPr
           </div>
         </div>
       </div>
-
-      <Dialog open={addModelDialog} onOpenChange={setAddModelDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add GGUF Model</DialogTitle>
-            <DialogDescription>
-              Register a GGUF model file that's already downloaded on your system
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="max-h-[500px] pr-4">
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="model-name">Model Name *</Label>
-                  <Input
-                    id="model-name"
-                    value={newModelForm.name}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Llama 3.1 8B Instruct"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <Label htmlFor="model-filename">Filename *</Label>
-                  <Input
-                    id="model-filename"
-                    value={newModelForm.filename}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, filename: e.target.value }))}
-                    placeholder="llama-3.1-8b-instruct-q4_k_m.gguf"
-                    className="font-mono text-sm"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <Label htmlFor="model-path">File Path</Label>
-                  <Input
-                    id="model-path"
-                    value={newModelForm.path}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, path: e.target.value }))}
-                    placeholder="/models/llama-3.1-8b-instruct-q4_k_m.gguf"
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Leave empty to auto-generate from filename
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="model-size">Size (GB) *</Label>
-                  <Input
-                    id="model-size"
-                    type="number"
-                    step="0.1"
-                    value={newModelForm.size}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, size: e.target.value }))}
-                    placeholder="4.7"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="model-quantization">Quantization *</Label>
-                  <Select
-                    value={newModelForm.quantization}
-                    onValueChange={(value) => setNewModelForm(prev => ({ ...prev, quantization: value }))}
-                  >
-                    <SelectTrigger id="model-quantization">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Q2_K">Q2_K</SelectItem>
-                      <SelectItem value="Q3_K_S">Q3_K_S</SelectItem>
-                      <SelectItem value="Q3_K_M">Q3_K_M</SelectItem>
-                      <SelectItem value="Q3_K_L">Q3_K_L</SelectItem>
-                      <SelectItem value="Q4_0">Q4_0</SelectItem>
-                      <SelectItem value="Q4_1">Q4_1</SelectItem>
-                      <SelectItem value="Q4_K_S">Q4_K_S</SelectItem>
-                      <SelectItem value="Q4_K_M">Q4_K_M</SelectItem>
-                      <SelectItem value="Q5_0">Q5_0</SelectItem>
-                      <SelectItem value="Q5_1">Q5_1</SelectItem>
-                      <SelectItem value="Q5_K_S">Q5_K_S</SelectItem>
-                      <SelectItem value="Q5_K_M">Q5_K_M</SelectItem>
-                      <SelectItem value="Q6_K">Q6_K</SelectItem>
-                      <SelectItem value="Q8_0">Q8_0</SelectItem>
-                      <SelectItem value="F16">F16</SelectItem>
-                      <SelectItem value="F32">F32</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="model-architecture">Architecture</Label>
-                  <Input
-                    id="model-architecture"
-                    value={newModelForm.architecture}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, architecture: e.target.value }))}
-                    placeholder="llama"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="model-context">Context Length</Label>
-                  <Input
-                    id="model-context"
-                    type="number"
-                    value={newModelForm.contextLength}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, contextLength: e.target.value }))}
-                    placeholder="4096"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="model-params">Parameters (B)</Label>
-                  <Input
-                    id="model-params"
-                    type="number"
-                    step="0.1"
-                    value={newModelForm.parameterCount}
-                    onChange={(e) => setNewModelForm(prev => ({ ...prev, parameterCount: e.target.value }))}
-                    placeholder="8"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    In billions (e.g., 8 for 8B model)
-                  </p>
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddModelDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddModel}
-              disabled={!newModelForm.name || !newModelForm.filename || !newModelForm.size}
-            >
-              Add Model
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
