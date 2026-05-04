@@ -13,6 +13,7 @@
         "build:dev": "tsc -b && vite build --mode development",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "check:prompts": "node scripts/check-prompts-lock.mjs",
         "check:instructions": "node scripts/check-instructions-drift.mjs",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "check:deps": "npx --yes knip",
