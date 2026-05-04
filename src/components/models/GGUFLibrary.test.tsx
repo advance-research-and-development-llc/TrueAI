@@ -274,4 +274,46 @@ describe('GGUFLibrary', () => {
     // With a search query, the EmptyState should not show the Add Model button inline
     expect(screen.queryByText('No Models Found')).toBeInTheDocument()
   })
+
+  it('formatBytes returns "0 B" when a model has size=0', () => {
+    render(<GGUFLibrary models={[makeModel({ size: 0 })]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    expect(screen.getByText('0 B')).toBeInTheDocument()
+  })
+
+  it('changing the Sort Select to Name re-orders the model list alphabetically', async () => {
+    const user = userEvent.setup()
+    const models = [
+      makeModel({ id: 'm-z', name: 'Zebra-1B', filename: 'zebra.gguf' }),
+      makeModel({ id: 'm-a', name: 'Alpha-1B', filename: 'alpha.gguf' }),
+    ]
+    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    const sortTrigger = screen.getByText('Recently Added').closest('[role="combobox"]') as HTMLElement
+    await user.click(sortTrigger)
+    await user.click(screen.getByRole('option', { name: /^name$/i }))
+    const cards = screen.getAllByText(/-1B/)
+    expect(cards[0]).toHaveTextContent(/Alpha/)
+  })
+
+  it('changing the Sort Select to Size re-orders descending by size', async () => {
+    const user = userEvent.setup()
+    const models = [
+      makeModel({ id: 'm-small', name: 'Small-1B', filename: 'small.gguf', size: 1 * 1024 * 1024 * 1024 }),
+      makeModel({ id: 'm-big', name: 'Big-70B', filename: 'big.gguf', size: 70 * 1024 * 1024 * 1024 }),
+    ]
+    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    const sortTrigger = screen.getByText('Recently Added').closest('[role="combobox"]') as HTMLElement
+    await user.click(sortTrigger)
+    await user.click(screen.getByRole('option', { name: /^size$/i }))
+    const cards = screen.getAllByText(/-\d+B/)
+    expect(cards[0]).toHaveTextContent(/Big/)
+  })
+
+  it('clicking the empty-state Add Model button opens the dialog', async () => {
+    const user = userEvent.setup()
+    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    // Empty-state Add Model button is the second one (after the top-right toolbar button).
+    const addButtons = screen.getAllByRole('button', { name: /add model/i })
+    await user.click(addButtons[addButtons.length - 1])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
 })
