@@ -469,5 +469,67 @@ describe('AnalyticsDashboard', () => {
       // Both effects ran; component reached the data view.
       expect(screen.getByRole('tab', { name: /^overview$/i })).toBeInTheDocument()
     })
+
+    it('Clear Data with clearData undefined surfaces toast.error (analytics not ready)', async () => {
+      const user = userEvent.setup()
+      const { toast } = await import('sonner')
+      mockUseAnalytics.mockReturnValue(makeHookValue({ clearData: undefined }))
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('button', { name: /clear data/i }))
+      await user.click(screen.getByRole('button', { name: /clear data/i }))
+      expect(toast.error).toHaveBeenCalledWith('Analytics not ready')
+    })
+
+    it('Overview Top Actions list renders entries from metrics.topActions', async () => {
+      const metrics = {
+        ...noopMetrics,
+        topActions: [{ action: 'click_btn', count: 7 }, { action: 'view_page', count: 3 }],
+      }
+      mockUseAnalytics.mockReturnValue(makeHookValue({
+        getMetrics: vi.fn().mockResolvedValue(metrics),
+      }))
+      render(<AnalyticsDashboard />)
+      await waitFor(() => expect(screen.getByText('click_btn')).toBeInTheDocument())
+      expect(screen.getByText('view_page')).toBeInTheDocument()
+    })
+
+    it('Agents tab Most Used Tools list renders entries from metrics.agentMetrics.mostUsedTools', async () => {
+      const user = userEvent.setup()
+      const metrics = {
+        ...noopMetrics,
+        agentMetrics: {
+          ...noopMetrics.agentMetrics,
+          mostUsedTools: [{ tool: 'shell', count: 5 }, { tool: 'edit', count: 2 }],
+          successRate: 95,
+        },
+      }
+      mockUseAnalytics.mockReturnValue(makeHookValue({
+        getMetrics: vi.fn().mockResolvedValue(metrics),
+      }))
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^agents$/i }))
+      await user.click(screen.getByRole('tab', { name: /^agents$/i }))
+      expect(await screen.findByText('shell')).toBeInTheDocument()
+      expect(screen.getByText('edit')).toBeInTheDocument()
+    })
+
+    it('Models tab Most Popular Models list renders entries from metrics.modelMetrics.mostPopularModels', async () => {
+      const user = userEvent.setup()
+      const metrics = {
+        ...noopMetrics,
+        modelMetrics: {
+          ...noopMetrics.modelMetrics,
+          mostPopularModels: [{ model: 'llama-3', downloads: 99 }, { model: 'gemma-2', downloads: 12 }],
+        },
+      }
+      mockUseAnalytics.mockReturnValue(makeHookValue({
+        getMetrics: vi.fn().mockResolvedValue(metrics),
+      }))
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^models$/i }))
+      await user.click(screen.getByRole('tab', { name: /^models$/i }))
+      expect((await screen.findAllByText('llama-3')).length).toBeGreaterThan(0)
+      expect(screen.getAllByText('gemma-2').length).toBeGreaterThan(0)
+    })
   })
 })
