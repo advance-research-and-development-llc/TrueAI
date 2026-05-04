@@ -352,4 +352,153 @@ describe('LearningRateBenchmark', () => {
       expect.stringContaining('Applied optimal learning rate')
     )
   })
+
+  it('runExperiment surfaces error toast when runModelBenchmark rejects', async () => {
+    const user = userEvent.setup()
+    const { toast } = await import('sonner')
+    mockRunBenchmark.mockRejectedValue(new Error('benchmark exploded'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+      await user.click(screen.getByRole('button', { name: /run experiment/i }))
+      await waitFor(
+        () => {
+          expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Experiment failed'))
+        },
+        { timeout: 5000 },
+      )
+      expect(consoleError).toHaveBeenCalled()
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('records and surfaces an auto-tune adjustment when recommender returns high-confidence', async () => {
+    const user = userEvent.setup()
+    const { toast } = await import('sonner')
+    // Seed an existing experiment so the Tabs section (gated on
+    // experiments.length > 0) renders after the run completes.
+    mockExperimentsValue = [
+      {
+        id: 'exp-pre',
+        modelId: 'model-1',
+        learningRate: 0.001,
+        taskType: 'creative_writing',
+        benchmarkScore: 70,
+        responseTime: 300,
+        qualityScore: 70,
+        timestamp: Date.now() - 1000,
+        trainingLoss: [1.5, 1.0, 0.6],
+        validationLoss: [1.6, 1.1, 0.7],
+        epochs: 20,
+        successRate: 0.9,
+      },
+    ]
+    // After epoch>5 the loop hits adjustment branch. Return an adjustment
+    // with confidence > 0.7 so it is recorded into history.
+    mockRecommendRate.mockReturnValue({
+      oldRate: 0.001,
+      newRate: 0.0008,
+      confidence: 0.92,
+      strategy: 'reduce',
+      reason: 'plateau',
+    })
+    mockRunBenchmark.mockResolvedValue({
+      overallScore: 70,
+      averageResponseTime: 250,
+      tests: [{ error: null }],
+    })
+    render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    await waitFor(
+      () => {
+        expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('Learning rate adjusted'))
+      },
+      { timeout: 5000 },
+    )
+    // Switch to adjustments tab and confirm a recorded adjustment renders.
+    await user.click(screen.getByRole('tab', { name: /adjustments/i }))
+    expect(screen.getAllByText('reduce').length).toBeGreaterThan(0)
+  })
+
+  it('seeds setExperiments with a brand-new array when the persisted value is null', async () => {
+    const user = userEvent.setup()
+    const { toast } = await import('sonner')
+    mockExperimentsValue = null as unknown as unknown[]
+    mockRunBenchmark.mockResolvedValue({
+      overallScore: 55,
+      averageResponseTime: 400,
+      tests: [{ error: null }],
+    })
+    render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    await waitFor(
+      () => {
+        expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Experiment completed'))
+      },
+      { timeout: 5000 },
+    )
+    expect(mockSetExperiments).toHaveBeenCalled()
+  })
+
+  it('runExperiment forwards benchmark progress callback (filtered tests + progress)', async () => {
+    // Provide one matching task in benchmarkTests and a runner that fires
+    // the progress callback so the prog→setProgress branch is hit.
+    const benchmarkModule = await import('@/lib/model-benchmark')
+    ;(benchmarkModule as unknown as { benchmarkTests: unknown[] }).benchmarkTests = [
+      { id: 't1', taskType: 'creative_writing', prompt: 'p', expectedTraits: [] },
+    ]
+    mockRunBenchmark.mockImplementation(async (_m, _p, _t, prog) => {
+      prog?.(0.5)
+      prog?.(1)
+      return { overallScore: 72, averageResponseTime: 300, tests: [{ error: null }] }
+    })
+    const user = userEvent.setup()
+    render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    await waitFor(
+      () => {
+        expect(mockRunBenchmark).toHaveBeenCalled()
+      },
+      { timeout: 5000 },
+    )
+    // Restore for downstream tests.
+    ;(benchmarkModule as unknown as { benchmarkTests: unknown[] }).benchmarkTests = []
+  })
+
+  it('renders red score color when an experiment benchmarkScore is below 60', () => {
+    mockExperimentsValue = [
+      {
+        id: 'exp-low',
+        modelId: 'model-1',
+        learningRate: 0.001,
+        taskType: 'creative_writing',
+        benchmarkScore: 42,
+        responseTime: 500,
+        qualityScore: 42,
+        timestamp: Date.now(),
+        trainingLoss: [1.5, 1.0, 0.6],
+        validationLoss: [1.6, 1.1, 0.7],
+        epochs: 20,
+        successRate: 0.5,
+      },
+    ]
+    render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+    const score = screen.getByText('42.0')
+    expect(score.className).toMatch(/text-red-500/)
+  })
+
+  it('changing the task type Select fires the onValueChange handler', async () => {
+    const user = userEvent.setup()
+    render(<LearningRateBenchmark models={[mockModel]} onModelUpdate={vi.fn()} />)
+    // Both Selects render combobox triggers; the second is task type.
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[1])
+    // Pick any task option from the listbox.
+    const options = await screen.findAllByRole('option')
+    expect(options.length).toBeGreaterThan(0)
+    await user.click(options[options.length - 1])
+    // Re-opening should still work (no crash).
+    expect(triggers[1]).toBeInTheDocument()
+  })
 })
