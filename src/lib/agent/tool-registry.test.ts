@@ -95,6 +95,26 @@ describe('ToolRegistry', () => {
     expect(reg.unregister('gone')).toBe(false)
     expect(reg.has('gone')).toBe(false)
   })
+
+  it('clear() removes every registered tool', () => {
+    reg.register({
+      name: 'one',
+      description: '',
+      inputSchema: z.object({}).strict(),
+      execute: () => null,
+    })
+    reg.register({
+      name: 'two',
+      description: '',
+      inputSchema: z.object({}).strict(),
+      execute: () => null,
+    })
+    expect(reg.has('one')).toBe(true)
+    expect(reg.has('two')).toBe(true)
+    reg.clear()
+    expect(reg.has('one')).toBe(false)
+    expect(reg.has('two')).toBe(false)
+  })
 })
 
 describe('createDefaultRegistry — built-in tools', () => {
@@ -166,6 +186,33 @@ describe('createDefaultRegistry — built-in tools', () => {
       const def = createDefaultRegistry().get('mathEval')!
       expect(() => def.execute({ expression: '(1+2' }, {})).toThrow(
         /parenthesis/,
+      )
+    })
+
+    it('handles a leading unary plus', async () => {
+      const def = createDefaultRegistry().get('mathEval')!
+      const result = (await def.execute({ expression: '+7' }, {})) as { result: number }
+      expect(result.result).toBe(7)
+    })
+
+    it('throws "expected a number" when an operator is not followed by a number', () => {
+      const def = createDefaultRegistry().get('mathEval')!
+      expect(() => def.execute({ expression: '1+' }, {})).toThrow(
+        /expected a number/,
+      )
+    })
+
+    it('throws "invalid number" when the parsed slice is not finite', () => {
+      const def = createDefaultRegistry().get('mathEval')!
+      expect(() => def.execute({ expression: '1.2.3' }, {})).toThrow(
+        /invalid number/,
+      )
+    })
+
+    it('throws "unexpected trailing input" when input has unmatched closing characters', () => {
+      const def = createDefaultRegistry().get('mathEval')!
+      expect(() => def.execute({ expression: '1)' }, {})).toThrow(
+        /unexpected trailing input/,
       )
     })
   })
@@ -286,5 +333,20 @@ describe('ToolRegistry.buildToolSet — gating', () => {
     })
     const set = await reg.buildToolSet({ forceUnlockGatedTools: true })
     expect(set).toHaveProperty('imageGen')
+  })
+
+  it('the AI-SDK execute wrapper forwards inputs and abort signals to the underlying definition', async () => {
+    const reg = createDefaultRegistry()
+    const set = await reg.buildToolSet()
+    const ct = set.currentTime as unknown as {
+      execute: (input: unknown, ctx?: { abortSignal?: AbortSignal }) => Promise<unknown>
+    }
+    const ac = new AbortController()
+    const result = (await ct.execute({}, { abortSignal: ac.signal })) as {
+      iso: string
+      timeZone: string
+    }
+    expect(typeof result.iso).toBe('string')
+    expect(typeof result.timeZone).toBe('string')
   })
 })
