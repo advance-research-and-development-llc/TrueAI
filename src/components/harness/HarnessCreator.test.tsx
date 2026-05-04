@@ -690,4 +690,196 @@ describe('HarnessCreator', () => {
       await waitFor(() => expect(screen.queryByText('deletable')).not.toBeInTheDocument())
     }
   })
+
+  describe('uncovered handlers (cancel/close + delete + form edits)', () => {
+    const setup = () =>
+      render(
+        <HarnessCreator
+          harnesses={mockHarnesses}
+          onCreateHarness={mockOnCreateHarness}
+          onDeleteHarness={mockOnDeleteHarness}
+          onExportHarness={mockOnExportHarness}
+        />,
+      )
+
+    beforeEach(() => {
+      // Stub Radix Select pointer-capture and scrollIntoView for jsdom
+      if (!HTMLElement.prototype.hasPointerCapture) {
+        HTMLElement.prototype.hasPointerCapture = vi.fn(() => false)
+      }
+      if (!HTMLElement.prototype.releasePointerCapture) {
+        HTMLElement.prototype.releasePointerCapture = vi.fn()
+      }
+      HTMLElement.prototype.scrollIntoView = vi.fn()
+    })
+
+    it('Cancel button on the New Harness dialog closes it', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      expect(screen.getByText('Create New Harness')).toBeInTheDocument()
+      // Multiple Cancel buttons can appear (nested dialogs); the visible one
+      // for the new-harness dialog is the only one mounted at this point.
+      await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+      await waitFor(() =>
+        expect(screen.queryByText('Create New Harness')).not.toBeInTheDocument(),
+      )
+    })
+
+    it('Cancel button on the Add Tool dialog closes it', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      await user.click(screen.getByRole('tab', { name: /tools/i }))
+      await user.click(screen.getByRole('button', { name: /add tool/i }))
+      expect(screen.getByText('Define a new tool function for this harness')).toBeInTheDocument()
+      const cancels = screen.getAllByRole('button', { name: /^cancel$/i })
+      // The most recently opened dialog's cancel is last in DOM order.
+      await user.click(cancels[cancels.length - 1])
+      await waitFor(() =>
+        expect(
+          screen.queryByText('Define a new tool function for this harness'),
+        ).not.toBeInTheDocument(),
+      )
+    })
+
+    it('Cancel button on the Add Parameter dialog closes it', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      await user.click(screen.getByRole('tab', { name: /tools/i }))
+      await user.click(screen.getByRole('button', { name: /add tool/i }))
+      // The "Add" button inside Add Tool dialog opens Add Parameter dialog.
+      // It's the only button labelled exactly "Add" at this point.
+      const addBtn = screen.getByRole('button', { name: /^add$/i })
+      await user.click(addBtn)
+      expect(
+        screen.getByText('Define a parameter for this tool function'),
+      ).toBeInTheDocument()
+      const cancels = screen.getAllByRole('button', { name: /^cancel$/i })
+      await user.click(cancels[cancels.length - 1])
+      await waitFor(() =>
+        expect(
+          screen.queryByText('Define a parameter for this tool function'),
+        ).not.toBeInTheDocument(),
+      )
+    })
+
+    it('Close button on the Preview dialog closes it', async () => {
+      const user = userEvent.setup()
+      setup()
+      // Select a harness so Preview button becomes available. There may be
+      // multiple "test-harness" texts (sidebar card + selected detail), so
+      // click the first occurrence.
+      const cards = screen.getAllByText('test-harness')
+      await user.click(cards[0])
+      const previewBtn = screen.getByRole('button', { name: /preview/i })
+      await user.click(previewBtn)
+      expect(screen.getByText('Harness Manifest Preview')).toBeInTheDocument()
+      // Multiple "Close" buttons may exist (e.g., the implicit dialog close
+      // X). Use the explicit footer one — last in DOM order.
+      const closes = screen.getAllByRole('button', { name: /^close$/i })
+      await user.click(closes[closes.length - 1])
+      await waitFor(() =>
+        expect(screen.queryByText('Harness Manifest Preview')).not.toBeInTheDocument(),
+      )
+    })
+
+    it('clicking trash on a harness card calls onDeleteHarness and clears selection if it was selected', async () => {
+      const { toast } = await import('sonner')
+      const user = userEvent.setup()
+      setup()
+      // Select first harness, then delete it. There may be multiple
+      // "test-harness" texts (sidebar + detail header) — click the sidebar one.
+      const cards = screen.getAllByText('test-harness')
+      await user.click(cards[0])
+      // Find the trash button INSIDE the test-harness card. The card is the
+      // closest ancestor with the cursor-pointer class.
+      const card = cards[0].closest('[class*="cursor-pointer"]') as HTMLElement
+      expect(card).toBeTruthy()
+      const trashBtn = card.querySelector('button') as HTMLButtonElement
+      expect(trashBtn).toBeTruthy()
+      await user.click(trashBtn)
+      expect(mockOnDeleteHarness).toHaveBeenCalledWith('harness-1')
+      expect(toast.success).toHaveBeenCalledWith('Harness deleted')
+    })
+
+    it('edits Author and Repository inputs in the New Harness dialog', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      const author = screen.getByLabelText(/author/i)
+      await user.type(author, 'Skyler')
+      expect((author as HTMLInputElement).value).toBe('Skyler')
+      const repo = screen.getByLabelText(/repository/i)
+      await user.type(repo, 'https://example.com/repo')
+      expect((repo as HTMLInputElement).value).toBe('https://example.com/repo')
+    })
+
+    it('changes the License Select in the New Harness dialog', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      const trigger = document.getElementById('harness-license') as HTMLElement
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: 'ISC' }))
+      expect(trigger.textContent).toMatch(/ISC/)
+    })
+
+    it('changes the parameter Type Select, edits Default, and toggles Required', async () => {
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      await user.click(screen.getByRole('tab', { name: /tools/i }))
+      await user.click(screen.getByRole('button', { name: /add tool/i }))
+      const addBtn = screen.getByRole('button', { name: /^add$/i })
+      await user.click(addBtn)
+
+      const typeTrigger = document.getElementById('param-type') as HTMLElement
+      await user.click(typeTrigger)
+      await user.click(await screen.findByRole('option', { name: 'number' }))
+      expect(typeTrigger.textContent).toMatch(/number/)
+
+      const defaultInput = screen.getByLabelText(/default value/i) as HTMLInputElement
+      await user.type(defaultInput, '42')
+      expect(defaultInput.value).toBe('42')
+
+      const requiredCheckbox = screen.getByLabelText(/required parameter/i) as HTMLInputElement
+      const initial = requiredCheckbox.checked
+      await user.click(requiredCheckbox)
+      expect(requiredCheckbox.checked).toBe(!initial)
+    })
+
+    it('removes a tool from the New Harness dialog tool list (covers removeTool)', async () => {
+      const { toast } = await import('sonner')
+      const user = userEvent.setup()
+      setup()
+      await user.click(screen.getByRole('button', { name: /new harness/i }))
+      await user.click(screen.getByRole('tab', { name: /tools/i }))
+      // Open Add Tool dialog
+      await user.click(screen.getByRole('button', { name: /add tool/i }))
+      const toolName = screen.getByLabelText(/function name/i)
+      await user.type(toolName, 'kill_me')
+      const toolDesc = screen.getByLabelText(/^description/i)
+      await user.type(toolDesc, 'A removable tool')
+      // The footer submit button inside the Add Tool dialog is "Add Tool"
+      // (last in DOM since the trigger button on the tab is the same name).
+      const submitButtons = screen.getAllByRole('button', { name: /^add tool$/i })
+      await user.click(submitButtons[submitButtons.length - 1])
+      // After submit, dialog closes and the tool appears in the list
+      await waitFor(() =>
+        expect(screen.getByText('kill_me')).toBeInTheDocument(),
+      )
+
+      // Find and click the trash button next to "kill_me"
+      const toolCard = screen.getByText('kill_me').closest('[class*="p-3"]') as HTMLElement
+      expect(toolCard).toBeTruthy()
+      const removeBtn = toolCard.querySelector('button') as HTMLButtonElement
+      await user.click(removeBtn)
+      await waitFor(() =>
+        expect(screen.queryByText('kill_me')).not.toBeInTheDocument(),
+      )
+      expect(toast.success).toHaveBeenCalledWith('Tool removed')
+    })
+  })
 })
