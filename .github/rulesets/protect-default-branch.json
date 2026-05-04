@@ -20,13 +20,13 @@
       "_comment": "RepositoryRole id 5 = Admin (repo owner). Keep this entry."
     },
     {
-      "actor_id": -1,
+      "actor_id": 15368,
       "actor_type": "Integration",
       "bypass_mode": "always",
       "_comment": "Replace -1 with the GitHub App ID for github-actions[bot] so release workflows can push tags/commits. Find via GitHub API: GET /repos/{owner}/{repo}/installations."
     },
     {
-      "actor_id": -1,
+      "actor_id": 1143301,
       "actor_type": "Integration",
       "bypass_mode": "always",
       "_comment": "Replace -1 with the GitHub App ID for the Copilot coding agent (copilot-swe-agent[bot]) so it can push to its working branches. Remove this entry if you do not use the Copilot agent."

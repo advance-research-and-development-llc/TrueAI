@@ -20,19 +20,19 @@
       "_comment": "Admin (repo owner). Keep this entry."
     },
     {
-      "actor_id": -1,
+      "actor_id": 15368,
       "actor_type": "Integration",
       "bypass_mode": "always",
       "_comment": "Replace -1 with the GitHub App ID for github-actions[bot] (release-bump.yml edits package.json + android/app/build.gradle and pushes directly to main; without this entry the release workflow will fail)."
     },
     {
-      "actor_id": -1,
+      "actor_id": 1143301,
       "actor_type": "Integration",
       "bypass_mode": "always",
       "_comment": "Replace -1 with the GitHub App ID for the Copilot coding agent (copilot-swe-agent[bot]). Only needed if you ever let the agent merge its own PRs; otherwise remove."
     },
     {
-      "actor_id": -1,
+      "actor_id": 29110,
       "actor_type": "Integration",
       "bypass_mode": "pull_request",
       "_comment": "Replace -1 with the GitHub App ID for dependabot[bot]. `pull_request` bypass mode lets Dependabot's auto-PRs touch package.json / package-lock.json without being blocked by file_path_restriction at PR creation time. Final merge still requires owner approval (CODEOWNERS)."
