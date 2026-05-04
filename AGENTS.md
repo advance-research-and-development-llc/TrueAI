@@ -119,6 +119,13 @@ risk.
   [`.github/copilot/PROMPTS.md`](.github/copilot/PROMPTS.md)
 - Operator runbook:
   [`docs/AGENT_OPERATIONS.md`](docs/AGENT_OPERATIONS.md)
+- On-demand task dispatchers (workflow_dispatch, owner-only):
+  [`copilot-agent.yml`](.github/workflows/copilot-agent.yml),
+  [`aider-agent.yml`](.github/workflows/aider-agent.yml),
+  [`codex-agent.yml`](.github/workflows/codex-agent.yml). Each surfaces a
+  task as a structured issue with a runner-specific label
+  (`copilot-fix`, `aider-task`, `codex-task`). The Aider and Codex
+  dispatchers are inert until the owner wires up a corresponding runner.
 - Runtime / token / environment reference:
   [`AGENT_RUNTIME.md`](AGENT_RUNTIME.md) and
   [`.github/copilot/AGENT_RUNTIME.md`](.github/copilot/AGENT_RUNTIME.md)
