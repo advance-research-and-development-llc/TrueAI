@@ -335,7 +335,7 @@ function App() {
     [conversations, activeConversationId]
   )
 
-  // PR 9: route chat sends through the AI-SDK streaming path. The
+  // PR 1.h: route chat sends through the AI-SDK streaming path. The
   // hook reads its options from a ref on every send, so per-render
   // values for the active conversation (model / system prompt /
   // sampling overrides) are picked up automatically. Per-conversation
@@ -363,11 +363,12 @@ function App() {
     maxOutputTokens: activeConversation?.maxTokens,
     providerOptions: chatProviderOptions,
   })
-  // `chat.send` / `chat.reset` are stable (useCallback w/ empty deps
-  // inside `useStreamingChat`); destructure them so `sendMessage`'s
-  // useCallback isn't invalidated on every render by the new `chat`
-  // object literal returned from the hook.
-  const { send: chatSend, reset: chatReset } = chat
+  // `chat.send` / `chat.reset` / `chat.abort` are stable (useCallback w/
+  // empty deps inside `useStreamingChat`); destructure them so
+  // `sendMessage`'s useCallback isn't invalidated on every render by the
+  // new `chat` object literal returned from the hook, and so the Stop
+  // button's `onStop` prop has a stable identity.
+  const { send: chatSend, reset: chatReset, abort: chatAbort } = chat
   const isStreaming = chat.status === 'streaming'
   
   const conversationMessages = useMemo(() => {
@@ -622,7 +623,7 @@ function App() {
         throw new Error('Conversation not found')
       }
 
-      // Build a real ModelMessage[] history (PR 9). Replaces the prior
+      // Build a real ModelMessage[] history (PR 1.h). Replaces the prior
       // `spark.llmPrompt` text-wrapper hack which concatenated the
       // entire transcript into one user prompt; the AI-SDK path
       // accepts proper role-tagged messages, so the model now sees
@@ -636,6 +637,17 @@ function App() {
       } as ModelMessage))
 
       const response = await chatSend(content, history)
+
+      // If the user stopped the stream before any tokens arrived (or the
+      // provider returned an empty body), don't persist a blank assistant
+      // bubble or charge analytics/cost for it. `chat.abort()` resolves
+      // `chatSend` with whatever partial text was accumulated, which is
+      // `''` on early-abort. Partial responses with at least one token
+      // are still preserved, mirroring ChatGPT-style behaviour.
+      if (response.length === 0) {
+        chatReset()
+        return
+      }
 
       const assistantMessage: Message = {
         id: `msg-${crypto.randomUUID()}`,
@@ -1927,6 +1939,7 @@ Describe what input you would give to the ${tool} tool (one sentence).`
                         onSend={sendMessage} 
                         disabled={isStreaming}
                         isStreaming={isStreaming}
+                        onStop={chatAbort}
                       />
                     </div>
                   </>

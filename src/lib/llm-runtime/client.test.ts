@@ -112,9 +112,9 @@ describe('llm client', () => {
     expect(headers['Authorization']).toBeUndefined()
   })
 
-  describe('local-runtime sampling knobs (PR 2)', () => {
+  describe('local-runtime sampling knobs (PR 1.b)', () => {
     it('emits top_k / min_p / repeat_penalty when the configured values are non-neutral', async () => {
-      // Default config from beforeEach is missing the PR-2 fields, so
+      // Default config from beforeEach is missing the PR 1.b fields, so
       // they fall through to DEFAULT_LLM_RUNTIME_CONFIG (40 / 0.05 / 1.1).
       // updateLLMRuntimeConfig leaves those defaults in place.
       const fetchSpy = vi.fn().mockResolvedValue(

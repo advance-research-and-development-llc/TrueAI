@@ -103,6 +103,29 @@ async function buildHandle(cfg: LLMRuntimeConfig): Promise<ProviderHandle> {
           }),
       }
     }
+    case 'local-native': {
+      // Lazy-load the native adapter so the Capacitor plugin import +
+      // wllama-fallback construction never hits the bundle for users
+      // who stay on the HTTP-server providers.
+      const { createLocalNativeModel } = await import('./local-native-provider')
+      return {
+        cfgKey: cacheKey(cfg),
+        build: (id) =>
+          createLocalNativeModel({
+            modelPath: cfg.baseUrl,
+            modelId: id,
+            maxOutputTokens: cfg.maxTokens,
+            contextSize: cfg.contextSize,
+            defaultSampling: {
+              temperature: cfg.temperature,
+              topP: cfg.topP,
+              topK: cfg.topK,
+              minP: cfg.minP,
+              repeatPenalty: cfg.repeatPenalty,
+            },
+          }),
+      }
+    }
     case 'ollama':
     case 'llama-cpp':
     case 'lm-studio':
@@ -155,7 +178,8 @@ export function getLanguageModelSync(modelId?: string): LanguageModel {
     cfg.provider === 'openai' ||
     cfg.provider === 'anthropic' ||
     cfg.provider === 'google' ||
-    cfg.provider === 'local-wasm'
+    cfg.provider === 'local-wasm' ||
+    cfg.provider === 'local-native'
   ) {
     throw new Error(
       `getLanguageModelSync does not support provider '${cfg.provider}'. Use the async getLanguageModel() instead.`,

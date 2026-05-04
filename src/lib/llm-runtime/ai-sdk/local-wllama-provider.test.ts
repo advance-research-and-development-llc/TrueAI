@@ -349,7 +349,7 @@ describe('local-wllama-provider', () => {
     expect(messages).toEqual([{ role: 'user', content: 'describe this' }])
   })
 
-  describe('PR 2 — context size + sampling defaults from LLMRuntimeConfig', () => {
+  describe('PR 1.b — context size + sampling defaults from LLMRuntimeConfig', () => {
     it('forwards contextSize as n_ctx to loadModelFromUrl', async () => {
       const model = createLocalWllamaModel({
         modelSource: 'https://example.test/m.gguf',
@@ -381,7 +381,7 @@ describe('local-wllama-provider', () => {
       )
     })
 
-    it('passes a progressCallback even when contextSize is unset (PR 6)', async () => {
+    it('passes a progressCallback even when contextSize is unset (PR 1.f)', async () => {
       const model = createLocalWllamaModel({
         modelSource: 'https://example.test/m.gguf',
         modelId: 'm',
@@ -493,7 +493,7 @@ describe('local-wllama-provider', () => {
   })
 })
 
-describe('PR 6 — local-wllama download progress pub-sub', () => {
+describe('PR 1.f — local-wllama download progress pub-sub', () => {
   beforeEach(() => {
     __resetLocalWllamaForTests()
     loadModelFromUrl.mockClear()

@@ -6,7 +6,7 @@
     paths (typically `Filesystem.Directory.Data/models/<sha256>.gguf`)
     that callers pass in. It does NOT request READ_EXTERNAL_STORAGE,
     INTERNET, or any other permission — that keeps the plugin compatible
-    with the future `offline` product flavor (PR 9), which strips
+    with the future `offline` product flavor (PR 17), which strips
     `INTERNET` from the merged manifest.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" />
