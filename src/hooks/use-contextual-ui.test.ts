@@ -193,8 +193,9 @@ describe('useContextualUI', () => {
     })
 
     it('trackTimeOfDay hydrates from initialBehavior when prev is null (?? fallback)', () => {
+      // The outer `beforeEach` pins time to 2024-01-01T13:00:00Z (afternoon).
       const { result } = renderHook(() => useContextualUI())
-      act(() => result.current.trackTimeOfDay('agents')) // afternoon @ 13:00
+      act(() => result.current.trackTimeOfDay('agents'))
       expect(result.current.behavior?.timePatterns.afternoon).toContain('agents')
     })
 

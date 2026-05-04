@@ -315,7 +315,8 @@ describe('useStreamingChat', () => {
         provider: 'mock-provider',
         modelId: 'mock-model',
         doStream: async () => {
-          throw 'string-throw' as unknown as Error
+          // TypeScript allows throwing any value; no cast needed.
+          throw 'string-throw'
         },
       } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
       getLanguageModelMock.mockResolvedValue(stringThrowingModel)
