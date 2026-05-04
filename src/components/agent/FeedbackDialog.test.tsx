@@ -399,4 +399,45 @@ describe('FeedbackDialog', () => {
     // Should revert to no hover - Good label is still visible
     expect(screen.getByText('Good')).toBeInTheDocument()
   })
+
+  it('moves the accuracy/efficiency/relevance sliders via ArrowRight', () => {
+    const onSubmit = vi.fn()
+    render(
+      <FeedbackDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        agentRun={mockAgentRun}
+        onSubmit={onSubmit}
+      />
+    )
+    const sliders = screen.getAllByRole('slider')
+    sliders.forEach((s) => {
+      s.focus()
+      fireEvent.keyDown(s, { key: 'ArrowRight' })
+    })
+    fireEvent.click(screen.getByRole('button', { name: /submit feedback/i }))
+    expect(onSubmit).toHaveBeenCalled()
+    // After ArrowRight on each, all three metrics should differ from the
+    // 0.8 default (Radix slider ArrowRight may inc or dec a step depending
+    // on jsdom orientation defaults — assert the value moved at all).
+    const payload = onSubmit.mock.calls[0][0]
+    expect(payload.accuracy).not.toBe(0.8)
+    expect(payload.efficiency).not.toBe(0.8)
+    expect(payload.relevance).not.toBe(0.8)
+  })
+
+  it('clicking the issue Checkbox directly toggles selection without bubbling to Card', () => {
+    render(
+      <FeedbackDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        agentRun={mockAgentRun}
+        onSubmit={vi.fn()}
+      />
+    )
+    const checkbox = screen.getAllByRole('checkbox')[0]
+    fireEvent.click(checkbox)
+    // Issue description textarea appears once a single issue is selected.
+    expect(screen.getByPlaceholderText(/provide details about this issue/i)).toBeInTheDocument()
+  })
 })
