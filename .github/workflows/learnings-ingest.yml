@@ -84,11 +84,20 @@ jobs:
           supersedes = re.findall(r'(?im)^[ \t\-*]*SUPERSEDES:[ \t]*(.+)$', section)
 
           if not section:
-              # Fallback stub. Skip noise from bot PRs that didn't volunteer a lesson.
-              if author in ('dependabot[bot]', 'github-actions[bot]', 'copilot-swe-agent[bot]'):
-                  print(f'No lessons-learned section and bot author ({author}); skipping.')
-                  sys.exit(0)
-              section = f"- (No explicit lessons recorded.) PR title: _{title}_."
+              # Skip the entry entirely when the PR didn't volunteer a
+              # lesson. The previous policy emitted a "(No explicit
+              # lessons recorded.)" stub for non-bot authors, but in
+              # practice ~60% of merged PRs leave that block empty,
+              # which means the live LEARNINGS.md fills up with rows
+              # that cost agent context on every task without paying
+              # for it. Bots were already skipped; this extends the
+              # same rule to humans / other agents.
+              print(
+                  f"PR #{number} by @{author} has no '## Lessons learned' "
+                  "content; skipping ingest (set the section in the PR body "
+                  "to record a lesson)."
+              )
+              sys.exit(0)
 
           # Build the new entry.
           entry = [f"## {today} — PR #{number}: {title}", ""]
