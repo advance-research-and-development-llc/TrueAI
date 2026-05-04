@@ -195,4 +195,49 @@ describe('LearningRateDashboard', () => {
     expect(await screen.findByText('Loss plateau')).toBeInTheDocument()
     expect(screen.getByText(/reduce/i)).toBeInTheDocument()
   })
+
+  it.each([
+    ['increasing', 'text-red-500'],
+    ['plateauing', 'text-yellow-500'],
+    ['oscillating', 'text-orange-500'],
+  ] as const)(
+    'getTrendIcon renders the %s icon variant',
+    async (trend, cls) => {
+      const user = userEvent.setup()
+      ;(learningRateTuner.analyzeLoss as any).mockReturnValue({ trend })
+      const { container } = render(
+        <LearningRateDashboard models={[mockModel]} fineTuningJobs={[baseJob]} onUpdateJobLearningRate={vi.fn()} />
+      )
+      const trigger = (await screen.findByText('Choose a job...')).closest('[role="combobox"]') as HTMLElement
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: /Test Model/i }))
+      // Locate the Loss Trend row and assert the icon SVG carries the trend's color class.
+      const lossTrend = await screen.findByText('Loss Trend')
+      const row = lossTrend.parentElement as HTMLElement
+      expect(row.querySelector(`svg.${cls}`)).not.toBeNull()
+      expect(container).toBeTruthy()
+    }
+  )
+
+  it.each(['increase', 'adaptive', 'cyclic'] as const)(
+    'getStrategyColor renders the %s strategy badge',
+    async (strategy) => {
+      const user = userEvent.setup()
+      ;(learningRateTuner.recommendLearningRate as any).mockReturnValue({
+        oldRate: 0.001, newRate: 0.0005, reason: `${strategy}-tuning`,
+        confidence: 0.95, expectedImprovement: '+5%', strategy,
+        timestamp: Date.now(),
+      })
+      render(<LearningRateDashboard models={[mockModel]} fineTuningJobs={[baseJob]} onUpdateJobLearningRate={vi.fn()} />)
+      const trigger = (await screen.findByText('Choose a job...')).closest('[role="combobox"]') as HTMLElement
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: /Test Model/i }))
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^enable$/i }))
+      })
+      await user.click(screen.getByRole('tab', { name: /adjustments/i }))
+      expect(await screen.findByText(`${strategy}-tuning`)).toBeInTheDocument()
+    }
+  )
+
 })
