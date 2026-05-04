@@ -24,8 +24,17 @@ describe('AgentToolExecutor', () => {
       expect(result.output).toBe('Result: 5')
     })
 
-    it('rejects unbalanced parentheses', async () => {
-      const result = await executor.executeTool('calculator', '(1 + 2')
+    it('rejects trailing input after a valid expression', async () => {
+      // Forces parseExpression to return then i !== cleaned.length (line 182-183).
+      // Use only valid chars so the sanitiser doesn't strip anything.
+      const result = await executor.executeTool('calculator', '(1+2))')
+      expect(result.success).toBe(false)
+      expect(result.output).toBe('Invalid mathematical expression')
+    })
+
+    it('rejects results that are not finite (e.g. division by zero)', async () => {
+      // 1/0 → Infinity, fails the isFinite check at lines 185-186.
+      const result = await executor.executeTool('calculator', '1/0')
       expect(result.success).toBe(false)
       expect(result.output).toBe('Invalid mathematical expression')
     })
@@ -319,6 +328,32 @@ describe('AgentToolExecutor', () => {
         globalThis.fetch = originalFetch
       }
     })
+
+    it('reports a fetch that throws (catch branch, lines 351-354)', async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new Error('network down'))
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+      try {
+        const result = await executor.executeTool('file_reader', 'data/x.txt')
+        expect(result.success).toBe(false)
+        expect(result.output).toMatch(/file_reader failed: network down/)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('fails closed when fetch is undefined (line 327)', async () => {
+      const originalFetch = globalThis.fetch
+      // @ts-expect-error — deliberately remove fetch for this test
+      delete globalThis.fetch
+      try {
+        const result = await executor.executeTool('file_reader', 'data/x.txt')
+        expect(result.success).toBe(false)
+        expect(result.output).toMatch(/fetch is unavailable/)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
   })
 
   describe('api_caller', () => {
@@ -384,6 +419,70 @@ describe('AgentToolExecutor', () => {
       } finally {
         globalThis.fetch = originalFetch
       }
+    })
+
+    it('reports an aborted (timed-out) fetch as such', async () => {
+      const abortErr = new Error('aborted')
+      abortErr.name = 'AbortError'
+      const fetchMock = vi.fn().mockRejectedValue(abortErr)
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+      try {
+        const result = await executor.executeTool('api_caller', 'https://example.com/slow')
+        expect(result.success).toBe(false)
+        expect(result.output).toMatch(/timed out after \d+ms/)
+        expect(result.metadata?.aborted).toBe(true)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('reports a generic fetch failure (catch branch, line 464)', async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new Error('socket reset'))
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = fetchMock as unknown as typeof fetch
+      try {
+        const result = await executor.executeTool('api_caller', 'https://example.com/oops')
+        expect(result.success).toBe(false)
+        expect(result.output).toMatch(/api_caller failed: socket reset/)
+        expect(result.metadata?.aborted).toBe(false)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('fails closed when fetch is undefined (line 433)', async () => {
+      const originalFetch = globalThis.fetch
+      // @ts-expect-error — deliberately remove fetch for this test
+      delete globalThis.fetch
+      try {
+        const result = await executor.executeTool('api_caller', 'https://example.com/x')
+        expect(result.success).toBe(false)
+        expect(result.output).toMatch(/fetch is unavailable/)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+  })
+
+  describe('data_analyzer (additional)', () => {
+    it('reports mixed-type arrays without computing stats (line 487)', async () => {
+      const result = await executor.executeTool(
+        'data_analyzer',
+        JSON.stringify(['a', 'b', true]),
+      )
+      expect(result.success).toBe(true)
+      expect(result.output).toMatch(/Array contains 3 items of mixed types/)
+    })
+
+    it('summarises object input by key set (lines 489-490)', async () => {
+      const result = await executor.executeTool(
+        'data_analyzer',
+        JSON.stringify({ alpha: 1, beta: 2 }),
+      )
+      expect(result.success).toBe(true)
+      expect(result.output).toMatch(/Object has 2 properties: alpha, beta/)
+      expect(result.metadata?.dataType).toBe('object')
     })
   })
 
