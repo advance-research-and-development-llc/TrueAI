@@ -61,9 +61,16 @@ jobs:
           DELETIONS: ${{ steps.files.outputs.del }}
         run: |
           set -euo pipefail
-          LABEL=$(node scripts/classify-pr-risk.mjs < /tmp/files.txt)
-          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
-          echo "Computed risk: $LABEL  (+${ADDITIONS} −${DELETIONS})"
+          node scripts/classify-pr-risk.mjs < /tmp/files.txt > /tmp/labels.txt
+          PRIMARY=$(head -n1 /tmp/labels.txt)
+          echo "label=$PRIMARY" >> "$GITHUB_OUTPUT"
+          if grep -qx 'risk:agent-surface' /tmp/labels.txt; then
+            echo "agent_surface=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "agent_surface=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Computed labels:"; cat /tmp/labels.txt
+          echo "(diff +${ADDITIONS} −${DELETIONS})"
 
       - name: Apply label (and remove other risk:* labels)
         env:
@@ -71,13 +78,15 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           LABEL: ${{ steps.classify.outputs.label }}
+          AGENT_SURFACE: ${{ steps.classify.outputs.agent_surface }}
         run: |
           set -euo pipefail
           # Ensure all risk labels exist
           for r in trivial low medium high; do
             gh label create "risk:${r}" --color "ededed" --description "Risk classification: ${r}" --repo "$REPO" --force >/dev/null
           done
-          # Remove other risk:* labels first
+          gh label create "risk:agent-surface" --color "5319e7" --description "Touches the Copilot / agent prompt surface" --repo "$REPO" --force >/dev/null
+          # Remove other primary risk:* labels first
           for r in trivial low medium high; do
             CUR="risk:${r}"
             if [ "$CUR" != "$LABEL" ]; then
@@ -85,4 +94,11 @@ jobs:
             fi
           done
           gh issue edit "$PR" --repo "$REPO" --add-label "$LABEL" >/dev/null
-          echo "Applied $LABEL to PR #$PR"
+          # Apply or remove the agent-surface attribute label
+          if [ "$AGENT_SURFACE" = "true" ]; then
+            gh issue edit "$PR" --repo "$REPO" --add-label "risk:agent-surface" >/dev/null
+            echo "Applied $LABEL + risk:agent-surface to PR #$PR"
+          else
+            gh issue edit "$PR" --repo "$REPO" --remove-label "risk:agent-surface" >/dev/null 2>&1 || true
+            echo "Applied $LABEL to PR #$PR"
+          fi

@@ -88,29 +88,103 @@ export class AgentToolExecutor {
   }
 
   private safeEvaluateExpression(expr: string): number {
-    // Validate that the expression only contains safe characters
-    if (!/^[\d+\-*/().\s]+$/.test(expr)) {
+    // Hand-rolled recursive-descent arithmetic parser. Replaces the
+    // previous `new Function('return (' + expr + ')')` path so that:
+    //
+    //   1. There is no `Function`/`eval` reachable from a tool input,
+    //      even one heavily pre-sanitised. CodeQL's
+    //      `js/code-injection` family no longer has a sink to fire on
+    //      in this file.
+    //   2. The evaluator is closed over a numeric grammar — globals
+    //      (`fetch`, `localStorage`, `window`, …) are unreachable
+    //      regardless of what the sanitiser lets through. The
+    //      `agent-tools.test.ts` regression suite asserts this.
+    //
+    // Grammar (loose EBNF):
+    //   expression := term     (('+' | '-') term)*
+    //   term       := factor   (('*' | '/') factor)*
+    //   factor     := ('+' | '-') factor | '(' expression ')' | number
+    //   number     := [0-9]+ ('.' [0-9]+)?
+
+    const cleaned = expr.replace(/\s+/g, '')
+    if (cleaned.length === 0) {
+      throw new Error('Empty expression')
+    }
+    if (!/^[\d+\-*/().]+$/.test(cleaned)) {
       throw new Error('Invalid characters in expression')
     }
 
-    // Check for balanced parentheses
-    let depth = 0
-    for (const char of expr) {
-      if (char === '(') depth++
-      if (char === ')') depth--
-      if (depth < 0) throw new Error('Unbalanced parentheses')
+    let i = 0
+
+    const parseExpression = (): number => {
+      let value = parseTerm()
+      while (
+        i < cleaned.length &&
+        (cleaned[i] === '+' || cleaned[i] === '-')
+      ) {
+        const op = cleaned[i++]
+        const rhs = parseTerm()
+        value = op === '+' ? value + rhs : value - rhs
+      }
+      return value
     }
-    if (depth !== 0) throw new Error('Unbalanced parentheses')
 
-    // Use Function constructor in strict mode (safer than eval)
-    // It doesn't have access to the local scope
-    const fn = new Function('return (' + expr + ')')
-    const result = fn()
+    const parseTerm = (): number => {
+      let value = parseFactor()
+      while (
+        i < cleaned.length &&
+        (cleaned[i] === '*' || cleaned[i] === '/')
+      ) {
+        const op = cleaned[i++]
+        const rhs = parseFactor()
+        if (op === '/') {
+          if (rhs === 0) throw new Error('Division by zero')
+          value = value / rhs
+        } else {
+          value = value * rhs
+        }
+      }
+      return value
+    }
 
+    const parseFactor = (): number => {
+      if (cleaned[i] === '+') {
+        i++
+        return parseFactor()
+      }
+      if (cleaned[i] === '-') {
+        i++
+        return -parseFactor()
+      }
+      if (cleaned[i] === '(') {
+        i++
+        const value = parseExpression()
+        if (cleaned[i] !== ')') {
+          throw new Error('Unbalanced parentheses')
+        }
+        i++
+        return value
+      }
+      return parseNumber()
+    }
+
+    const parseNumber = (): number => {
+      const start = i
+      while (i < cleaned.length && /[0-9.]/.test(cleaned[i] as string)) i++
+      if (start === i) throw new Error('Expected a number')
+      const slice = cleaned.slice(start, i)
+      const n = Number(slice)
+      if (!Number.isFinite(n)) throw new Error(`Invalid number "${slice}"`)
+      return n
+    }
+
+    const result = parseExpression()
+    if (i !== cleaned.length) {
+      throw new Error(`Unexpected trailing input at position ${i}`)
+    }
     if (typeof result !== 'number' || !isFinite(result)) {
       throw new Error('Invalid result')
     }
-
     return result
   }
 
