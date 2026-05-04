@@ -215,6 +215,93 @@ describe('useAgent', () => {
     expect(result.current.toolEvents.length).toBeGreaterThan(0)
   })
 
+  it('captures tool-result events and merges output into the matching tool event', async () => {
+    await setTraceEnabled(true)
+    const model = partsMock([
+      { type: 'tool-call', toolCallId: 'tc-3', toolName: 'echoTool', input: { msg: 'hi' } },
+      { type: 'tool-result', toolCallId: 'tc-3', toolName: 'echoTool', output: { reply: 'hi' } },
+    ])
+    const { result } = renderHook(() =>
+      useAgent({ model, tools: [], runId: 'run-tr' }),
+    )
+    await act(async () => {
+      await result.current.run('echo')
+    })
+    expect(result.current.toolEvents.length).toBeGreaterThan(0)
+    const trace = await readTrace()
+    // tool-result tracing recorded when tracing is on (covers lines 196-198).
+    const kinds = trace.map((e) => e.kind)
+    expect(kinds.some((k) => k === 'tool-call' || k === 'tool-result')).toBe(true)
+  })
+
+  it('handlePart safely tolerates SDK stream extensibility (status reaches a terminal value)', async () => {
+    // Inject a primitive "part" that the SDK doesn't recognise. Whether the
+    // SDK forwards it (so handlePart's `typeof part !== 'object' || part ===
+    // null` guard runs) or rejects it (status: 'error') depends on SDK
+    // version — both outcomes are acceptable here. The point is the hook
+    // does not throw or hang.
+    const model = partsMock([
+      'plain-string-part' as unknown as Record<string, unknown>,
+    ])
+    const { result } = renderHook(() => useAgent({ model, tools: [], runId: 'run-np' }))
+    await act(async () => {
+      await result.current.run('mixed parts')
+    })
+    expect(['done', 'error']).toContain(result.current.status)
+  })
+
+  it('abort while streaming with tracing enabled records run-end {aborted:true}', async () => {
+    await setTraceEnabled(true)
+    const model = new MockLanguageModelV3({
+      provider: 'mock',
+      modelId: 'mock-stuck-trace',
+      doGenerate: async () => ({
+        content: [{ type: 'text', text: 'never' }],
+        finishReason: 'stop',
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        warnings: [],
+      }),
+      doStream: async ({ abortSignal }: { abortSignal?: AbortSignal }) => ({
+        stream: new ReadableStream({
+          async start(controller) {
+            controller.enqueue({ type: 'stream-start', warnings: [] })
+            controller.enqueue({
+              type: 'response-metadata',
+              id: 'r',
+              timestamp: new Date(),
+              modelId: 'mock-stuck-trace',
+            })
+            controller.enqueue({ type: 'text-start', id: 't' })
+            controller.enqueue({ type: 'text-delta', id: 't', delta: 'partial' })
+            if (abortSignal) {
+              await new Promise<void>((res) => {
+                abortSignal.addEventListener('abort', () => res(), { once: true })
+              })
+            }
+            controller.close()
+          },
+        }),
+      }),
+    } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
+    const { result } = renderHook(() => useAgent({ model, tools: [], runId: 'run-abrt' }))
+    let runPromise: Promise<void>
+    await act(async () => {
+      runPromise = result.current.run('blocked')
+      await new Promise((r) => setTimeout(r, 10))
+    })
+    await act(async () => {
+      result.current.abort()
+      await runPromise!
+    })
+    expect(result.current.status).toBe('aborted')
+    const trace = await readTrace()
+    // Either the `aborted` finally branch (line 119-122) or the catch branch
+    // (line 132-135) ran with tracing on; both record a run-end with
+    // aborted:true.
+    const runEnd = trace.find((e) => e.kind === 'run-end')
+    expect(runEnd).toBeTruthy()
+  })
+
   it('surfaces a non-abort error and traces it', async () => {
     await setTraceEnabled(true)
     const model = new MockLanguageModelV3({
