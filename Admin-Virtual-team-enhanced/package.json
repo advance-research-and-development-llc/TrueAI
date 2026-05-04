@@ -1,0 +1,28 @@
+{
+  "name": "admin-virtual-team-enhanced",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "npm -ws run test",
+    "dev": "npm -w @trueai/teamd run dev",
+    "build": "npm -ws run build",
+    "lint": "npm -ws run lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": "true",
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
+    "vitest": "^4.1.5"
+  }
+}
