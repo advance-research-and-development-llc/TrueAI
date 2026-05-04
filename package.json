@@ -14,6 +14,7 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "check:agents": "node scripts/check-agent-frontmatter.mjs",
+        "check:agent-permissions": "node scripts/check-agent-permissions.mjs",
         "check:prompts": "node scripts/check-prompts-lock.mjs",
         "check:instructions": "node scripts/check-instructions-drift.mjs",
         "typecheck": "tsc -p tsconfig.json --noEmit",
