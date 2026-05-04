@@ -159,18 +159,16 @@ export default defineConfig({
         // `dismissSuggestion`, and the `if (!behavior)` early returns
         // in `generateSuggestions` / `getPredictedNextAction` /
         // `getRecommendedFeatures`).
-        // **Threshold ratchet #2 (post-PRs #112-#121):** after a sustained
-        // mid-band push (#113 LearningRateBenchmark, #114 BenchmarkRunner,
-        // #115 BulkOptimizationPanel, #117 AnalyticsDashboard, #118
-        // use-tab-preloader, #119 GGUFPicker, #120 OptRecommendationsViewer,
-        // #121 HuggingFaceModelBrowser), all-files now sits at
-        // **85.38 stmts · 77.72 branch · 79.95 funcs · 87.49 lines**.
-        // Bumped from 84.5 / 77 / 79 / 86.5 to 85 / 77.5 / 79.5 / 87
-        // to lock in the gains while leaving ~0.4pp room for the next push.
-        lines: 87,
-        functions: 79.5,
-        branches: 77.5,
-        statements: 85,
+        // **Threshold ratchet #3 (post-PRs #122-#129):** 7 more coverage
+        // chunks landed (use-dynamic-ui, use-prefetch, ConfidenceThresholdConfig,
+        // LearningRateDashboard, PerformanceProfileManager, GGUFLibrary,
+        // FeedbackDialog). All-files now sits at **85.76 stmts · 78.11 branch ·
+        // 80.33 funcs · 87.80 lines**. Bumped from 85 / 77.5 / 79.5 / 87 to
+        // 85.5 / 78 / 80 / 87.5 to lock in the gains.
+        lines: 87.5,
+        functions: 80,
+        branches: 78,
+        statements: 85.5,
       },
     },
   },
