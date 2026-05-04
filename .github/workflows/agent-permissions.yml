@@ -1,0 +1,82 @@
+name: Agent Permissions Gate
+
+# §R — enforces per-agent `allowed_paths` / `allowed_labels` declared in
+# `.github/agents/*.agent.md` front-matter. Runs on every PR open/sync;
+# fails the check if a PR labeled `agent:<name>` modifies files outside
+# that agent's allowed_paths, or carries labels outside allowed_labels.
+#
+# PRs with no `agent:*` label are skipped (this gate is opt-in via label
+# — human-authored PRs aren't constrained to any single agent's lane).
+#
+# Pure Node stdlib script (scripts/check-agent-permissions.mjs); no
+# third-party action dependencies. Required-status candidate after a
+# few green runs.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: agent-permissions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Detect agent label and changed files
+        id: detect
+        env:
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Find the first `agent:<name>` label, if any.
+          AGENT=$(printf '%s' "$LABELS_JSON" | node -e '
+            const labels = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const m = labels.find((l) => /^agent:[a-z0-9-]+$/i.test(l));
+            process.stdout.write(m ? m.slice("agent:".length) : "");
+          ')
+          if [ -z "$AGENT" ]; then
+            echo "No agent:<name> label on PR — gate is a no-op."
+            echo "agent=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Detected agent: $AGENT"
+          echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
+
+          # Diff PR head vs base.
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-paths.txt
+          echo "Changed files:"
+          cat changed-paths.txt
+
+          # Pass through PR labels for allowed_labels enforcement.
+          LABELS_CSV=$(printf '%s' "$LABELS_JSON" | node -e '
+            const labels = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(labels.join(","));
+          ')
+          echo "labels=$LABELS_CSV" >> "$GITHUB_OUTPUT"
+
+      - name: Enforce allowed_paths / allowed_labels
+        if: steps.detect.outputs.agent != ''
+        run: |
+          set -euo pipefail
+          node scripts/check-agent-permissions.mjs \
+            --agent "${{ steps.detect.outputs.agent }}" \
+            --paths-from changed-paths.txt \
+            --labels "${{ steps.detect.outputs.labels }}"
