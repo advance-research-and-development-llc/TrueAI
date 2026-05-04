@@ -1,0 +1,122 @@
+# Per-model agent-policy
+#
+# Declarative mapping from LLM identity → maximum PR risk class that
+# model is allowed to land without an explicit human override. Used
+# by:
+#
+#   - `scripts/check-model-policy.mjs` (validator + lookup helper)
+#   - future `auto-merge.yml` extension that refuses to auto-merge
+#     a PR when the authoring model exceeds its declared cap
+#
+# Risk classes (defined by `scripts/classify-pr-risk.mjs`):
+#   trivial < low < medium < high
+#
+# Plus the orthogonal attribute `agent-surface`, which is a
+# *separate* boolean cap because changes there break every future
+# agent run regardless of size.
+#
+# Format
+#
+#   policy_version: 1
+#   models:
+#     <model-id>:
+#       max_risk: trivial | low | medium | high
+#       allow_agent_surface: true | false
+#       notes: free-form
+#
+# Conventions
+#
+#   * Use the canonical AI-SDK model id (e.g. `claude-opus-4.7`,
+#     `gpt-5.4`, `claude-haiku-4.5`).
+#   * If a model is not listed, the validator falls back to
+#     `default.max_risk` / `default.allow_agent_surface`.
+#   * Update PROMPTS.lock-style: any policy change is `risk:high +
+#     agent-surface` and requires owner review (CODEOWNERS already
+#     gates this path).
+
+policy_version: 1
+
+default:
+  max_risk: low
+  allow_agent_surface: false
+  notes: |
+    Conservative default for any model not listed below. New
+    model ids must be explicitly added before they can land
+    medium / high / agent-surface PRs.
+
+models:
+
+  # Premium frontier models — full agent-surface authority.
+  claude-opus-4.7:
+    max_risk: high
+    allow_agent_surface: true
+    notes: Recommended primary for TrueAI agent work (per AGENTS.md).
+
+  claude-opus-4.6:
+    max_risk: high
+    allow_agent_surface: true
+    notes: Prior-gen Opus; same caps for review continuity.
+
+  claude-sonnet-4.6:
+    max_risk: high
+    allow_agent_surface: true
+    notes: Sonnet 4.6 is the current standard tier; full caps.
+
+  gpt-5.5:
+    max_risk: high
+    allow_agent_surface: true
+    notes: Premium GPT tier; full caps.
+
+  # Standard models — high risk OK, but not agent-surface unsupervised.
+  claude-sonnet-4.5:
+    max_risk: high
+    allow_agent_surface: false
+    notes: Sonnet 4.5 lacks the safety record on agent-surface diffs.
+
+  gpt-5.4:
+    max_risk: high
+    allow_agent_surface: false
+
+  gpt-5.3-codex:
+    max_risk: medium
+    allow_agent_surface: false
+    notes: Codex models are tuned for code mass; cap at medium.
+
+  gpt-5.2-codex:
+    max_risk: medium
+    allow_agent_surface: false
+
+  gpt-5.2:
+    max_risk: medium
+    allow_agent_surface: false
+
+  # Fast / cheap tier — bounded to low.
+  claude-haiku-4.5:
+    max_risk: low
+    allow_agent_surface: false
+    notes: Haiku is appropriate for typo / docs / trivial fixes only.
+
+  gpt-5.4-mini:
+    max_risk: low
+    allow_agent_surface: false
+
+  gpt-5-mini:
+    max_risk: low
+    allow_agent_surface: false
+
+  gpt-4.1:
+    max_risk: low
+    allow_agent_surface: false
+
+  # Local / on-device runtimes — never agent-surface, max medium.
+  ollama-local:
+    max_risk: medium
+    allow_agent_surface: false
+    notes: |
+      Wildcard for any Ollama-hosted model. Local models lack
+      provenance signing and drift between sessions; cap at medium
+      and never grant agent-surface.
+
+  llama-cpp-local:
+    max_risk: medium
+    allow_agent_surface: false

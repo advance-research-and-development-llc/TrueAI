@@ -17,6 +17,7 @@
         "check:instructions": "node scripts/check-instructions-drift.mjs",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "check:deps": "npx --yes knip",
+        "check:model-policy": "node scripts/check-model-policy.mjs",
         "compact:learnings": "node scripts/compact-learnings.mjs",
         "optimize": "vite optimize",
         "preview": "vite preview",
