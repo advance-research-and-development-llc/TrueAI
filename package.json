@@ -13,6 +13,7 @@
         "build:dev": "tsc -b && vite build --mode development",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "check:agents": "node scripts/check-agent-frontmatter.mjs",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "check:deps": "npx --yes knip",
         "optimize": "vite optimize",
