@@ -143,7 +143,17 @@ jobs:
       # When lint --fix cannot resolve all errors on a Copilot-owned branch,
       # dispatch a fix issue to the agent instead of leaving it as a dead-end
       # PR comment that no one acts on.
+      #
+      # `continue-on-error: true` because some repository configurations do
+      # not grant the workflow's GITHUB_TOKEN permission to `gh issue create
+      # --assignee copilot` (the integration returns "Resource not accessible
+      # by integration"). When that happens we fall through to the PR comment
+      # below; we MUST NOT fail the workflow job because that turns every
+      # PR with a single pre-existing lint warning into a red check, which
+      # blocks unrelated fixes from landing.
       - name: Create Copilot fix issue for unfixable lint errors
+        id: dispatch_lint_fix
+        continue-on-error: true
         if: >
           steps.lint_fix.outputs.has_errors == 'true' &&
           startsWith(github.head_ref, 'copilot/') &&
@@ -201,7 +211,15 @@ jobs:
             --title "[Auto] Unfixable ESLint errors on $BRANCH" \
             --body "$BODY" \
             --label "copilot-fix,lint-error,bug" \
-            --assignee "copilot")
+            --assignee "copilot" 2>/tmp/issue-err.txt) || ISSUE_URL=""
+          if [ -z "$ISSUE_URL" ]; then
+            echo "::warning ::Could not create dispatch issue (likely missing issues:write or assignee permission). Falling back to PR comment."
+            cat /tmp/issue-err.txt || true
+            gh pr comment "$PR_NUMBER" \
+              --repo "$REPO" \
+              --body "🔧 Unfixable ESLint errors on this branch (auto-dispatch issue could not be created — likely a token permission issue). The errors are listed in the previous job log."
+            exit 0
+          fi
           echo "Created issue: $ISSUE_URL"
 
           gh pr comment "$PR_NUMBER" \
