@@ -185,6 +185,9 @@ function mergeConfig(
       typeof patch.minP === 'number' && patch.minP >= 0 && patch.minP <= 1
         ? patch.minP
         : base.minP,
+    // `1` is the neutral / "disabled" value for repeat_penalty per the
+    // type doc. Any value < 1 would actively encourage repetition, which
+    // is never what a caller wants — treat as invalid and keep the base.
     repeatPenalty:
       typeof patch.repeatPenalty === 'number' &&
       patch.repeatPenalty >= 1 &&
