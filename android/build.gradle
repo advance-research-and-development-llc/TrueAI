@@ -22,6 +22,13 @@ allprojects {
         google()
         mavenCentral()
     }
+    // AGP 9.x requires every subproject to declare compileSdk explicitly.
+    // Capacitor plugins that pre-date this requirement are patched here.
+    plugins.withId('com.android.library') {
+        android {
+            if (!compileSdkVersion) compileSdkVersion rootProject.ext.compileSdkVersion
+        }
+    }
     configurations.all {
         resolutionStrategy {
             force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
