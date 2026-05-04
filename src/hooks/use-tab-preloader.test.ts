@@ -113,6 +113,28 @@ describe('useTabPreloader', () => {
     })
     expect(warn).toHaveBeenCalled()
   })
+
+  it('preloadAdjacentTabs returns early when currentTab is not in tabs', async () => {
+    const onPreload = vi.fn(async () => {})
+    renderHook(() => useTabPreloader(['a', 'b', 'c'], 'zzz', onPreload))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400)
+    })
+    expect(onPreload).not.toHaveBeenCalled()
+  })
+
+  it('handleTabHover called twice clears the prior timer (covers clearTimeout branch)', async () => {
+    const onPreload = vi.fn(async () => {})
+    const { result } = renderHook(() => useTabPreloader(['a', 'b', 'c', 'd', 'e'], 'c', onPreload))
+    act(() => result.current.handleTabHover('e'))
+    act(() => result.current.handleTabHover('a'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400)
+    })
+    const callArgs = onPreload.mock.calls.map((c: unknown[]) => c[0])
+    expect(callArgs).toContain('a')
+    expect(callArgs).not.toContain('e')
+  })
 })
 
 describe('useResourcePreloader', () => {
@@ -248,8 +270,48 @@ describe('useResourcePreloader', () => {
         result.current.preloadStyle('http://x.test/style.css'),
       ).resolves.toBeUndefined()
       expect(result.current.isPreloaded('http://x.test/style.css')).toBe(true)
+      // Cached call → returns Promise.resolve()
+      await expect(
+        result.current.preloadStyle('http://x.test/style.css'),
+      ).resolves.toBeUndefined()
     } finally {
       vi.restoreAllMocks()
+    }
+  })
+
+  it('preloadFont resolves and caches; second call returns cached promise', async () => {
+    const { result } = renderHook(() => useResourcePreloader())
+    class FakeFontFace {
+      constructor(public family: string, public source: string) {}
+      load() {
+        return Promise.resolve(this)
+      }
+    }
+    const fontsAdd = vi.fn()
+    const originalFontFace = (globalThis as { FontFace?: unknown }).FontFace
+    const originalFonts = (document as unknown as { fonts?: unknown }).fonts
+    ;(globalThis as { FontFace?: unknown }).FontFace = FakeFontFace as unknown as typeof FontFace
+    Object.defineProperty(document, 'fonts', {
+      value: { add: fontsAdd },
+      configurable: true,
+    })
+    try {
+      await expect(
+        result.current.preloadFont('Inter', 'http://x.test/inter.woff2'),
+      ).resolves.toBeUndefined()
+      expect(fontsAdd).toHaveBeenCalledTimes(1)
+      // Cached → no extra add.
+      await expect(
+        result.current.preloadFont('Inter', 'http://x.test/inter.woff2'),
+      ).resolves.toBeUndefined()
+      expect(fontsAdd).toHaveBeenCalledTimes(1)
+    } finally {
+      ;(globalThis as { FontFace?: unknown }).FontFace = originalFontFace
+      if (originalFonts === undefined) {
+        Reflect.deleteProperty(document as unknown as object, 'fonts')
+      } else {
+        Object.defineProperty(document, 'fonts', { value: originalFonts, configurable: true })
+      }
     }
   })
 })
