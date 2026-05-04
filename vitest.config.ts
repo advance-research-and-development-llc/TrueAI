@@ -25,10 +25,12 @@ export default defineConfig({
       ],
       thresholds: {
         // Pragmatic floors set to lock in the gains from PRs #59–#67 and the
-        // Phase A–E coverage push (TEST_COVERAGE_SUMMARY.md). The aspirational
-        // 80/75 targets are blocked by a handful of large untested screens
-        // (`App.tsx`, `AppBuilder.tsx`, `LocalIDE.tsx`) that need
-        // decomposition first; tightening these numbers is a follow-up.
+        // legacy "Phase A–E" coverage push terminology used in older
+        // TEST_COVERAGE_SUMMARY.md notes. That A–E naming was superseded by
+        // the numbered phase system documented in docs/COVERAGE_ROADMAP.md.
+        // The aspirational 80/75 targets are blocked by a handful of large
+        // untested screens (`App.tsx`, `AppBuilder.tsx`, `LocalIDE.tsx`) that
+        // need decomposition first; tightening these numbers is a follow-up.
         //
         // Phase 1.4 (Master Coverage Roadmap, see docs/COVERAGE_ROADMAP.md):
         // ratcheted up from 65/53/53/63 to the rounded-down current baseline
@@ -137,10 +139,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      // Mirror the Vite alias so tests that import components which use
-      // `useKV` from `@github/spark/hooks` resolve to the local IndexedDB-
-      // backed shim instead of the published Spark dist bundle (which reads
-      // `import.meta.env.DEV` in a way that throws under Vitest).
+      // Mirror the Vite alias from `vite.config.ts` so tests that import
+      // components which use `useKV` from `@github/spark/hooks` resolve to
+      // the local IndexedDB-backed shim instead of the published Spark dist
+      // bundle (which reads `import.meta.env.DEV` in a way that throws under
+      // Vitest). Keep this mapping in sync with `vite.config.ts`.
       '@github/spark/hooks': resolve(__dirname, 'src/lib/llm-runtime/spark-hooks-shim.ts'),
       '@github/spark/spark': resolve(__dirname, 'src/lib/llm-runtime/install.ts'),
     }

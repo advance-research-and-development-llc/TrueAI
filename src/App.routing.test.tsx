@@ -25,8 +25,12 @@ import * as React from 'react'
 // useState-backed `useKV` mock with a per-test override hook for the
 // `active-tab` key. Other keys behave identically to the default impl
 // (initial value seeds state).
+type KVInitialOverrides = {
+  'active-tab'?: string
+}
+
 const kvOverrides = vi.hoisted(() => ({
-  initial: {} as Record<string, unknown>,
+  initial: {} as KVInitialOverrides,
 }))
 vi.mock('@github/spark/hooks', () => ({
   useKV: <T,>(key: string, def: T) => {
@@ -248,6 +252,12 @@ describe('App — header icon-button dialogs', () => {
   })
 })
 
+const getOpenDialog = (): HTMLElement => {
+  const dialog = document.body.querySelector('[role="dialog"]')
+  expect(dialog).not.toBeNull()
+  return dialog as HTMLElement
+}
+
 describe('App — new-conversation dialog (createConversation seam)', () => {
   it('opens the dialog, accepts a title, and creates a conversation on submit', () => {
     render(<App />)
@@ -255,13 +265,12 @@ describe('App — new-conversation dialog (createConversation seam)', () => {
     fireEvent.click(screen.getByRole('button', { name: /new chat/i }))
 
     // Dialog content portal — title input identified by its label.
-    const dialog = document.body.querySelector('[role="dialog"]')
-    expect(dialog).not.toBeNull()
-    const titleInput = within(dialog as HTMLElement).getByLabelText(/title/i)
+    const dialog = getOpenDialog()
+    const titleInput = within(dialog).getByLabelText(/title/i)
     fireEvent.change(titleInput, { target: { value: 'My test conversation' } })
 
     // The Create button submits and closes the dialog.
-    fireEvent.click(within(dialog as HTMLElement).getByRole('button', { name: /^create$/i }))
+    fireEvent.click(within(dialog).getByRole('button', { name: /^create$/i }))
 
     // The new conversation title appears in the sidebar conversation list.
     expect(screen.queryAllByText(/my test conversation/i).length).toBeGreaterThan(0)
@@ -270,7 +279,7 @@ describe('App — new-conversation dialog (createConversation seam)', () => {
   it('cancels without creating a conversation when Cancel is clicked', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /new chat/i }))
-    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const dialog = getOpenDialog()
     fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }))
     expect(screen.queryByText(/my cancelled conversation/i)).not.toBeInTheDocument()
   })
