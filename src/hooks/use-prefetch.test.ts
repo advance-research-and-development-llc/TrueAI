@@ -134,6 +134,26 @@ describe('useComponentPrefetch', () => {
     expect(result.current.getCached()).toBeUndefined()
     expect(warn).toHaveBeenCalled()
   })
+
+  it('prefetch() returns early when shouldPrefetch is false', async () => {
+    const loadFn = vi.fn(async () => 'value')
+    const { result } = renderHook(() => useComponentPrefetch('cmp-x', loadFn, false))
+    await act(async () => {
+      await result.current.prefetch()
+    })
+    expect(loadFn).not.toHaveBeenCalled()
+  })
+
+  it('clearCache() removes a cached component entry', async () => {
+    const loadFn = vi.fn(async () => 'cached-value')
+    const { result } = renderHook(() => useComponentPrefetch('cmp-c', loadFn, true))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150)
+    })
+    expect(result.current.getCached()).toBe('cached-value')
+    act(() => result.current.clearCache())
+    expect(result.current.getCached()).toBeUndefined()
+  })
 })
 
 describe('useDataPrefetch', () => {
@@ -199,5 +219,40 @@ describe('useDataPrefetch', () => {
     // Flush the re-fetch effect that fires because cache is now null,
     // so it doesn't leak an act() warning to subsequent tests.
     await act(async () => {})
+  })
+
+  it('fetchData returns null and skips fetchFn when enabled=false', async () => {
+    const fetchFn = vi.fn(async () => ({ value: 1 }))
+    const { result } = renderHook(() =>
+      useDataPrefetch('k-disabled', fetchFn, { enabled: false }),
+    )
+    await act(async () => {
+      const out = await result.current.fetchData()
+      expect(out).toBeNull()
+    })
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+
+  it('fetchData logs and returns cache?.data || null when fetchFn throws', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchFn = vi.fn(async () => {
+      throw new Error('boom')
+    })
+    const { result } = renderHook(() =>
+      useDataPrefetch('k-err', fetchFn, { staleTime: 1 }),
+    )
+    await act(async () => {
+      const out = await result.current.fetchData(true)
+      expect(out).toBeNull()
+    })
+    expect(err).toHaveBeenCalled()
+  })
+
+  it('getCachedData returns null when nothing has been fetched yet', () => {
+    const fetchFn = vi.fn(async () => ({ value: 0 }))
+    const { result } = renderHook(() =>
+      useDataPrefetch('k-empty', fetchFn, { enabled: false }),
+    )
+    expect(result.current.getCachedData()).toBeNull()
   })
 })
