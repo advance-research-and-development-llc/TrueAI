@@ -15,6 +15,7 @@
         "lint:fix": "eslint . --fix",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "check:deps": "npx --yes knip",
+        "check:model-policy": "node scripts/check-model-policy.mjs",
         "optimize": "vite optimize",
         "preview": "vite preview",
         "test": "vitest",
