@@ -2,8 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useState } from 'react'
 
+// Drive `useKV` through a mutable impl so individual tests can opt into
+// returning `null` (the documented "missing-from-store" branch) without
+// owning a separate test file.
+let useKVImpl: <T>(key: string, initial: T) => readonly [T | null, React.Dispatch<React.SetStateAction<T | null>>] =
+  <T,>(_key: string, initial: T) =>
+    useState<T | null>(initial) as unknown as readonly [
+      T | null,
+      React.Dispatch<React.SetStateAction<T | null>>,
+    ]
+
 vi.mock('@github/spark/hooks', () => ({
-  useKV: <T,>(_key: string, initial: T) => useState<T>(initial),
+  useKV: <T,>(key: string, initial: T) => useKVImpl<T>(key, initial),
 }))
 
 const { useContextualUI } = await import('./use-contextual-ui')
@@ -19,6 +29,12 @@ describe('useContextualUI', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+    // Restore the default useKV behaviour after any test that overrode it.
+    useKVImpl = <T,>(_key: string, initial: T) =>
+      useState<T | null>(initial) as unknown as readonly [
+        T | null,
+        React.Dispatch<React.SetStateAction<T | null>>,
+      ]
   })
 
   it('exposes the expected API surface', () => {
@@ -119,5 +135,95 @@ describe('useContextualUI', () => {
     expect(recs).not.toContain('chat')
     expect(recs).toContain('agents')
     expect(recs).toContain('workflows')
+  })
+
+  describe('time-of-day period branches inside generateSuggestions / trackTimeOfDay', () => {
+    it.each([
+      ['2024-01-01T08:00:00Z', 'morning'],
+      ['2024-01-01T13:00:00Z', 'afternoon'],
+      ['2024-01-01T19:00:00Z', 'evening'],
+      ['2024-01-01T23:30:00Z', 'night'],
+    ] as const)(
+      'routes %s into the "%s" bucket and surfaces a time-pattern suggestion',
+      (iso, bucket) => {
+        vi.setSystemTime(new Date(iso))
+        const { result } = renderHook(() => useContextualUI())
+        act(() => result.current.trackTimeOfDay('chat'))
+        expect(result.current.behavior?.timePatterns[bucket]).toContain('chat')
+        const ids = result.current.suggestions.map((s) => s.id)
+        expect(ids).toContain('time-pattern')
+      },
+    )
+  })
+
+  describe('null-behavior fallback (useKV returns null before hydration)', () => {
+    beforeEach(() => {
+      // Force useKV to start with `null`, which is the genuine
+      // "value not yet hydrated from IndexedDB" state. This exercises the
+      // `prev ?? initialBehavior`, `prev || []`, and `if (!behavior)`
+      // guards that the default `useState(initial)` mock skips entirely.
+      useKVImpl = <T,>(_key: string, _initial: T) =>
+        useState<T | null>(null) as unknown as readonly [
+          T | null,
+          React.Dispatch<React.SetStateAction<T | null>>,
+        ]
+    })
+
+    it('generateSuggestions returns [] when behavior is null', () => {
+      const { result } = renderHook(() => useContextualUI())
+      // The effect runs once with behavior=null and produces no suggestions.
+      expect(result.current.suggestions).toEqual([])
+    })
+
+    it('getPredictedNextAction returns null when behavior is null', () => {
+      const { result } = renderHook(() => useContextualUI())
+      expect(result.current.getPredictedNextAction()).toBeNull()
+    })
+
+    it('getRecommendedFeatures returns [] when behavior is null', () => {
+      const { result } = renderHook(() => useContextualUI())
+      expect(result.current.getRecommendedFeatures()).toEqual([])
+    })
+
+    it('trackFeatureUsage hydrates from initialBehavior when prev is null (?? fallback)', () => {
+      const { result } = renderHook(() => useContextualUI())
+      act(() => result.current.trackFeatureUsage('chat'))
+      // First call must seed via initialBehavior, then increment chat to 1.
+      expect(result.current.behavior?.mostUsedFeatures.chat).toBe(1)
+    })
+
+    it('trackTimeOfDay hydrates from initialBehavior when prev is null (?? fallback)', () => {
+      const { result } = renderHook(() => useContextualUI())
+      act(() => result.current.trackTimeOfDay('agents')) // afternoon @ 13:00
+      expect(result.current.behavior?.timePatterns.afternoon).toContain('agents')
+    })
+
+    it('trackError hydrates from initialBehavior when prev is null (?? fallback)', () => {
+      const { result } = renderHook(() => useContextualUI())
+      act(() => result.current.trackError('boom'))
+      expect(result.current.behavior?.errorPatterns).toContain('boom')
+    })
+
+    it('trackSessionDuration hydrates from initialBehavior when prev is null (?? fallback)', () => {
+      const { result } = renderHook(() => useContextualUI())
+      act(() => result.current.trackSessionDuration(5000))
+      expect(result.current.behavior?.sessionDuration).toEqual([5000])
+    })
+
+    it('dismissSuggestion handles null dismissedSuggestions list (|| [] fallback)', () => {
+      // Seed enough usage to surface a suggestion, then dismiss it. The
+      // `prev || []` guard inside dismissSuggestion fires because
+      // dismissedSuggestions is null.
+      const { result } = renderHook(() => useContextualUI())
+      for (let i = 0; i < 12; i++) {
+        act(() => result.current.trackFeatureUsage('chat'))
+      }
+      const ks = result.current.suggestions.find((s) => s.id === 'keyboard-shortcut')
+      expect(ks).toBeTruthy()
+      act(() => result.current.dismissSuggestion('keyboard-shortcut'))
+      expect(
+        result.current.suggestions.find((s) => s.id === 'keyboard-shortcut'),
+      ).toBeUndefined()
+    })
   })
 })
