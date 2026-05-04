@@ -874,3 +874,175 @@ describe('openGitHubIssue', () => {
     }
   })
 })
+
+describe('diagnostics — additional edge / fail-closed branches', () => {
+  it('shouldAutoSubmit blocks when debugOnly is true on a non-debug build', () => {
+    // isDebugBuild() returns true in the test env (no __APP_DEBUG__ define),
+    // so we set the global to false to exercise the release-build branch.
+    const g = globalThis as unknown as { __APP_DEBUG__?: boolean }
+    const orig = g.__APP_DEBUG__
+    g.__APP_DEBUG__ = false
+    try {
+      const cfg: ErrorReportingConfig = {
+        autoSubmit: true,
+        endpoint: 'https://example.com/r',
+        debugOnly: true,
+        androidOnly: false,
+        timeoutMs: 5000,
+        github: { owner: '', repo: '', labels: [] },
+      }
+      expect(shouldAutoSubmit(cfg).reason).toBe('release-build')
+    } finally {
+      if (orig === undefined) delete g.__APP_DEBUG__
+      else g.__APP_DEBUG__ = orig
+    }
+  })
+
+  it('submitDiagnosticReport returns no-fetch when fetch is undefined', async () => {
+    _resetErrorReportingConfigForTest()
+    const origFetch = globalThis.fetch
+    // Configure first while fetch exists, then strip fetch and submit.
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        errorReporting: {
+          enabled: true,
+          autoSubmit: true,
+          endpoint: 'https://example.com/r',
+          debugOnly: false,
+          androidOnly: false,
+          timeoutMs: 1000,
+        },
+      }),
+    } as unknown as Response) as unknown as typeof fetch
+    try {
+      await loadErrorReportingConfig()
+      // @ts-expect-error — deliberate
+      delete globalThis.fetch
+      const r = await submitDiagnosticReport(
+        makeReport({ error: { name: 'X', message: 'unique-' + Math.random(), stack: 's' } }),
+      )
+      expect(r.submitted).toBe(false)
+      expect(r.reason).toBe('no-fetch')
+    } finally {
+      globalThis.fetch = origFetch
+      _resetErrorReportingConfigForTest()
+    }
+  })
+
+  it('reloadBypassingCache unregisters service-worker registrations when present', async () => {
+    const origSWDesc = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker')
+    const unreg = vi.fn().mockResolvedValue(true)
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: null,
+        getRegistrations: vi.fn().mockResolvedValue([{ unregister: unreg }, { unregister: unreg }]),
+      },
+    })
+    const origLocDesc = Object.getOwnPropertyDescriptor(window, 'location')
+    const reloadSpy = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { reload: reloadSpy, href: '', origin: '', toString: () => '' },
+    })
+    try {
+      await reloadBypassingCache()
+      expect(unreg).toHaveBeenCalledTimes(2)
+      expect(reloadSpy).toHaveBeenCalled()
+    } finally {
+      if (origSWDesc) Object.defineProperty(navigator, 'serviceWorker', origSWDesc)
+      if (origLocDesc) Object.defineProperty(window, 'location', origLocDesc)
+    }
+  })
+
+  it('downloadErrorLog returns 0 when Blob is unavailable', () => {
+    appendErrorLogEntry(makeReport())
+    const origBlob = (globalThis as unknown as { Blob?: unknown }).Blob
+    // @ts-expect-error — deliberate
+    delete (globalThis as { Blob?: unknown }).Blob
+    try {
+      expect(downloadErrorLog()).toBe(0)
+    } finally {
+      ;(globalThis as { Blob?: unknown }).Blob = origBlob
+      clearErrorLog()
+    }
+  })
+
+  it('collectDiagnostics returns spark.present:false when window.spark is a primitive', async () => {
+    const w = window as unknown as { spark?: unknown }
+    const orig = w.spark
+    w.spark = 'not-an-object'
+    try {
+      const report = await collectDiagnostics()
+      expect(report.spark.present).toBe(false)
+    } finally {
+      w.spark = orig
+    }
+  })
+
+  it('collectDiagnostics serviceWorker block: handles getRegistrations rejection (catch branch)', async () => {
+    const origSWDesc = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker')
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: null,
+        getRegistrations: vi.fn().mockRejectedValue(new Error('sw boom')),
+      },
+    })
+    try {
+      const report = await collectDiagnostics()
+      expect(report.serviceWorker.supported).toBe(true)
+      expect(report.serviceWorker.controlled).toBe(false)
+      expect(report.serviceWorker.registrations).toBe(0)
+    } finally {
+      if (origSWDesc) Object.defineProperty(navigator, 'serviceWorker', origSWDesc)
+    }
+  })
+
+  it('collectDiagnostics serviceWorker block: returns full info when getRegistrations resolves', async () => {
+    const origSWDesc = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker')
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: { state: 'activated' },
+        getRegistrations: vi.fn().mockResolvedValue([{ scope: '/a/' }, { scope: '/b/' }]),
+      },
+    })
+    try {
+      const report = await collectDiagnostics()
+      expect(report.serviceWorker.supported).toBe(true)
+      expect(report.serviceWorker.controlled).toBe(true)
+      expect(report.serviceWorker.registrations).toBe(2)
+      expect(report.serviceWorker.scopes).toEqual(['/a/', '/b/'])
+    } finally {
+      if (origSWDesc) Object.defineProperty(navigator, 'serviceWorker', origSWDesc)
+    }
+  })
+
+  it('appendErrorLogEntry / getErrorLog return false / [] when localStorage throws', () => {
+    const origLS = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('no storage')
+      },
+    })
+    try {
+      expect(appendErrorLogEntry(makeReport())).toBe(false)
+      expect(getErrorLog()).toEqual([])
+      expect(() => clearErrorLog()).not.toThrow()
+    } finally {
+      if (origLS) Object.defineProperty(globalThis, 'localStorage', origLS)
+    }
+  })
+
+  it('getErrorLog returns [] when stored payload lacks an entries array', () => {
+    localStorage.setItem(ERROR_LOG_STORAGE_KEY, JSON.stringify({ version: 1 }))
+    try {
+      expect(getErrorLog()).toEqual([])
+    } finally {
+      localStorage.removeItem(ERROR_LOG_STORAGE_KEY)
+    }
+  })
+})
