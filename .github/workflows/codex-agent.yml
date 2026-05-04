@@ -1,0 +1,101 @@
+name: Codex Agent Dispatch
+
+# Mirror of copilot-agent.yml's custom-task path for users running the OpenAI
+# Codex CLI. Inert until the repo owner configures a Codex runner — this
+# workflow only normalizes the task and surfaces it as a structured issue
+# labelled `codex-task` so the owner's Codex runner (local or self-hosted)
+# can pick it up.
+#
+# AGENTS.md (§A) is the portable contract; this workflow makes the dispatch
+# entry point match copilot-agent.yml so users on a different CLI don't have
+# to rebuild the task pipeline.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Task for the Codex agent to work on.'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dispatch:
+    name: Dispatch task to Codex runner
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ensure required labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh label create "codex-task" --color "0e8a16" \
+            --description "Task dispatched to Codex runner" --repo "$REPO" --force
+
+      - name: Dispatch task to Codex runner
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TASK: ${{ inputs.task_description }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          DATE=$(date -u '+%Y-%m-%d')
+          printf '%s' "$TASK" > /tmp/task_desc.txt
+          TASK_CONTENT=$(cat /tmp/task_desc.txt)
+          SLUG=$(echo "$TASK_CONTENT" | tr '[:upper:]' '[:lower:]' \
+            | tr -cs 'a-z0-9' '-' | sed 's/--*/-/g' | cut -c1-40 | sed 's/-$//')
+
+          cat > /tmp/task_body.md <<BODY_EOF
+          ## Manual agent task dispatch (Codex)
+
+          | Field | Value |
+          |---|---|
+          | **Runner** | \`codex\` |
+          | **Requested by** | @${ACTOR} |
+          | **Date** | ${DATE} |
+          | **Run** | https://github.com/${REPO}/actions/runs/${RUN_ID} |
+
+          ### Task
+
+          ${TASK_CONTENT}
+
+          ### Constraints the fix MUST satisfy
+
+          - [ ] All existing unit tests still pass (\`npm test\`)
+          - [ ] \`npm run lint\` exits 0 (no new errors)
+          - [ ] \`npm run build:dev\` succeeds
+          - [ ] \`package.json\` overrides pins must not be weakened
+          - [ ] No telemetry, analytics, or third-party network calls added
+
+          ### Instructions for the Codex runner
+
+          1. Read \`AGENTS.md\` (the portable agent contract) and \`.github/copilot/LEARNINGS.md\` first.
+          2. Implement the requested change following all repo conventions.
+          3. Run \`npm run lint\`, \`npm run build:dev\`, and \`npm test\` before opening the PR.
+          4. Use branch name: \`codex/fix-${RUN_NUMBER}-${SLUG}\`
+          5. Fill in the \`## Lessons learned\` section of the PR description.
+          BODY_EOF
+
+          TITLE="[Auto] Codex task: $(echo "$TASK_CONTENT" | cut -c1-80)"
+          ISSUE_URL=$(gh issue create \
+            --repo "$REPO" \
+            --title "$TITLE" \
+            --body-file /tmp/task_body.md \
+            --label "codex-task")
+          echo "Created issue: $ISSUE_URL"
+
+          {
+            echo "## Codex Agent Dispatch"
+            echo ""
+            echo "Issue created (label \`codex-task\`): $ISSUE_URL"
+            echo ""
+            echo "Inert until a Codex runner is wired up. See AGENTS.md."
+          } >> "$GITHUB_STEP_SUMMARY"
