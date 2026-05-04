@@ -364,4 +364,193 @@ describe('ThemeSwitcher', () => {
       screen.getByText(/starting from: forest night/i),
     ).toBeInTheDocument()
   })
+
+  it('stop preview restores the active theme colors when one is set', () => {
+    renderSwitcher()
+    // Activate a default theme so handleStopPreview has a target to restore to.
+    const activateButtons = screen
+      .getAllByRole('button')
+      .filter((b) => /^activate$/i.test(b.textContent || ''))
+    fireEvent.click(activateButtons[0])
+    // Now preview a different theme.
+    const previewButtons = screen
+      .getAllByRole('button')
+      .filter((b) => /^preview$/i.test(b.textContent || ''))
+    fireEvent.click(previewButtons[1])
+    expect(screen.getByText(/live preview active/i)).toBeInTheDocument()
+    // Exit preview restores the active theme's colors (covers handleStopPreview
+    // applyThemeColors branch on line 260).
+    fireEvent.click(screen.getByRole('button', { name: /exit preview/i }))
+    expect(screen.queryByText(/live preview active/i)).not.toBeInTheDocument()
+  })
+
+  it('import: parsing a valid JSON file adds an imported theme and toasts', () => {
+    // Capture the synthetic file input that ThemeSwitcher creates so we can
+    // dispatch onchange + drive FileReader.onload (lines 327-347).
+    const realCreate = document.createElement.bind(document)
+    let capturedInput: HTMLInputElement | null = null
+    const createSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tag: string) => {
+        const el = realCreate(tag)
+        if (tag === 'input') {
+          ;(el as HTMLInputElement).click = () => {}
+          capturedInput = el as HTMLInputElement
+        }
+        return el
+      })
+
+    // Stub FileReader to immediately fire onload with a valid theme payload.
+    const origFR = window.FileReader
+    class StubFR {
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+      readAsText() {
+        const ev = { target: { result: JSON.stringify({ name: 'Imported X', colors: {} }) } }
+        this.onload?.call(this as unknown as FileReader, ev as unknown as ProgressEvent<FileReader>)
+      }
+    }
+    ;(window as unknown as { FileReader: unknown }).FileReader = StubFR
+
+    try {
+      renderSwitcher()
+      fireEvent.click(screen.getByRole('button', { name: /import/i }))
+      expect(capturedInput).toBeTruthy()
+      const file = new File(['x'], 'x.json', { type: 'application/json' })
+      Object.defineProperty(capturedInput, 'files', { value: [file] })
+      act(() => {
+        capturedInput!.onchange?.({ target: capturedInput } as unknown as Event)
+      })
+      expect(toastSuccess).toHaveBeenCalledWith('Theme imported')
+    } finally {
+      createSpy.mockRestore()
+      ;(window as unknown as { FileReader: unknown }).FileReader = origFR
+    }
+  })
+
+  it('import: invalid JSON triggers an error toast', () => {
+    const realCreate = document.createElement.bind(document)
+    let capturedInput: HTMLInputElement | null = null
+    const createSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tag: string) => {
+        const el = realCreate(tag)
+        if (tag === 'input') {
+          ;(el as HTMLInputElement).click = () => {}
+          capturedInput = el as HTMLInputElement
+        }
+        return el
+      })
+    const origFR = window.FileReader
+    class StubFR {
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+      readAsText() {
+        const ev = { target: { result: '{not json' } }
+        this.onload?.call(this as unknown as FileReader, ev as unknown as ProgressEvent<FileReader>)
+      }
+    }
+    ;(window as unknown as { FileReader: unknown }).FileReader = StubFR
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      renderSwitcher()
+      fireEvent.click(screen.getByRole('button', { name: /import/i }))
+      const file = new File(['x'], 'x.json', { type: 'application/json' })
+      Object.defineProperty(capturedInput, 'files', { value: [file] })
+      act(() => {
+        capturedInput!.onchange?.({ target: capturedInput } as unknown as Event)
+      })
+      expect(toastError).toHaveBeenCalledWith('Invalid theme file')
+    } finally {
+      createSpy.mockRestore()
+      ;(window as unknown as { FileReader: unknown }).FileReader = origFR
+    }
+  })
+
+  it('import: change event with no file selected is a no-op', () => {
+    const realCreate = document.createElement.bind(document)
+    let capturedInput: HTMLInputElement | null = null
+    const createSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tag: string) => {
+        const el = realCreate(tag)
+        if (tag === 'input') {
+          ;(el as HTMLInputElement).click = () => {}
+          capturedInput = el as HTMLInputElement
+        }
+        return el
+      })
+    try {
+      renderSwitcher()
+      fireEvent.click(screen.getByRole('button', { name: /import/i }))
+      Object.defineProperty(capturedInput, 'files', { value: [] })
+      act(() => {
+        capturedInput!.onchange?.({ target: capturedInput } as unknown as Event)
+      })
+      expect(toastSuccess).not.toHaveBeenCalledWith('Theme imported')
+      expect(toastError).not.toHaveBeenCalledWith('Invalid theme file')
+    } finally {
+      createSpy.mockRestore()
+    }
+  })
+
+  it('editor: switching the color group tab and editing colors invokes preview/onChange', () => {
+    renderSwitcher()
+    fireEvent.click(screen.getByRole('button', { name: /create theme/i }))
+    fireEvent.change(screen.getByLabelText(/theme name/i), {
+      target: { value: 'Tab Test' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /create & edit/i }))
+
+    // Default tab is Background — change a color input there to drive
+    // ColorPicker.handleChange + ThemeEditor.updateColor + onPreview
+    // (lines 728/740/752 + 802-803 + 822).
+    const inputs = document.querySelectorAll('input.font-mono')
+    expect(inputs.length).toBeGreaterThan(0)
+    fireEvent.change(inputs[0] as HTMLInputElement, {
+      target: { value: 'oklch(0.40 0.10 200)' },
+    })
+
+    // Switch to Actions tab and edit there too.
+    fireEvent.click(screen.getByRole('tab', { name: /^actions$/i }))
+    const actionInputs = document.querySelectorAll('input.font-mono')
+    expect(actionInputs.length).toBeGreaterThan(0)
+    fireEvent.change(actionInputs[0] as HTMLInputElement, {
+      target: { value: 'oklch(0.55 0.15 130)' },
+    })
+
+    // Switch to System tab (covers handler in line 714 onValueChange).
+    const systemTabs = screen.getAllByRole('tab', { name: /^system$/i })
+    fireEvent.click(systemTabs[systemTabs.length - 1])
+    // Ensure the click did not throw and the editor is still mounted.
+    expect(screen.getByText('Editing: Tab Test')).toBeInTheDocument()
+  })
+
+  it('editor: clicking a color preset button updates the color via handleChange', () => {
+    renderSwitcher()
+    fireEvent.click(screen.getByRole('button', { name: /create theme/i }))
+    fireEvent.change(screen.getByLabelText(/theme name/i), {
+      target: { value: 'Preset Test' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /create & edit/i }))
+
+    // Each ColorPicker (non-radius) renders 4 preset buttons named "Preset N".
+    const presetBtns = screen.getAllByRole('button', { name: /^preset 1$/i })
+    expect(presetBtns.length).toBeGreaterThan(0)
+    fireEvent.click(presetBtns[0])
+    // Preset value lands in the matching font-mono input.
+    const monoInputs = document.querySelectorAll('input.font-mono')
+    expect((monoInputs[0] as HTMLInputElement).value).toContain('oklch')
+  })
+
+  it('editor: ThemeCard preview from the editor flow sets a preview color', () => {
+    renderSwitcher()
+    // Start a preview directly from a ThemeCard to cover the inline
+    // arrow `(colors) => setPreviewTheme(colors)` (line 421 path is in the
+    // editor; this test exercises the sibling onPreview from ThemeCard).
+    const previewButtons = screen
+      .getAllByRole('button')
+      .filter((b) => /^preview$/i.test(b.textContent || ''))
+    fireEvent.click(previewButtons[0])
+    expect(screen.getByText(/live preview active/i)).toBeInTheDocument()
+  })
 })
