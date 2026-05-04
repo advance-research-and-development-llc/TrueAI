@@ -10,7 +10,7 @@ export default [
       '**/dist/**',
       '**/node_modules/**',
       '**/packages/**',
-      'Admin-Virtual-team-enhanced/**',
+      'admin-virtual-team-enhanced/**',
       '**/*.config.js',
       '**/*.config.ts',
       '**/*.config.mjs',
