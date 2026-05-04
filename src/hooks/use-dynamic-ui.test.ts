@@ -141,4 +141,40 @@ describe('useDynamicUI', () => {
     act(() => result.current.updatePreference('animationIntensity', 'enhanced'))
     expect(result.current.getAnimationClasses()).toContain('hover:scale')
   })
+
+  it('adapts to small-desktop widths (1024 <= width < 1280)', () => {
+    setInnerWidth(1100)
+    const { result } = renderHook(() => useDynamicUI())
+    expect(result.current.adaptiveLayout.columnCount).toBe(2)
+    expect(result.current.adaptiveLayout.cardSize).toBe('medium')
+    expect(result.current.adaptiveLayout.showSidebar).toBe(true)
+  })
+
+  it('falls back to base classes for unknown cardStyle / animationIntensity', () => {
+    setInnerWidth(1280)
+    const { result } = renderHook(() => useDynamicUI())
+    // Cast to any to exercise the default switch branches.
+    act(() => result.current.updatePreference('cardStyle', 'unknown' as never))
+    expect(result.current.getCardStyleClasses()).toBe('transition-all duration-200')
+    act(() => result.current.updatePreference('animationIntensity', 'unknown' as never))
+    expect(result.current.getAnimationClasses()).toBe('transition-all duration-200')
+  })
+})
+
+describe('useDynamicUI when preferences hook returns null', () => {
+  it('returns safe defaults from each helper', async () => {
+    vi.resetModules()
+    vi.doMock('@github/spark/hooks', () => ({
+      useKV: () => [undefined, () => {}, () => {}],
+    }))
+    const { useDynamicUI: useDynamicUINull } = await import('./use-dynamic-ui')
+    setInnerWidth(1280)
+    const { result } = renderHook(() => useDynamicUINull())
+    expect(result.current.getSpacingClass()).toBe('gap-4')
+    expect(result.current.getPaddingClass()).toBe('p-4')
+    expect(result.current.getFontSizeClass()).toBe('text-base')
+    expect(result.current.getCardStyleClasses()).toBe('')
+    expect(result.current.getAnimationClasses()).toBe('')
+    vi.doUnmock('@github/spark/hooks')
+  })
 })
