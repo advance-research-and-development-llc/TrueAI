@@ -138,4 +138,32 @@ describe('AgentScheduler', () => {
     // The component renders {!enabled && ...} disabled section
     expect(screen.getByText(/enable scheduling to configure/i)).toBeInTheDocument()
   })
+
+  it('updates time input via onChange (covers line 133)', () => {
+    const onUpdateSchedule = vi.fn()
+    render(<AgentScheduler agent={mockAgent} onUpdateSchedule={onUpdateSchedule} />)
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
+    const timeInput = screen.getByDisplayValue('09:00') as HTMLInputElement
+    fireEvent.change(timeInput, { target: { value: '15:45' } })
+    expect(timeInput.value).toBe('15:45')
+    fireEvent.click(screen.getByRole('button', { name: /save schedule/i }))
+    expect(onUpdateSchedule).toHaveBeenCalledOnce()
+  })
+
+  it('updates frequency via Select onValueChange (covers line 111)', async () => {
+    const onUpdateSchedule = vi.fn()
+    render(<AgentScheduler agent={mockAgent} onUpdateSchedule={onUpdateSchedule} />)
+    const switchEl = document.querySelector('[data-slot="switch"]')!
+    fireEvent.click(switchEl)
+    const trigger = screen.getByRole('combobox')
+    fireEvent.click(trigger)
+    const weekly = await screen.findByRole('option', { name: /weekly/i })
+    fireEvent.click(weekly)
+    fireEvent.click(screen.getByRole('button', { name: /save schedule/i }))
+    expect(onUpdateSchedule).toHaveBeenCalledWith(
+      'agent-1',
+      expect.objectContaining({ frequency: 'weekly' }),
+    )
+  })
 })
