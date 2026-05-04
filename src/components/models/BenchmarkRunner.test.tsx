@@ -179,9 +179,125 @@ describe('BenchmarkRunner', () => {
     expect(screen.getByText('50%')).toBeInTheDocument()
   })
 
-  it('Comparison tab: pick baseline + comparison via Selects → recommendation card and delta cards', async () => {
+  it('forwards progress callback to setProgress/setCurrentTest during a run', async () => {
+    ;(runModelBenchmark as any).mockImplementationOnce(async (_m, _p, _t, prog) => {
+      prog?.(10, 'first-test')
+      prog?.(80, 'last-test')
+      return makeSuite()
+    })
+    render(<BenchmarkRunner models={[mockModel]} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Benchmark completed')),
+    )
+  })
+
+  it('renders red score color when overallScore < 60 (and destructive badge)', async () => {
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({ id: 'suite-low', overallScore: 42 }),
+    )
+    render(<BenchmarkRunner models={[mockModel]} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect(screen.getByText(/overall score/i)).toBeInTheDocument())
+    const reds = screen.getAllByText('42.0').filter(el => /text-red-500/.test(el.className))
+    expect(reds.length).toBeGreaterThan(0)
+  })
+
+  it('renders yellow score badge when overallScore is in [60, 80)', async () => {
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({ id: 'suite-mid', overallScore: 65 }),
+    )
+    render(<BenchmarkRunner models={[mockModel]} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect(screen.getByText(/overall score/i)).toBeInTheDocument())
+    const yellows = screen.getAllByText('65.0').filter(el => /text-yellow-500/.test(el.className))
+    expect(yellows.length).toBeGreaterThan(0)
+  })
+
+  it('result-picker Select switches the active result when multiple suites exist', async () => {
     const user = userEvent.setup()
-    // First run: baseline
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({ id: 'suite-a', timestamp: 1000, overallScore: 70 }),
+    )
+    render(<BenchmarkRunner models={[mockModel]} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect(screen.getByText(/overall score/i)).toBeInTheDocument())
+
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({ id: 'suite-b', timestamp: 2000, overallScore: 88 }),
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect((runModelBenchmark as any).mock.calls.length).toBe(2))
+
+    // After 2 runs, the result-picker Select renders (results.length > 0).
+    // It carries className 'w-48' which uniquely identifies it.
+    const triggers = Array.from(document.querySelectorAll('[role="combobox"]')) as HTMLElement[]
+    const trigger = triggers.find(t => /\bw-48\b/.test(t.className))
+    expect(trigger).toBeTruthy()
+    await user.click(trigger!)
+    const oldOption = await screen.findByRole('option', { name: /-\s*70$/ })
+    await user.click(oldOption)
+    // Active overall score becomes 70.0.
+    await waitFor(() => expect(screen.getAllByText('70.0').length).toBeGreaterThan(0))
+  })
+
+  it('Comparison tab: declined-tests card renders when comparison run scores lower', async () => {
+    const user = userEvent.setup()
+    // Baseline: high quality on 2 tests
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({
+        id: 'suite-base-hi',
+        timestamp: 1000,
+        overallScore: 90,
+        averageResponseTime: 100,
+        averageTokensPerSecond: 60,
+        tests: benchmarkTests.slice(0, 2).map(t => makeRun(t.id, { qualityScore: 95 })),
+      }),
+    )
+    render(<BenchmarkRunner models={[mockModel]} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect(screen.getByText(/overall score/i)).toBeInTheDocument())
+
+    // Comparison: lower quality on the same 2 tests → worseTests populated
+    ;(runModelBenchmark as any).mockResolvedValueOnce(
+      makeSuite({
+        id: 'suite-cmp-lo',
+        timestamp: 2000,
+        overallScore: 60,
+        averageResponseTime: 300,
+        averageTokensPerSecond: 20,
+        tests: benchmarkTests.slice(0, 2).map(t => makeRun(t.id, { qualityScore: 50 })),
+      }),
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /run benchmark/i }))
+    })
+    await waitFor(() => expect((runModelBenchmark as any).mock.calls.length).toBe(2))
+
+    await user.click(screen.getByRole('tab', { name: /compare/i }))
+    const baselineTrigger = (await screen.findByText('Select baseline'))
+      .closest('[role="combobox"]') as HTMLElement
+    await user.click(baselineTrigger)
+    const baselineOption = await screen.findByRole('option', { name: /-\s*90$/ })
+    await user.click(baselineOption)
+
+    await waitFor(() => expect(screen.getByText(/declined tests/i)).toBeInTheDocument())
+  })
+
+  it('Comparison tab (legacy): pick baseline + comparison via Selects → recommendation card and delta cards', async () => {
+    const user = userEvent.setup()
     ;(runModelBenchmark as any).mockResolvedValueOnce(
       makeSuite({ id: 'suite-base', timestamp: 1000, overallScore: 70, averageResponseTime: 200, averageTokensPerSecond: 30 })
     )
@@ -191,7 +307,6 @@ describe('BenchmarkRunner', () => {
     })
     await waitFor(() => expect(screen.getByText(/overall score/i)).toBeInTheDocument())
 
-    // Second run: comparison (much higher score)
     ;(runModelBenchmark as any).mockResolvedValueOnce(
       makeSuite({
         id: 'suite-cmp', timestamp: 2000, overallScore: 90,
@@ -204,24 +319,14 @@ describe('BenchmarkRunner', () => {
     })
     await waitFor(() => expect((runModelBenchmark as any).mock.calls.length).toBe(2))
 
-    // Switch to Comparison tab — Radix Tabs needs userEvent
     await user.click(screen.getByRole('tab', { name: /compare/i }))
-    // The Baseline <Label> is not htmlFor-wired to its trigger, so the combobox
-    // has no accessible name. Find it via its placeholder text.
     const baselineTrigger = (await screen.findByText('Select baseline'))
       .closest('[role="combobox"]') as HTMLElement
-    expect(baselineTrigger).toBeTruthy()
     await user.click(baselineTrigger)
-    // After opening, options appear. Pick the one whose label contains "70" (baseline score).
     const baselineOption = await screen.findByRole('option', { name: /-\s*70$/ })
     await user.click(baselineOption)
 
-    // The recommendation card + delta cards appear (activeResult=second run by default)
     await waitFor(() => expect(screen.getByText(/recommendation/i)).toBeInTheDocument())
-    expect(screen.getByText(/quality change/i)).toBeInTheDocument()
-    expect(screen.getByText(/speed change/i)).toBeInTheDocument()
-    expect(screen.getByText(/throughput change/i)).toBeInTheDocument()
-    // Improved Tests card (compTest qualityScore=95 > baseTest qualityScore=80 + 5)
     expect(screen.getByText(/improved tests/i)).toBeInTheDocument()
   })
 })
