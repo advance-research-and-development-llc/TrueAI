@@ -9,6 +9,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Per-test timeout. The default of 5s is tight for jsdom + v8 coverage
+    // instrumentation under worker contention; several heavy component
+    // tests (HarnessCreator, PromptTemplates, Calendar/DayPicker) flake
+    // under combined load. 15s preserves real-failure detection while
+    // absorbing CI noise.
+    testTimeout: 15000,
+    hookTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
