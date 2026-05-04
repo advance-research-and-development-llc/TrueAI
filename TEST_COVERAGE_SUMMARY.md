@@ -5,6 +5,56 @@
 
 ## Current snapshot
 
+_As of 2026-05-04 (post sidebar primitive coverage)._
+
+| Metric | Value | Δ vs. prior snapshot |
+|---|---|---|
+| Test files | **208** | +1 |
+| Tests | **2862** | +27 *(net of 2 unrelated pre-existing config.ts assertion failures)* |
+| Global lines | **84.14%** | +0.73 pp |
+| Global branches | **74.15%** | +0.88 pp |
+| Global functions | **74.76%** | +1.04 pp |
+| Global statements | **81.70%** | +0.69 pp |
+
+This sweep landed:
+
+- `src/components/ui/sidebar.test.tsx` — **+27 tests** taking
+  `src/components/ui/sidebar.tsx` (the only remaining ≥30 LOC file at
+  0% coverage) from **0 / 0 / 0 / 0** to **100 / 100 / 100 / 97.26**
+  (lines / functions / statements / branches). Unlike the thin
+  Radix wrappers exercised in `shadcn-primitives.test.tsx`, sidebar
+  ships substantial app logic — controlled and uncontrolled provider
+  state, cookie persistence, the Ctrl+B / Meta+B keyboard shortcut
+  (with its `preventDefault` and per-key gating), the
+  `useSidebar` context guard, the mobile-Sheet portal branch versus
+  the desktop variant matrix (`side` × `variant` × `collapsible`),
+  the `SidebarTrigger`/`SidebarRail` toggle paths, and every
+  `asChild` / `tooltip` / `showOnHover` / `size` permutation across
+  `SidebarMenuButton`, `SidebarMenuAction`, `SidebarMenuSubButton`,
+  `SidebarGroupLabel`, `SidebarGroupAction`, and `SidebarMenuSkeleton`
+  (with `Math.random` stubbed for the inline `--skeleton-width`
+  CSS-var assertion).
+
+After this sweep the largest remaining uncovered surface is the
+explicitly deferred App / Builder shell (`AppBuilder.tsx`,
+`LocalIDE.tsx`, the heavy event handlers in `App.tsx`/`App-Enhanced.tsx`)
+— see Phase 4 in the roadmap.
+
+`vitest.config.ts` thresholds are unchanged at **lines 83 / fns 73 /
+branches 73 / stmts 80**; the new floor is comfortably above the
+pre-2.8 ratchet, leaving headroom for the next App-shell slice to
+ratchet without touching the threshold block.
+
+`npm test` and `npm run test:coverage` both pass cleanly modulo two
+pre-existing `src/lib/llm-runtime/config.test.ts` assertion
+failures (`floors fractional topK`, `rejects … repeatPenalty (<1)`)
+that disagree with the validators in
+`src/lib/llm-runtime/config.ts:180-193` — those are unrelated to
+coverage work and were left for a follow-up. Coverage reports are
+written to `coverage/` (`text`, `json`, `html`, `lcov`).
+
+## Earlier snapshot (post Phase 2.8)
+
 _As of 2026-05-03 (post Phase 2.8 — `App.tsx` shell uplift)._
 
 | Metric | Value | Δ vs. prior snapshot |
