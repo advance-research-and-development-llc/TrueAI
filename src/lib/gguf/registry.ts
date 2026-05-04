@@ -137,8 +137,8 @@ export class LowDiskSpaceError extends Error {
     public readonly available: number,
   ) {
     super(
-      `Not enough free space to import this model: need ${formatBytes(required)} ` +
-        `(file × ${FREE_SPACE_MARGIN.toFixed(2)} safety margin), only ${formatBytes(available)} available.`,
+      `Not enough free space to import this model: need at least ${formatBytes(required)} ` +
+        `(file size + 10% safety margin), only ${formatBytes(available)} available.`,
     )
     this.name = 'LowDiskSpaceError'
   }
