@@ -323,4 +323,62 @@ describe('ConfidenceThresholdConfig', () => {
       createSpy.mockRestore()
     }
   })
+
+  it('moves the per-severity slider and invokes handleThresholdChange', async () => {
+    const user = userEvent.setup()
+    const onConfigChange = vi.fn()
+    render(
+      <ConfidenceThresholdConfig
+        config={DEFAULT_THRESHOLDS}
+        onConfigChange={onConfigChange}
+      />
+    )
+    await user.click(screen.getByRole('tab', { name: /advanced/i }))
+    const sliders = screen.getAllByRole('slider')
+    // The first slider in the Advanced tab is the per-severity (critical) slider.
+    sliders[0].focus()
+    fireEvent.keyDown(sliders[0], { key: 'ArrowRight' })
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thresholds: expect.objectContaining({
+          critical: expect.objectContaining({
+            minConfidence: expect.any(Number),
+          }),
+        }),
+      })
+    )
+  })
+
+  it('moves the global-min and max-implement sliders', async () => {
+    const user = userEvent.setup()
+    const onConfigChange = vi.fn()
+    render(
+      <ConfidenceThresholdConfig
+        config={DEFAULT_THRESHOLDS}
+        onConfigChange={onConfigChange}
+      />
+    )
+    await user.click(screen.getByRole('tab', { name: /advanced/i }))
+    const sliders = screen.getAllByRole('slider')
+    // The last two sliders in the Advanced tab are the Global Settings card.
+    const globalSlider = sliders[sliders.length - 2]
+    const maxImplSlider = sliders[sliders.length - 1]
+
+    globalSlider.focus()
+    fireEvent.keyDown(globalSlider, { key: 'ArrowRight' })
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        globalMinConfidence: expect.any(Number),
+      })
+    )
+
+    onConfigChange.mockClear()
+    maxImplSlider.focus()
+    fireEvent.keyDown(maxImplSlider, { key: 'ArrowRight' })
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxAutoImplementPerSession: expect.any(Number),
+      })
+    )
+  })
 })
