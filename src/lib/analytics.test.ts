@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { AnalyticsEvent } from './types'
+import type { AnalyticsEvent, AnalyticsEventType, AnalyticsSession } from './types'
 
 // Mock the global spark object
 declare global {
@@ -335,6 +335,94 @@ describe('AnalyticsService', () => {
 
       expect(events).toBeUndefined()
       expect(sessions).toBeUndefined()
+    })
+  })
+
+  describe('additional metric branches', () => {
+    let getMetrics: () => Promise<unknown>
+
+    beforeEach(async () => {
+      const module = await import('./analytics')
+      analyticsInstance = module.analytics
+      getMetrics = module.analytics.getMetrics.bind(module.analytics)
+    })
+
+    it('mostUsedTools rolls up tool_used events with metadata.tool (lines 257-268)', async () => {
+      await analyticsInstance.track('tool_used', 'agent', 'use_tool', { metadata: { tool: 'calculator' } })
+      await analyticsInstance.track('tool_used', 'agent', 'use_tool', { metadata: { tool: 'calculator' } })
+      await analyticsInstance.track('tool_used', 'agent', 'use_tool', { metadata: { tool: 'web_search' } })
+      const metrics = (await getMetrics()) as {
+        agentMetrics: { mostUsedTools: Array<{ tool: string; count: number }> }
+      }
+      const tools = metrics.agentMetrics.mostUsedTools
+      expect(tools.find((t) => t.tool === 'calculator')?.count).toBe(2)
+      expect(tools.find((t) => t.tool === 'web_search')?.count).toBe(1)
+    })
+
+    it('mostPopularModels sorts and slices by download count (lines 287-296)', async () => {
+      // Three downloads of "alpha", two of "beta", one of "gamma" → sort desc.
+      for (const name of ['alpha', 'alpha', 'alpha', 'beta', 'beta', 'gamma']) {
+        await analyticsInstance.track('model_downloaded', 'models', 'download', {
+          metadata: { modelId: `id-${name}-${Math.random()}`, modelName: name, size: 1000 },
+        })
+      }
+      const metrics = (await getMetrics()) as {
+        modelMetrics: { mostPopularModels: Array<{ model: string; downloads: number }> }
+      }
+      const top = metrics.modelMetrics.mostPopularModels
+      expect(top[0].model).toBe('alpha')
+      expect(top[0].downloads).toBeGreaterThanOrEqual(3)
+      expect(top.find((m) => m.model === 'beta')?.downloads).toBeGreaterThanOrEqual(2)
+    })
+
+    it('eventsByDay buckets events into separate dates and sorts them (line 199)', async () => {
+      // Seed two events with timestamps on different days, then call getMetrics.
+      const earlier: AnalyticsEvent[] = [
+        {
+          id: 't-day1',
+          type: 'page_viewed' as AnalyticsEventType,
+          category: 'navigation',
+          action: 'view',
+          timestamp: new Date('2026-01-01T10:00:00Z').getTime(),
+          sessionId: 's1',
+        },
+        {
+          id: 't-day2',
+          type: 'page_viewed' as AnalyticsEventType,
+          category: 'navigation',
+          action: 'view',
+          timestamp: new Date('2026-01-02T10:00:00Z').getTime(),
+          sessionId: 's1',
+        },
+        {
+          id: 't-day3',
+          type: 'page_viewed' as AnalyticsEventType,
+          category: 'navigation',
+          action: 'view',
+          timestamp: new Date('2026-01-03T10:00:00Z').getTime(),
+          sessionId: 's1',
+        },
+      ]
+      await spark.kv.set('analytics-events', earlier)
+      const metrics = (await getMetrics()) as {
+        eventsByDay: Array<{ date: string; count: number }>
+      }
+      expect(metrics.eventsByDay.length).toBe(3)
+      // Ascending date order: 2026-01-01, 02, 03 — exercises the sort callback.
+      expect(metrics.eventsByDay[0].date).toBe('2026-01-01')
+      expect(metrics.eventsByDay[2].date).toBe('2026-01-03')
+    })
+
+    it('averageSessionDuration averages over completed sessions (line 141)', async () => {
+      const sessions: AnalyticsSession[] = [
+        { id: 's-c1', startedAt: 0, endedAt: 1000, duration: 1000, eventCount: 1, userId: 'u' },
+        { id: 's-c2', startedAt: 0, endedAt: 3000, duration: 3000, eventCount: 1, userId: 'u' },
+      ]
+      await spark.kv.set('analytics-sessions', sessions)
+      // Need at least one event so getMetrics doesn't short-circuit.
+      await analyticsInstance.track('page_viewed', 'navigation', 'view')
+      const metrics = (await getMetrics()) as { averageSessionDuration: number }
+      expect(metrics.averageSessionDuration).toBe(2000)
     })
   })
 })
