@@ -248,4 +248,37 @@ describe('HuggingFaceModelBrowser', () => {
       resolveDl(new Blob(['x']))
     })
   })
+
+  it('successful download: timeout clears the entry from downloads map (covers cleanup setTimeout)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const onDownload = vi.fn()
+    mockDownloadModel.mockResolvedValue(new Blob(['x']))
+    await act(async () => {
+      render(<HuggingFaceModelBrowser onDownload={onDownload} />)
+    })
+    await waitFor(() => expect(screen.getByText('Llama-3')).toBeInTheDocument())
+    const downloadBtns = screen.getAllByRole('button', { name: /download$/i })
+    await act(async () => { fireEvent.click(downloadBtns[0]) })
+    await waitFor(() => expect(onDownload).toHaveBeenCalled())
+    // Advance past the 3000ms cleanup setTimeout.
+    await act(async () => { vi.advanceTimersByTime(3500) })
+    vi.useRealTimers()
+  })
+
+  it('failed download: timeout clears the entry from downloads map (covers error cleanup setTimeout)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockDownloadModel.mockRejectedValueOnce(new Error('boom'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await act(async () => {
+      render(<HuggingFaceModelBrowser onDownload={vi.fn()} />)
+    })
+    await waitFor(() => expect(screen.getByText('Llama-3')).toBeInTheDocument())
+    const downloadBtns = screen.getAllByRole('button', { name: /download$/i })
+    await act(async () => { fireEvent.click(downloadBtns[0]) })
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Download failed: boom'))
+    // Advance past the 5000ms error cleanup setTimeout.
+    await act(async () => { vi.advanceTimersByTime(5500) })
+    errSpy.mockRestore()
+    vi.useRealTimers()
+  })
 })
