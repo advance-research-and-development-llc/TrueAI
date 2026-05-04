@@ -20,7 +20,7 @@ permissions:
 jobs:
   dispatch:
     name: Triage runtime crash report
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8-core
     if: contains(github.event.issue.labels.*.name, 'runtime-crash')
 
     steps:

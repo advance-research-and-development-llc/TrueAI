@@ -30,7 +30,7 @@ concurrency:
 jobs:
   ingest:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v5

@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     # Scopes Play/F-Droid/signing secrets to the `release` environment
     # configured under Settings → Environments. Owner can require
     # manual approval there for an extra gate before any APK ships.

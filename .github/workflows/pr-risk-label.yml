@@ -27,7 +27,7 @@ concurrency:
 jobs:
   classify:
     name: Compute risk label
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8-core
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v5

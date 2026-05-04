@@ -2,9 +2,57 @@ import '@testing-library/jest-dom'
 import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
+// jsdom 26+ no longer ships a working `Storage` implementation by default
+// (the `--localstorage-file` warning seen in CI is the symptom). Provide a
+// minimal in-memory polyfill so anything reading/writing localStorage or
+// sessionStorage during tests behaves like a real browser. Each test gets a
+// fresh store via the afterEach below.
+function createMemoryStorage(): { Cls: new () => Storage; instance: Storage } {
+  class MemoryStorage implements Storage {
+    private data = new Map<string, string>()
+    get length(): number {
+      return this.data.size
+    }
+    clear(): void {
+      this.data = new Map()
+    }
+    getItem(key: string): string | null {
+      return this.data.has(key) ? (this.data.get(key) as string) : null
+    }
+    key(index: number): string | null {
+      return Array.from(this.data.keys())[index] ?? null
+    }
+    removeItem(key: string): void {
+      this.data.delete(key)
+    }
+    setItem(key: string, value: string): void {
+      this.data.set(String(key), String(value))
+    }
+  }
+  return { Cls: MemoryStorage, instance: new MemoryStorage() }
+}
+
+if (typeof window !== 'undefined') {
+  const { Cls, instance: ls } = createMemoryStorage()
+  const { instance: ss } = createMemoryStorage()
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: ls })
+  Object.defineProperty(window, 'sessionStorage', { configurable: true, value: ss })
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: ls })
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: ss })
+  // Expose `Storage` so tests using `Storage.prototype` to spy on methods work.
+  Object.defineProperty(window, 'Storage', { configurable: true, value: Cls })
+  Object.defineProperty(globalThis, 'Storage', { configurable: true, value: Cls })
+}
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()
+  try {
+    window.localStorage?.clear()
+    window.sessionStorage?.clear()
+  } catch {
+    // ignore - some tests stub these
+  }
 })
 
 // Mock window.matchMedia

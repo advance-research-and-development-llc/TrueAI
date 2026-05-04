@@ -24,7 +24,7 @@ permissions:
 jobs:
   dispatch:
     name: Dispatch fix issue
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     steps:
       - name: Ensure required labels exist
         env:

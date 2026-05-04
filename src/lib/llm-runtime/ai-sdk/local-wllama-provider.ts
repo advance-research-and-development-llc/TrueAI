@@ -64,6 +64,13 @@ interface WllamaInstance {
   isModelLoaded(): boolean
   loadModelFromUrl(url: string | string[], opts?: Record<string, unknown>): Promise<void>
   loadModelFromHF(modelId: string, filePath: string, opts?: Record<string, unknown>): Promise<void>
+  /**
+   * Load a model directly from a `Blob` / `File`. Available since
+   * `@wllama/wllama` 2.x and used by PR 5's in-app GGUF importer to
+   * feed a Cache-Storage-backed model into the wasm runtime without
+   * an extra HTTP fetch.
+   */
+  loadModelFromBlob?(blob: Blob | File | Blob[], opts?: Record<string, unknown>): Promise<void>
   createChatCompletion(
     messages: WllamaChatMessage[],
     opts: WllamaCompletionOpts & { stream: true },
@@ -316,6 +323,52 @@ async function getOrCreateInstance(opts: LocalWllamaOptions): Promise<WllamaInst
         const repo = rest.slice(0, colon)
         const file = rest.slice(colon + 1)
         await instance.loadModelFromHF(repo, file, loadCfg)
+      } else if (src.startsWith('cache://')) {
+        // PR 5: model lives in the in-app Cache Storage entry written
+        // by `copyImportedModel` on web. Pull the bytes out and hand
+        // wllama a Blob — `loadModelFromUrl` cannot read `cache://`.
+        if (!instance.loadModelFromBlob) {
+          throw new Error(
+            'cache:// model sources require @wllama/wllama with loadModelFromBlob support',
+          )
+        }
+        const cachesAny = (globalThis as { caches?: { open(name: string): Promise<{ match(req: string): Promise<Response | undefined> }> } }).caches
+        if (!cachesAny) {
+          throw new Error('Cache Storage is not available in this environment')
+        }
+        const cache = await cachesAny.open('truai-models')
+        const key = src.slice('cache://'.length)
+        const res = await cache.match(key)
+        if (!res) {
+          throw new Error(`No cached model entry: ${src}`)
+        }
+        const blob = await res.blob()
+        emitProgress({ state: 'downloading', loaded: blob.size, total: blob.size, source: src })
+        await instance.loadModelFromBlob(blob, loadCfg)
+      } else if (src.startsWith('file://')) {
+        // PR 5: model lives at an absolute device path written by the
+        // native FilePicker plugin. On a Capacitor WebView we can let
+        // wllama fetch it directly via `Capacitor.convertFileSrc`; if
+        // unavailable, fall back to reading the bytes through the
+        // native filesystem helper and feeding wllama a Blob.
+        const capAny = (globalThis as { Capacitor?: { convertFileSrc?: (uri: string) => string } }).Capacitor
+        if (capAny?.convertFileSrc) {
+          await instance.loadModelFromUrl(capAny.convertFileSrc(src), loadCfg)
+        } else {
+          if (!instance.loadModelFromBlob) {
+            throw new Error(
+              'file:// model sources without Capacitor.convertFileSrc require ' +
+                '@wllama/wllama with loadModelFromBlob support',
+            )
+          }
+          const { readFileChunk } = await import('@/lib/native/filesystem')
+          // Single read — sized to a 1 GB cap as a defence; native
+          // readFileChunk truncates to actual file length.
+          const bytes = await readFileChunk(src, 0, 1 << 30)
+          const blob = new Blob([bytes], { type: 'application/octet-stream' })
+          emitProgress({ state: 'downloading', loaded: blob.size, total: blob.size, source: src })
+          await instance.loadModelFromBlob(blob, loadCfg)
+        }
       } else {
         await instance.loadModelFromUrl(src, loadCfg)
       }

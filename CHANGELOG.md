@@ -1,5 +1,60 @@
 # Changelog - TrueAI LocalAI
 
+## Version 8.1.0 - PR 5: In-app GGUF importer + on-disk model registry (Unreleased)
+
+### ✨ Features
+
+- **In-app GGUF importer (PR 5)**. Models → Library now offers an
+  **Import .gguf file** button instead of the manual "type a path"
+  form. The importer:
+  - Picks a file from device storage — Android SAF
+    (`Intent.ACTION_OPEN_DOCUMENT`) via the new in-tree
+    `android/capacitor-file-picker/` Capacitor plugin, web
+    `<input type="file">` as a fallback.
+  - Validates the file as real GGUF v1/v2/v3 with a pure-TS
+    header parser (`src/lib/gguf/parse.ts`, no new deps).
+  - Hashes the bytes (SHA-256) and uses the digest as a stable
+    canonical id — re-importing the same file is a no-op.
+  - Refuses imports that would leave less than 10 % free disk
+    space, surfacing a `LowDiskSpaceError` toast.
+  - Copies the file into app-private storage
+    (`Filesystem.Directory.Data/models/<sha>.gguf` on native,
+    Cache Storage on web — keeps multi-GB blobs off the heap).
+  - Wires "Set active" through to `LLMRuntimeConfig.baseUrl` and
+    `defaultModel` so the existing `local-native` and `local-wasm`
+    providers light up automatically — no Settings round-trip.
+- **`local-wllama` provider** now accepts two new `modelSource`
+  forms: `cache://models/<sha>.gguf` (Cache Storage on web) and
+  `file://...` (Capacitor `convertFileSrc` on native, with a
+  `readFileChunk` + Blob fallback). The existing URL and `hf:`
+  workflows are unchanged.
+- **`FilePicker` Capacitor plugin** — in-tree, no new npm dep, no
+  new Android permissions (SAF is permissionless). Exposes
+  `pickGgufFile`, `getFreeSpaceBytes`, `deleteStaged` to JS.
+
+### 🔧 Internals
+
+- New module: `src/lib/gguf/` (parser + registry).
+- Extended: `src/lib/native/filesystem.ts` (`readFileChunk`,
+  `copyImportedModel`, `deleteModelFile`, `getFreeSpaceBytes`,
+  `getModelStoragePath`, `NATIVE_BINARY_CHUNK_BYTES`).
+- New module: `src/lib/native/file-picker.ts` (JS shim over the
+  Capacitor plugin + web fallback).
+- `local-native-provider.ts` "no model configured" error now
+  points at the new UI rather than referencing PR 5 as future
+  work.
+- No schema migration: the existing `gguf-models` KV key is
+  reused and legacy entries lacking `path`/`metadata` are
+  pruned at first read.
+
+### ✅ Validated
+
+- `npm ci` installs without errors.
+- `npm run lint` clean.
+- `npm test` — all existing + 65 new PR-5 tests pass.
+- `npm run build:dev` succeeds.
+- No new npm dependencies; CVE-pinned overrides preserved.
+
 ## Version 8.0.0 - 2026-04-28
 
 - New major release with all fixes, upgrades, and optimizations fully implemented and working properly.

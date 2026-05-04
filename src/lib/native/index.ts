@@ -17,7 +17,25 @@ export { share, canShare, type ShareOptions } from './share'
 export { haptics } from './haptics'
 export { pushBackHandler, onAppResume, initAppLifecycle } from './app-lifecycle'
 export { notify, type NotifyOptions } from './notifications'
-export { saveTextFile, type SaveTextFileResult } from './filesystem'
+export {
+  saveTextFile,
+  readFileChunk,
+  copyImportedModel,
+  deleteModelFile,
+  getFreeSpaceBytes,
+  getModelStoragePath,
+  NATIVE_BINARY_CHUNK_BYTES,
+  type SaveTextFileResult,
+  type CopyImportedModelOptions,
+  type CopyImportedModelResult,
+} from './filesystem'
+export {
+  pickGgufFile,
+  isNativePickerAvailable,
+  deleteStagedFile,
+  getFreeSpaceBytes as getNativePickerFreeSpaceBytes,
+  type PickedGguf,
+} from './file-picker'
 export {
   getInstallerSource,
   isInstalledFromFDroid,

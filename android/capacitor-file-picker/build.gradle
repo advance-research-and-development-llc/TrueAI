@@ -1,0 +1,47 @@
+// Copyright (c) 2024-2026 Skyler Jones ("smackypants") /
+// Advanced Technology Research. Licensed under MIT.
+//
+// Gradle module for the in-tree `FilePicker` Capacitor plugin.
+//
+// Wraps Android's Storage Access Framework (`Intent.ACTION_OPEN_DOCUMENT`)
+// behind a Capacitor `@CapacitorPlugin` so JS code can prompt the user
+// to pick a `.gguf` file from device storage and receive a stable
+// app-private URI in return — the foundation for the in-app GGUF
+// importer (PR 5).
+//
+// This plugin is deliberately minimal: SAF picker, free-space probe.
+// It does NOT request `READ_EXTERNAL_STORAGE` or any other
+// Dangerous-level permission — the SAF intent flow is permissionless
+// from the app's perspective.
+//
+// JDK strategy mirrors `capacitor-llama`: pinned at the project's
+// Java compatibility version (currently 17) so the module compiles
+// cleanly under `compileDebugJavaWithJavac` without requiring any
+// follow-up coordinated bump in `android/variables.gradle`.
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace "com.trueai.filepicker"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+    }
+
+    compileOptions {
+        sourceCompatibility rootProject.ext.javaVersion
+        targetCompatibility rootProject.ext.javaVersion
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+}

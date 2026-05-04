@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2024-2026 Skyler Jones ("smackypants") /
+    Advanced Technology Research. Licensed under MIT.
+
+    Capacitor `FilePicker` plugin manifest.
+
+    Empty by design: ACTION_OPEN_DOCUMENT is permissionless — the
+    system file picker handles the actual filesystem access on the
+    app's behalf and only returns a content:// URI we are allowed to
+    read once. The plugin then immediately copies the picked stream
+    into app-private storage (`getFilesDir()/models/import-staging/`),
+    so it never needs READ_EXTERNAL_STORAGE or persistable URI grants.
+
+    This keeps the plugin compatible with the future `offline` product
+    flavor (PR 17), which strips INTERNET from the merged manifest.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

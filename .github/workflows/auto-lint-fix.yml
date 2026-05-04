@@ -22,7 +22,7 @@ permissions:
 jobs:
   lint-fix:
     name: ESLint auto-fix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     # Only run on copilot/* and dependabot/* PR branches (same-repo, not forks)
     if: |
       (startsWith(github.head_ref, 'copilot/') || startsWith(github.head_ref, 'dependabot/')) &&

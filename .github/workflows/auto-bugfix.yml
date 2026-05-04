@@ -43,7 +43,7 @@ env:
 jobs:
   scan-and-fix:
     name: Scan + auto-fix + open PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
 
     steps:
       - name: Checkout main

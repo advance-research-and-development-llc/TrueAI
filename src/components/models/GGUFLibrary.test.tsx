@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2024-2026 Skyler Jones ("smackypants") /
+ * Advanced Technology Research. Licensed under MIT.
+ */
+
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import userEvent from '@testing-library/user-event'
@@ -44,7 +49,7 @@ describe('GGUFLibrary', () => {
     render(
       <GGUFLibrary
         models={[]}
-        onAddModel={vi.fn()}
+        onImport={vi.fn()}
         onDeleteModel={vi.fn()}
       />
     )
@@ -56,7 +61,7 @@ describe('GGUFLibrary', () => {
     render(
       <GGUFLibrary
         models={models}
-        onAddModel={vi.fn()}
+        onImport={vi.fn()}
         onDeleteModel={vi.fn()}
       />
     )
@@ -67,7 +72,7 @@ describe('GGUFLibrary', () => {
     render(
       <GGUFLibrary
         models={[makeModel()]}
-        onAddModel={vi.fn()}
+        onImport={vi.fn()}
         onDeleteModel={vi.fn()}
       />
     )
@@ -82,36 +87,78 @@ describe('GGUFLibrary', () => {
     render(
       <GGUFLibrary
         models={models}
-        onAddModel={vi.fn()}
+        onImport={vi.fn()}
         onDeleteModel={vi.fn()}
       />
     )
     fireEvent.change(screen.getByPlaceholderText(/search/i), {
       target: { value: 'xyznonexistent' },
     })
-    // With a non-matching query, no models should be found
     expect(screen.getByText('No Models Found')).toBeInTheDocument()
   })
 
-  it('shows Add Model button', () => {
+  it('shows the Import button in the header', () => {
+    render(
+      <GGUFLibrary models={[]} onImport={vi.fn()} onDeleteModel={vi.fn()} />
+    )
+    expect(
+      screen.getAllByRole('button', { name: /import \.gguf file/i }).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('clicking the Import button calls onImport', async () => {
+    const user = userEvent.setup()
+    const onImport = vi.fn()
+    render(
+      <GGUFLibrary models={[]} onImport={onImport} onDeleteModel={vi.fn()} />
+    )
+    const buttons = screen.getAllByRole('button', { name: /import \.gguf file/i })
+    await user.click(buttons[0])
+    expect(onImport).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the Import button while isImporting=true', () => {
     render(
       <GGUFLibrary
         models={[]}
-        onAddModel={vi.fn()}
+        onImport={vi.fn()}
         onDeleteModel={vi.fn()}
+        isImporting
       />
     )
-    expect(screen.getAllByRole('button', { name: /add model/i }).length).toBeGreaterThan(0)
+    const button = screen.getByRole('button', { name: /importing/i })
+    expect(button).toBeDisabled()
+  })
+
+  it('renders the free-space line when freeBytes is provided', () => {
+    render(
+      <GGUFLibrary
+        models={[]}
+        onImport={vi.fn()}
+        onDeleteModel={vi.fn()}
+        freeBytes={5 * 1024 * 1024 * 1024}
+      />
+    )
+    expect(screen.getByText(/Available storage/)).toBeInTheDocument()
+    expect(screen.getByText(/5\.00 GB/)).toBeInTheDocument()
+  })
+
+  it('does NOT render free-space line when freeBytes is null/undefined', () => {
+    render(
+      <GGUFLibrary
+        models={[]}
+        onImport={vi.fn()}
+        onDeleteModel={vi.fn()}
+        freeBytes={null}
+      />
+    )
+    expect(screen.queryByText(/Available storage/)).not.toBeInTheDocument()
   })
 
   it('renders quantization badge', () => {
     const models = [makeModel({ quantization: 'Q4_K_M' })]
     render(
-      <GGUFLibrary
-        models={models}
-        onAddModel={vi.fn()}
-        onDeleteModel={vi.fn()}
-      />
+      <GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />
     )
     expect(screen.getByText('Q4_K_M')).toBeInTheDocument()
   })
@@ -119,7 +166,7 @@ describe('GGUFLibrary', () => {
   it('clicking model card shows Model Details panel', async () => {
     const user = userEvent.setup()
     const models = [makeModel()]
-    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    render(<GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
     await user.click(screen.getByText('Llama-3-8B'))
     expect(screen.getByText('Model Details')).toBeInTheDocument()
   })
@@ -127,68 +174,63 @@ describe('GGUFLibrary', () => {
   it('model details shows filename', async () => {
     const user = userEvent.setup()
     const models = [makeModel({ filename: 'llama-3-8b.gguf' })]
-    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    render(<GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
     await user.click(screen.getByText('Llama-3-8B'))
-    // filename appears in details panel as mono text
     expect(screen.getAllByText('llama-3-8b.gguf').length).toBeGreaterThan(0)
   })
 
   it('model details shows context length', async () => {
     const user = userEvent.setup()
     const models = [makeModel({ contextLength: 4096 })]
-    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    render(<GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
     await user.click(screen.getByText('Llama-3-8B'))
     expect(screen.getByText('4,096 tokens')).toBeInTheDocument()
   })
 
-  it('clicking delete calls onDeleteModel', async () => {
+  it('clicking the trash icon calls onDeleteModel', async () => {
     const user = userEvent.setup()
     const onDeleteModel = vi.fn()
     const models = [makeModel()]
-    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={onDeleteModel} />)
+    render(
+      <GGUFLibrary
+        models={models}
+        onImport={vi.fn()}
+        onDeleteModel={onDeleteModel}
+      />
+    )
     await user.click(screen.getByText('Llama-3-8B'))
-    // Delete button (trash icon) appears in details panel
-    const deleteBtn = screen.getByRole('button', { name: '' }) // ghost icon button
-    // Find the delete button in the panel by looking for svg trash icon
-    const trashButtons = document.querySelectorAll('[data-slot="card"] button')
-    // Click the first button in the details panel (delete button)
-    const panel = screen.getByText('Model Details').closest('[data-slot="card"]') as HTMLElement
-    const deleteButton = panel.querySelector('button') as HTMLElement
-    fireEvent.click(deleteButton)
+    const deleteBtn = screen.getByRole('button', { name: /delete model/i })
+    await user.click(deleteBtn)
     expect(onDeleteModel).toHaveBeenCalledWith('m1')
   })
 
-  it('opening Add Model dialog shows form', async () => {
+  it('clicking "Set active" calls onSetActive', async () => {
     const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    const addButtons = screen.getAllByRole('button', { name: /add model/i })
-    await user.click(addButtons[0])
-    expect(screen.getByText('Add GGUF Model')).toBeInTheDocument()
-    expect(screen.getByLabelText(/model name/i)).toBeInTheDocument()
+    const onSetActive = vi.fn()
+    const models = [makeModel()]
+    render(
+      <GGUFLibrary
+        models={models}
+        onImport={vi.fn()}
+        onDeleteModel={vi.fn()}
+        onSetActive={onSetActive}
+      />
+    )
+    await user.click(screen.getByText('Llama-3-8B'))
+    await user.click(screen.getByRole('button', { name: /set active/i }))
+    expect(onSetActive).toHaveBeenCalledWith('m1')
   })
 
-  it('filling form and submitting calls onAddModel', async () => {
+  it('does NOT render "Set active" button when onSetActive prop is omitted', async () => {
     const user = userEvent.setup()
-    const onAddModel = vi.fn()
-    render(<GGUFLibrary models={[]} onAddModel={onAddModel} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-
-    await user.type(screen.getByLabelText(/model name/i), 'My New Model')
-    await user.type(screen.getByLabelText(/filename/i), 'my-model.gguf')
-    await user.type(screen.getByLabelText(/size \(gb\)/i), '4')
-
-    // Submit by clicking "Add Model" in dialog footer
-    const dialogFooterBtn = screen.getAllByRole('button', { name: /add model/i })
-    // Last button in the footer submits
-    await user.click(dialogFooterBtn[dialogFooterBtn.length - 1])
-
-    expect(onAddModel).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'My New Model', filename: 'my-model.gguf' })
-    )
+    const models = [makeModel()]
+    render(<GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
+    await user.click(screen.getByText('Llama-3-8B'))
+    expect(screen.queryByRole('button', { name: /set active/i })).not.toBeInTheDocument()
   })
 
   it('shows "No Model Selected" when no card is clicked', () => {
-    render(<GGUFLibrary models={[makeModel()]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    render(<GGUFLibrary models={[makeModel()]} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
     expect(screen.getByText('No Model Selected')).toBeInTheDocument()
   })
 
@@ -197,81 +239,23 @@ describe('GGUFLibrary', () => {
       makeModel({ id: 'm1', name: 'Llama', quantization: 'Q4_K_M' }),
       makeModel({ id: 'm2', name: 'Mistral', quantization: 'Q8_0' }),
     ]
-    render(<GGUFLibrary models={models} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
+    render(<GGUFLibrary models={models} onImport={vi.fn()} onDeleteModel={vi.fn()} />)
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'Q8_0' } })
     expect(screen.queryByText('Llama')).not.toBeInTheDocument()
     expect(screen.getByText('Mistral')).toBeInTheDocument()
   })
 
-  it('Add Model dialog can be cancelled', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    expect(screen.getByText('Add GGUF Model')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /cancel/i }))
-    expect(screen.queryByText('Add GGUF Model')).not.toBeInTheDocument()
-  })
-
-  it('add model form: path field can be filled', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const pathInput = screen.getByLabelText(/file path/i)
-    await user.type(pathInput, '/models/test.gguf')
-    expect((pathInput as HTMLInputElement).value).toBe('/models/test.gguf')
-  })
-
-  it('add model form: architecture field can be filled', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const archInput = screen.getByLabelText(/architecture/i)
-    await user.type(archInput, 'mistral')
-    expect((archInput as HTMLInputElement).value).toBe('mistral')
-  })
-
-  it('add model form: context length field can be filled', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const ctxInput = screen.getByLabelText(/context length/i)
-    await user.type(ctxInput, '8192')
-    expect((ctxInput as HTMLInputElement).value).toContain('8192')
-  })
-
-  it('add model form: parameters field can be filled', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const paramsInput = screen.getByLabelText(/parameters/i)
-    await user.type(paramsInput, '7')
-    expect((paramsInput as HTMLInputElement).value).toContain('7')
-  })
-
-  it('add model form: quantization select can be opened', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const quantTrigger = screen.getByRole('combobox', { name: /quantization/i })
-    expect(quantTrigger).toBeInTheDocument()
-    fireEvent.click(quantTrigger)
-    expect(screen.getByRole('option', { name: 'Q8_0' })).toBeInTheDocument()
-  })
-
-  it('add model form: selecting a quantization updates the form', async () => {
-    const user = userEvent.setup()
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    await user.click(screen.getAllByRole('button', { name: /add model/i })[0])
-    const quantTrigger = screen.getByRole('combobox', { name: /quantization/i })
-    fireEvent.click(quantTrigger)
-    fireEvent.click(screen.getByRole('option', { name: 'Q8_0' }))
-    expect(quantTrigger).toHaveTextContent('Q8_0')
-  })
-
-  it('empty state with search query shows no Add Model button in empty state area', () => {
-    render(<GGUFLibrary models={[]} onAddModel={vi.fn()} onDeleteModel={vi.fn()} />)
-    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'nothing' } })
-    // With a search query, the EmptyState should not show the Add Model button inline
-    expect(screen.queryByText('No Models Found')).toBeInTheDocument()
+  it('clearing the externally-removed selected model resets the details panel', () => {
+    const initial = [makeModel({ id: 'm1' })]
+    const { rerender } = render(
+      <GGUFLibrary models={initial} onImport={vi.fn()} onDeleteModel={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('Llama-3-8B'))
+    expect(screen.getByText('Model Details')).toBeInTheDocument()
+    // Re-render without that model — details panel must clear.
+    rerender(
+      <GGUFLibrary models={[]} onImport={vi.fn()} onDeleteModel={vi.fn()} />,
+    )
+    expect(screen.queryByText('Model Details')).not.toBeInTheDocument()
   })
 })

@@ -96,7 +96,7 @@ jobs:
   # artifacts for consumption by the optional play and fdroid jobs.
   build:
     needs: bump
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     # App-signing secrets are scoped to the `release` environment. The owner
     # can require manual approval there before any signed artifact is produced.
     environment: release
@@ -288,7 +288,7 @@ jobs:
   play:
     needs: build
     if: ${{ inputs.upload_play }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     environment:
       name: play
       url: https://play.google.com/console
@@ -351,7 +351,7 @@ jobs:
   fdroid:
     needs: build
     if: ${{ inputs.publish_fdroid }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     environment:
       name: fdroid
       url: https://smackypants.github.io/trueai-localai/fdroid/repo

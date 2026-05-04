@@ -124,6 +124,24 @@ export interface LLMRuntimeConfig {
   contextSize: number
   /** Default response token cap. */
   maxTokens: number
+  /**
+   * Origin of the Hugging Face Hub used by the Model Hub browser
+   * (PR 6). Defaults to `https://huggingface.co`. Override to point
+   * at a mirror (e.g. `https://hf-mirror.com`) or a private cache.
+   * Trailing slash is stripped at read time.
+   *
+   * Only the origin is configurable — paths (`/api/...`,
+   * `/{repo}/resolve/main/...`) are appended by the client and are
+   * not part of this field.
+   */
+  huggingFaceEndpoint: string
+  /**
+   * Number of concurrent HTTP `Range:` requests used by the parallel
+   * downloader (PR 6 phase 6). Clamped to `[1, 8]`. `1` disables the
+   * range-chunking path and falls back to a single linear stream
+   * (also the path tests get when they don't override this).
+   */
+  huggingFaceParallelChunks: number
 }
 
 export const DEFAULT_LLM_RUNTIME_CONFIG: LLMRuntimeConfig = {
@@ -139,6 +157,8 @@ export const DEFAULT_LLM_RUNTIME_CONFIG: LLMRuntimeConfig = {
   repeatPenalty: 1.1,
   contextSize: 2048,
   maxTokens: 2000,
+  huggingFaceEndpoint: 'https://huggingface.co',
+  huggingFaceParallelChunks: 4,
 }
 
 let cachedConfig: LLMRuntimeConfig | null = null
@@ -200,6 +220,16 @@ function mergeConfig(
         : base.contextSize,
     maxTokens:
       typeof patch.maxTokens === 'number' && patch.maxTokens > 0 ? patch.maxTokens : base.maxTokens,
+    huggingFaceEndpoint:
+      typeof patch.huggingFaceEndpoint === 'string' && patch.huggingFaceEndpoint.length > 0
+        ? patch.huggingFaceEndpoint.replace(/\/+$/, '')
+        : base.huggingFaceEndpoint,
+    huggingFaceParallelChunks:
+      typeof patch.huggingFaceParallelChunks === 'number' &&
+      Number.isFinite(patch.huggingFaceParallelChunks) &&
+      patch.huggingFaceParallelChunks >= 1
+        ? Math.min(8, Math.floor(patch.huggingFaceParallelChunks))
+        : base.huggingFaceParallelChunks,
   }
 }
 

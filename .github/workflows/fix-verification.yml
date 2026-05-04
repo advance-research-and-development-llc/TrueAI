@@ -32,7 +32,7 @@ permissions:
 jobs:
   verify:
     name: Verify fix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     if: >
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.issue.labels.*.name, 'copilot-fix')
