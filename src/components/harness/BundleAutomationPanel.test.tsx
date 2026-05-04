@@ -840,5 +840,189 @@ describe('BundleAutomationPanel', () => {
         clickSpy.mockRestore()
       }
     })
+
+    it('imports rules from a selected file via the hidden input', async () => {
+      const { toast } = await import('sonner')
+      mockGetRules.mockReturnValue([mockRule])
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />,
+      )
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('tab', { name: /rules/i }))
+      const file = new File(['{"rules":[]}'], 'rules.json', {
+        type: 'application/json',
+      })
+      // The import input is type="file" hidden — find it by selector.
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
+      expect(input).toBeTruthy()
+      await user.upload(input, file)
+      await waitFor(() => {
+        expect(mockImportRules).toHaveBeenCalled()
+      })
+      expect(toast.success).toHaveBeenCalledWith('Rules imported')
+    })
+
+    it('importRules is a no-op when no file is selected', async () => {
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />,
+      )
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('tab', { name: /rules/i }))
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
+      const { fireEvent } = await import('@testing-library/react')
+      fireEvent.change(input, { target: { files: [] } })
+      expect(mockImportRules).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('pattern icons + priority colors', () => {
+    it('renders contextual / sequential / frequency / unknown pattern icons', async () => {
+      const patterns: UsagePattern[] = [
+        { ...mockPattern, id: 'p-context', patternType: 'contextual', description: 'Context p' },
+        { ...mockPattern, id: 'p-seq', patternType: 'sequential', description: 'Seq p' },
+        { ...mockPattern, id: 'p-freq', patternType: 'frequency', description: 'Freq p' },
+        { ...mockPattern, id: 'p-unknown', patternType: 'other' as never, description: 'Unknown p' },
+      ]
+      mockAnalyzeUsagePatterns.mockReturnValue(patterns)
+      const user = userEvent.setup()
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />,
+      )
+      await user.click(screen.getByRole('button', { name: /analyze patterns/i }))
+      await waitFor(() => {
+        expect(screen.getByText('Context p')).toBeInTheDocument()
+      }, { timeout: 4000 })
+      expect(screen.getByText('Seq p')).toBeInTheDocument()
+      expect(screen.getByText('Freq p')).toBeInTheDocument()
+      expect(screen.getByText('Unknown p')).toBeInTheDocument()
+    })
+
+    it('renders rule cards with each priority color (low / high / critical)', async () => {
+      const rules: AutoExecutionRule[] = [
+        { ...mockRule, id: 'r-low', name: 'Low rule', priority: 'low' },
+        { ...mockRule, id: 'r-high', name: 'High rule', priority: 'high' },
+        { ...mockRule, id: 'r-crit', name: 'Crit rule', priority: 'critical' },
+      ]
+      ;(useKV as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'auto-execute-enabled') return [false, mockSetAutoExecute]
+          if (key === 'automation-rules') return [rules, mockSetRules]
+          return [defaultValue, vi.fn()]
+        },
+      )
+      const user = userEvent.setup()
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />,
+      )
+      await user.click(screen.getByRole('tab', { name: /rules/i }))
+      expect(screen.getByText('Low rule')).toBeInTheDocument()
+      expect(screen.getByText('High rule')).toBeInTheDocument()
+      expect(screen.getByText('Crit rule')).toBeInTheDocument()
+    })
+  })
+
+  describe('auto-execute interval timer', () => {
+    it('starts a 30s interval and calls evaluateRules tick when auto-execute is enabled', async () => {
+      vi.useFakeTimers()
+      try {
+        ;(useKV as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+          (key: string, defaultValue: unknown) => {
+            if (key === 'auto-execute-enabled') return [true, mockSetAutoExecute]
+            if (key === 'automation-rules') return [[mockRule], mockSetRules]
+            return [defaultValue, vi.fn()]
+          },
+        )
+        mockEvaluateRules.mockReturnValue([])
+        render(
+          <BundleAutomationPanel
+            messages={mockMessages}
+            agents={mockAgents}
+            agentRuns={mockAgentRuns}
+            harnesses={mockHarnesses}
+          />,
+        )
+        // Advance past one 30s tick
+        vi.advanceTimersByTime(30000)
+        expect(mockEvaluateRules).toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('checkAndExecuteRules invokes executeRule and shows success/error toasts for triggered rules', async () => {
+      vi.useFakeTimers()
+      try {
+        const { toast } = await import('sonner')
+        ;(useKV as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+          (key: string, defaultValue: unknown) => {
+            if (key === 'auto-execute-enabled') return [true, mockSetAutoExecute]
+            if (key === 'automation-rules') return [[mockRule], mockSetRules]
+            return [defaultValue, vi.fn()]
+          },
+        )
+        mockEvaluateRules.mockReturnValue([mockRule])
+        const successResult: BundleExecutionResult = {
+          success: true,
+          ruleId: mockRule.id,
+          ruleName: mockRule.name,
+          executedAt: Date.now(),
+          duration: 100,
+          harnessIds: ['harness-1'],
+        }
+        const failResult: BundleExecutionResult = {
+          ...successResult,
+          success: false,
+          error: 'boom',
+        }
+        mockExecuteRule.mockResolvedValue([successResult, failResult])
+        render(
+          <BundleAutomationPanel
+            messages={mockMessages}
+            agents={mockAgents}
+            agentRuns={mockAgentRuns}
+            harnesses={mockHarnesses}
+          />,
+        )
+        await vi.advanceTimersByTimeAsync(30000)
+        // Allow the awaited executeRule promise chain to resolve, but bound
+        // it so we don't loop forever on the recurring interval.
+        await vi.advanceTimersByTimeAsync(0)
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(mockExecuteRule).toHaveBeenCalled()
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.stringContaining('Auto-executed'),
+        )
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to execute'),
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 })
