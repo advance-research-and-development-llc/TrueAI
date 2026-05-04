@@ -263,4 +263,28 @@ describe('PromptTemplates', () => {
     expect(onSelect).toHaveBeenCalledTimes(1)
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
+
+  it('typing into the Category input updates the form state', async () => {
+    const user = userEvent.setup()
+    render(<PromptTemplates {...defaultProps} />)
+    await user.click(screen.getByRole('button', { name: /New/i }))
+    const categoryInput = screen.getByLabelText('Category') as HTMLInputElement
+    await user.clear(categoryInput)
+    await user.type(categoryInput, 'Research')
+    expect(categoryInput.value).toBe('Research')
+  })
+
+  it('Escape on the Create dialog routes through onOpenChange and clears form state', async () => {
+    const user = userEvent.setup()
+    render(<PromptTemplates {...defaultProps} />)
+    await user.click(screen.getByRole('button', { name: /New/i }))
+    await user.type(screen.getByLabelText('Title'), 'Will Be Cleared')
+    // Closing via Escape goes through the Dialog onOpenChange={(open)=>...}
+    // path, which sets newTemplateDialog=false + editingTemplate=null +
+    // resets formData (lines 353-356).
+    await user.keyboard('{Escape}')
+    // Reopening should show empty fields, proving the reset ran.
+    await user.click(screen.getByRole('button', { name: /New/i }))
+    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('')
+  })
 })
