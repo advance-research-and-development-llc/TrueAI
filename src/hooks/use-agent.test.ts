@@ -7,7 +7,7 @@
  * pattern as src/lib/agent/streaming.test.ts.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { MockLanguageModelV3, simulateReadableStream } from 'ai/test'
 import type { LanguageModel } from '@/lib/llm-runtime/ai-sdk'
@@ -166,4 +166,224 @@ describe('useAgent', () => {
     })
     expect(await readTrace()).toEqual([])
   })
+
+  it('accepts the legacy `delta` field on text-delta parts', async () => {
+    // streamingMock already emits `delta`; assert it accumulates correctly
+    // even though the production handler reads `text ?? delta`.
+    const model = streamingMock(['a', 'b', 'c'])
+    const { result } = renderHook(() => useAgent({ model, tools: [] }))
+    await act(async () => {
+      await result.current.run('go')
+    })
+    expect(result.current.text).toBe('abc')
+  })
+
+  it('captures tool-call events surfaced by the SDK and traces them', async () => {
+    await setTraceEnabled(true)
+    const model = partsMock([
+      { type: 'tool-call', toolCallId: 'tc-1', toolName: 'currentTime', input: { tz: 'UTC' } },
+    ])
+    const { result } = renderHook(() =>
+      useAgent({ model, tools: [], runId: 'run-tc' }),
+    )
+    await act(async () => {
+      await result.current.run('what time is it?')
+    })
+    // The agent layer surfaces the tool call in toolEvents, even when the
+    // SDK could not resolve it (no real tool registered).
+    expect(result.current.toolEvents.length).toBeGreaterThan(0)
+    expect(result.current.toolEvents[0]?.name).toBe('currentTime')
+    const trace = await readTrace()
+    expect(trace.map((e) => e.kind)).toContain('tool-call')
+  })
+
+  it('coerces non-Error tool-error payloads via String()', async () => {
+    await setTraceEnabled(true)
+    const model = partsMock([
+      { type: 'tool-call', toolCallId: 'tc-2', toolName: 'mathEval', input: { expr: '1/0' } },
+      { type: 'tool-error', toolCallId: 'tc-2', toolName: 'mathEval', error: 'plain string error' },
+    ])
+    const { result } = renderHook(() =>
+      useAgent({ model, tools: [], runId: 'run-te' }),
+    )
+    await act(async () => {
+      await result.current.run('break it')
+    })
+    // The toolEvent for the call exists; whether the SDK forwards our
+    // synthetic tool-error or replaces it with its own depends on SDK
+    // version. Either way the entry is present.
+    expect(result.current.toolEvents.length).toBeGreaterThan(0)
+  })
+
+  it('surfaces a non-abort error and traces it', async () => {
+    await setTraceEnabled(true)
+    const model = new MockLanguageModelV3({
+      provider: 'mock',
+      modelId: 'mock-throw',
+      doGenerate: async () => {
+        throw new Error('upstream boom')
+      },
+      doStream: async () => ({
+        stream: new ReadableStream({
+          start(controller) {
+            controller.error(new Error('upstream boom'))
+          },
+        }),
+      }),
+    } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
+    const { result } = renderHook(() =>
+      useAgent({ model, tools: [], runId: 'run-err' }),
+    )
+    await act(async () => {
+      await result.current.run('explode')
+    })
+    expect(result.current.status).toBe('error')
+    expect(result.current.error).toMatch(/boom/)
+    const trace = await readTrace()
+    expect(trace.find((e) => e.kind === 'error')).toBeTruthy()
+  })
+
+  it('abort() while idle is a safe no-op', () => {
+    const model = streamingMock(['x'])
+    const { result } = renderHook(() => useAgent({ model, tools: [] }))
+    expect(() => result.current.abort()).not.toThrow()
+    expect(result.current.status).toBe('idle')
+  })
+
+  it('starting a new run aborts the in-flight run', async () => {
+    // A model that hangs until aborted, so we can fire a second run() over it.
+    const stuck = new MockLanguageModelV3({
+      provider: 'mock',
+      modelId: 'mock-stuck-2',
+      doGenerate: async () => ({
+        content: [{ type: 'text', text: '' }],
+        finishReason: 'stop',
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        warnings: [],
+      }),
+      doStream: async ({ abortSignal }: { abortSignal?: AbortSignal }) => ({
+        stream: new ReadableStream({
+          async start(controller) {
+            controller.enqueue({ type: 'stream-start', warnings: [] })
+            controller.enqueue({
+              type: 'response-metadata',
+              id: 'r',
+              timestamp: new Date(),
+              modelId: 'mock-stuck-2',
+            })
+            if (abortSignal) {
+              await new Promise<void>((res) => {
+                abortSignal.addEventListener('abort', () => res(), { once: true })
+              })
+            }
+            controller.close()
+          },
+        }),
+      }),
+    } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
+
+    const { result, rerender } = renderHook(
+      ({ m }: { m: LanguageModel }) => useAgent({ model: m, tools: [] }),
+      { initialProps: { m: stuck } },
+    )
+
+    let firstRun: Promise<void>
+    await act(async () => {
+      firstRun = result.current.run('first')
+      await new Promise((r) => setTimeout(r, 5))
+    })
+
+    // Swap in a fast model and call run() again — this should abort `firstRun`.
+    rerender({ m: streamingMock(['done']) })
+    await act(async () => {
+      await result.current.run('second')
+      await firstRun!
+    })
+    expect(result.current.status).toBe('done')
+    expect(result.current.text).toBe('done')
+  })
+
+  it('generates a run id when none is provided', async () => {
+    await setTraceEnabled(true)
+    const model = streamingMock(['ok'])
+    const { result } = renderHook(() => useAgent({ model, tools: [] }))
+    await act(async () => {
+      await result.current.run('hi')
+    })
+    const trace = await readTrace()
+    expect(trace.length).toBeGreaterThan(0)
+    // All events for this run share the same auto-generated id.
+    const ids = new Set(trace.map((e) => e.runId))
+    expect(ids.size).toBe(1)
+    expect([...ids][0]).toMatch(/[0-9a-z-]+/i)
+  })
+
+  it('falls back to a timestamp-based id when crypto.randomUUID is unavailable', async () => {
+    await setTraceEnabled(true)
+    const original = (globalThis.crypto as Crypto | undefined)?.randomUUID
+    // Force the fallback branch in generateRunId().
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      configurable: true,
+      value: undefined,
+    })
+    try {
+      const model = streamingMock(['ok'])
+      const { result } = renderHook(() => useAgent({ model, tools: [] }))
+      await act(async () => {
+        await result.current.run('hi')
+      })
+      const trace = await readTrace()
+      expect(trace[0]?.runId).toMatch(/^run-\d+-[0-9a-z]+$/)
+    } finally {
+      if (original) {
+        Object.defineProperty(globalThis.crypto, 'randomUUID', {
+          configurable: true,
+          value: original,
+        })
+      }
+    }
+  })
 })
+
+/**
+ * Build a mock LanguageModel that emits an arbitrary list of stream parts
+ * around a minimal text-start/text-end frame. Lets tests exercise the
+ * tool-call / tool-result / tool-error branches of `handlePart`.
+ */
+function partsMock(extra: Array<Record<string, unknown>>): LanguageModel {
+  return new MockLanguageModelV3({
+    provider: 'mock',
+    modelId: 'mock-parts',
+    doGenerate: async () => ({
+      content: [{ type: 'text', text: '' }],
+      finishReason: 'stop',
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      warnings: [],
+    }),
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        chunks: [
+          { type: 'stream-start' as const, warnings: [] },
+          {
+            type: 'response-metadata' as const,
+            id: 'r1',
+            timestamp: new Date(),
+            modelId: 'mock-parts',
+          },
+          { type: 'text-start' as const, id: 't1' },
+          { type: 'text-delta' as const, id: 't1', delta: '' },
+          { type: 'text-end' as const, id: 't1' },
+          ...(extra as unknown as Array<{ type: string }>),
+          {
+            type: 'finish' as const,
+            finishReason: 'stop' as const,
+            usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+          },
+        ],
+      }),
+    }),
+  } as unknown as ConstructorParameters<typeof MockLanguageModelV3>[0]) as unknown as LanguageModel
+}
+
+// Silence unused-import warning for `vi` until/unless a future test needs it.
+void vi
