@@ -50,7 +50,7 @@ concurrency:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8-core
     # Pre-filter: must be PR-related, must be a slash-command on issue_comment
     # events, and the actor must be in the trusted set. Per-comment author
     # filtering happens inside the apply step below.

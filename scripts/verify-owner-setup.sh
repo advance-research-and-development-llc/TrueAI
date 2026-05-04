@@ -105,19 +105,37 @@ echo
 
 # --- 4. Rulesets imported ----------------------------------------------------
 echo "[4/7] Repository rulesets"
+# Repo-level rulesets (branch + tag protection).
 RULESETS_JSON="$(gh api "/repos/$OWNER/$REPO/rulesets" 2>/dev/null || echo '[]')"
+# Org-level rulesets (e.g. push / file_path_restriction which cannot be
+# created at repo level on public repos — file_path_restriction is a push
+# rule and "Source public repos cannot have push rules").
+ORG_RULESETS_JSON="$(gh api "/orgs/$OWNER/rulesets" --paginate 2>/dev/null || echo '[]')"
+check_ruleset() {
+  local name="$1"
+  # Active in repo-level rulesets?
+  if printf '%s' "$RULESETS_JSON" | jq -e --arg n "$name" '.[]? | select(.name == $n and .enforcement == "active")' >/dev/null; then
+    ok "ruleset '$name' is active"
+    return
+  fi
+  # Active in org-level rulesets?
+  if printf '%s' "$ORG_RULESETS_JSON" | jq -e --arg n "$name" '.[]? | select(.name == $n and .enforcement == "active")' >/dev/null; then
+    ok "ruleset '$name' is active (org-level push ruleset)"
+    return
+  fi
+  # Exists but disabled?
+  if printf '%s' "$RULESETS_JSON $ORG_RULESETS_JSON" | jq -e --arg n "$name" '.[]? | select(.name == $n)' >/dev/null 2>&1; then
+    warn "ruleset '$name' exists but is not 'active' (run scripts/configure-rulesets.sh)"
+    FAIL=$((FAIL + 1))
+    return
+  fi
+  fail "ruleset '$name' not imported (run scripts/configure-rulesets.sh)"
+}
 for name in \
   "Protect default branch (main/master)" \
   "Protect release tags (v*)" \
   "Protect workflows, license, and config files"; do
-  if printf '%s' "$RULESETS_JSON" | jq -e --arg n "$name" '.[]? | select(.name == $n and .enforcement == "active")' >/dev/null; then
-    ok "ruleset '$name' is active"
-  elif printf '%s' "$RULESETS_JSON" | jq -e --arg n "$name" '.[]? | select(.name == $n)' >/dev/null; then
-    warn "ruleset '$name' exists but is not 'active' (run scripts/configure-rulesets.sh)"
-    FAIL=$((FAIL + 1))
-  else
-    fail "ruleset '$name' not imported (run scripts/configure-rulesets.sh)"
-  fi
+  check_ruleset "$name"
 done
 echo
 

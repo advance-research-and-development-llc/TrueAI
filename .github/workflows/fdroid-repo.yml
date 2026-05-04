@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     # Scopes the F-Droid repo signing keystore secrets to the `fdroid`
     # environment under Settings → Environments. Owner can require
     # manual approval before each repo publish.

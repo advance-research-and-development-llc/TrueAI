@@ -41,7 +41,7 @@ concurrency:
 jobs:
   scan:
     name: OSV-Scanner + npm audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
 
     steps:
       - uses: actions/checkout@v5

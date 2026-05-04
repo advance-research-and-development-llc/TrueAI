@@ -50,7 +50,7 @@ jobs:
         github.event.pull_request.user.login == 'github-actions[bot]' ||
         contains(github.event.pull_request.labels.*.name, 'automerge')
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8-core
     steps:
       # Refuse to enable auto-merge on PRs classified `risk:high` —
       # these touch governance / credentials / overrides and MUST be

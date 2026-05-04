@@ -31,7 +31,7 @@ permissions:
 jobs:
   android-lint:
     name: Android Gradle lint audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
 
     steps:
       - uses: actions/checkout@v5

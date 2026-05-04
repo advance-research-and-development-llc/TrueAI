@@ -41,7 +41,7 @@ concurrency:
 jobs:
   web:
     name: Web compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     steps:
       - uses: actions/checkout@v5
 

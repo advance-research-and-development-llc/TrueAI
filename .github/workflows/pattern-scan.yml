@@ -38,7 +38,7 @@ env:
 jobs:
   pattern-scan:
     name: Source risk-pattern scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
 
     steps:
       - uses: actions/checkout@v5

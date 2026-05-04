@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -20,7 +20,7 @@ jobs:
 
   publish-gpr:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     permissions:
       contents: read
       packages: write

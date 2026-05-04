@@ -77,14 +77,21 @@ if [[ ! -d "$RULESETS_DIR" ]]; then
 fi
 
 echo "==> Fetching GitHub App installations on $OWNER/$REPO ..."
-INSTALLATIONS_JSON="$(gh api "/repos/$OWNER/$REPO/installations" --paginate)"
+# Try repo-level first (requires GitHub App auth); fall back to org-level
+# (requires admin:org scope); gracefully default to empty if both fail,
+# since actor_ids may already be set in the ruleset JSON files.
+INSTALLATIONS_JSON="$(gh api "/repos/$OWNER/$REPO/installations" --paginate 2>/dev/null \
+  || gh api "/orgs/$OWNER/installations" --paginate 2>/dev/null \
+  || echo '{"installations":[]}')"
 
-# Slug -> app_id lookup, returns empty string if not installed.
+# Slug -> app_id lookup. Handles both array (repo endpoint) and object
+# with .installations key (org endpoint). Returns empty if not found.
 app_id_for() {
   local slug="$1"
   printf '%s' "$INSTALLATIONS_JSON" \
     | jq -r --arg slug "$slug" \
-        '.installations[] | select(.app_slug == $slug) | .app_id' \
+        '(if type == "array" then . else .installations end)[]
+         | select(.app_slug == $slug) | .app_id' 2>/dev/null \
     | head -n1
 }
 
@@ -96,7 +103,17 @@ echo "    github-actions[bot]    app_id = ${GITHUB_ACTIONS_ID:-<not installed>}"
 echo "    copilot-swe-agent[bot] app_id = ${COPILOT_AGENT_ID:-<not installed>}"
 echo "    dependabot[bot]        app_id = ${DEPENDABOT_ID:-<not installed>}"
 
-if [[ -z "$GITHUB_ACTIONS_ID" ]]; then
+# Check whether any ruleset still has a placeholder actor_id <= 0 that
+# requires github-actions to be resolved. If all ids are already set in
+# the JSON files, we can safely proceed without the installations lookup.
+NEEDS_GHA_ID=0
+for f in "$RULESETS_DIR"/*.json; do
+  if jq -e '[.bypass_actors[]? | select(.actor_type == "Integration" and .actor_id <= 0 and ((.._comment? // "") | ascii_downcase | contains("github-actions")))] | length > 0' "$f" >/dev/null 2>&1; then
+    NEEDS_GHA_ID=1; break
+  fi
+done
+
+if [[ "$NEEDS_GHA_ID" -eq 1 && -z "$GITHUB_ACTIONS_ID" ]]; then
   echo "::error:: github-actions[bot] is not installed on $OWNER/$REPO. Cannot proceed: the release workflows would be blocked."
   exit 1
 fi
@@ -114,9 +131,10 @@ with open(src) as f:
     data = json.load(f)
 
 def strip_comments(obj):
-    """Recursively drop any '_comment' keys the Rulesets API would reject."""
+    """Recursively drop any '_comment' / '_bypass_note' keys the Rulesets API would reject."""
     if isinstance(obj, dict):
         obj.pop("_comment", None)
+        obj.pop("_bypass_note", None)
         for v in obj.values():
             strip_comments(v)
     elif isinstance(obj, list):
@@ -146,27 +164,52 @@ print(json.dumps(data, indent=2))
 PY
 }
 
-# Find an existing ruleset of the given name on the repo, if any.
+# Find an existing ruleset of the given name, searching repo then org level.
+# Returns "<scope>:<id>" so the caller knows which API to use.
 find_ruleset_id() {
   local name="$1"
-  gh api "/repos/$OWNER/$REPO/rulesets" --paginate \
+  local repo_id org_id
+  repo_id="$(gh api "/repos/$OWNER/$REPO/rulesets" --paginate \
     | jq -r --arg name "$name" '.[] | select(.name == $name) | .id' \
-    | head -n1
+    | head -n1)"
+  [[ -n "$repo_id" ]] && echo "repo:$repo_id" && return
+  org_id="$(gh api "/orgs/$OWNER/rulesets" --paginate 2>/dev/null \
+    | jq -r --arg name "$name" '.[] | select(.name == $name) | .id' \
+    | head -n1)"
+  [[ -n "$org_id" ]] && echo "org:$org_id" && return
+  echo ""
 }
 
 upsert_ruleset() {
   local file="$1"
-  local body name id endpoint method
+  local body name is_org_level scoped_id scope id endpoint method
   body="$(assign_actor_ids "$file")"
   name="$(printf '%s' "$body" | jq -r '.name')"
-  id="$(find_ruleset_id "$name")"
+  is_org_level="$(printf '%s' "$body" | jq -r '._org_level // false')"
+  # Strip the meta field before sending to the API
+  body="$(printf '%s' "$body" | jq 'del(._org_level)')"
 
-  if [[ -n "$id" ]]; then
-    endpoint="/repos/$OWNER/$REPO/rulesets/$id"
-    method="PUT"
+  scoped_id="$(find_ruleset_id "$name")"
+  scope="${scoped_id%%:*}"
+  id="${scoped_id##*:}"
+
+  if [[ "$is_org_level" == "true" ]]; then
+    # Org-level ruleset (e.g. file_path_restriction / push rules)
+    if [[ -n "$id" && "$scope" == "org" ]]; then
+      endpoint="/orgs/$OWNER/rulesets/$id"
+      method="PUT"
+    else
+      endpoint="/orgs/$OWNER/rulesets"
+      method="POST"
+    fi
   else
-    endpoint="/repos/$OWNER/$REPO/rulesets"
-    method="POST"
+    if [[ -n "$id" && "$scope" == "repo" ]]; then
+      endpoint="/repos/$OWNER/$REPO/rulesets/$id"
+      method="PUT"
+    else
+      endpoint="/repos/$OWNER/$REPO/rulesets"
+      method="POST"
+    fi
   fi
 
   echo "==> $method $endpoint  ($(basename "$file") -> '$name')"

@@ -45,7 +45,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-64-core
     # Scopes Play Console signing + service-account secrets to the
     # `play` environment under Settings → Environments. Owner can
     # require manual approval there before any AAB is uploaded to

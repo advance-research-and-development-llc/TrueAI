@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "github": {
+      "enabled": true
+    },
+    "context7": {
+      "enabled": true
+    },
+    "linear": {
+      "enabled": true
+    },
+    "jira": {
+      "enabled": true
+    }
+  }
+}
