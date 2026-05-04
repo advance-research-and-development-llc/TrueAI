@@ -151,4 +151,69 @@ describe('GGUFPicker', () => {
     render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
     expect(screen.getByRole('button', { name: /use this model/i })).toBeDisabled()
   })
+
+  it('renders "unknown size" for files with size <= 0 (formatBytes guard)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([{ id: 'Acme/M' }]))
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { type: 'file', path: 'tiny.gguf', size: 0 },
+        ]),
+      )
+    const user = userEvent.setup()
+    render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
+    await user.type(screen.getByLabelText('Search'), 'm')
+    await user.click(screen.getByRole('button', { name: /^search$/i }))
+    await user.click(await screen.findByRole('button', { name: /Open repository Acme\/M/ }))
+    expect(await screen.findByText('unknown size')).toBeInTheDocument()
+  })
+
+  it('Enter key in the search input triggers a search', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse([{ id: 'Foo/Bar' }]))
+    const user = userEvent.setup()
+    render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
+    const input = screen.getByLabelText('Search')
+    await user.type(input, 'bar{enter}')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Foo/Bar')).toBeInTheDocument()
+  })
+
+  it('openRepo surfaces an error message when the tree endpoint fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([{ id: 'Foo/Bar' }]))
+      .mockResolvedValueOnce(jsonResponse({}, { ok: false, status: 404 }))
+    const user = userEvent.setup()
+    render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
+    await user.type(screen.getByLabelText('Search'), 'bar')
+    await user.click(screen.getByRole('button', { name: /^search$/i }))
+    await user.click(await screen.findByRole('button', { name: /Open repository Foo\/Bar/ }))
+    expect(await screen.findByText(/Could not list files for Foo\/Bar.*HTTP 404/)).toBeInTheDocument()
+  })
+
+  it('multi-file repo: clicking a second radio updates selection', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([{ id: 'Acme/Multi' }]))
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { type: 'file', path: 'small.Q4.gguf', size: 100_000_000 },
+          { type: 'file', path: 'big.Q8.gguf', size: 500_000_000 },
+        ]),
+      )
+    const user = userEvent.setup()
+    render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
+    await user.type(screen.getByLabelText('Search'), 'm')
+    await user.click(screen.getByRole('button', { name: /^search$/i }))
+    await user.click(await screen.findByRole('button', { name: /Open repository Acme\/Multi/ }))
+    const big = await screen.findByRole('radio', { name: /Select big\.Q8\.gguf/ })
+    await user.click(big)
+    await user.click(screen.getByRole('button', { name: /use this model/i }))
+    expect(onSelect).toHaveBeenCalledWith('hf:Acme/Multi:big.Q8.gguf')
+  })
+
+  it('Cancel button calls onOpenChange(false)', async () => {
+    const user = userEvent.setup()
+    render(<GGUFPicker open onOpenChange={onOpenChange} onSelect={onSelect} />)
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
 })
