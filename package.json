@@ -19,6 +19,8 @@
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "check:deps": "npx --yes knip",
         "check:model-policy": "node scripts/check-model-policy.mjs",
+        "check:tool-docs": "node scripts/gen-tool-docs.mjs --check",
+        "docs:tools": "node scripts/gen-tool-docs.mjs",
         "compact:learnings": "node scripts/compact-learnings.mjs",
         "optimize": "vite optimize",
         "preview": "vite preview",
