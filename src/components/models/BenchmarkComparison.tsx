@@ -3,8 +3,6 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { 
-  TrendUp, 
-  TrendDown, 
   Lightning, 
   Timer, 
   Monitor, 
@@ -21,19 +19,6 @@ interface BenchmarkComparisonProps {
 
 export function BenchmarkComparison({ comparison }: BenchmarkComparisonProps) {
   const { before, after, improvements } = comparison
-
-  const _getImprovementColor = (improvement: number) => {
-    if (improvement > 10) return 'text-green-500'
-    if (improvement > 0) return 'text-green-400'
-    if (improvement === 0) return 'text-muted-foreground'
-    return 'text-red-500'
-  }
-
-  const _getImprovementIcon = (improvement: number) => {
-    if (improvement > 0) return <TrendUp size={18} className="text-green-500" weight="bold" />
-    if (improvement === 0) return <Minus size={18} className="text-muted-foreground" weight="bold" />
-    return <TrendDown size={18} className="text-red-500" weight="bold" />
-  }
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-500'
