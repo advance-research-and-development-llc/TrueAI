@@ -1025,4 +1025,116 @@ describe('BundleAutomationPanel', () => {
       }
     })
   })
+
+  describe('extra setRules callback + select/switch coverage', () => {
+    it('createRule, toggleRule, deleteRule invoke their setRules updater callbacks', async () => {
+      const user = userEvent.setup()
+      const setRulesImpl = vi.fn((updater: unknown) => {
+        if (typeof updater === 'function') (updater as (prev: AutoExecutionRule[]) => unknown)([mockRule])
+      })
+      ;(useKV as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'auto-execute-enabled') return [false, mockSetAutoExecute]
+          if (key === 'automation-rules') return [[mockRule], setRulesImpl]
+          return [defaultValue, vi.fn()]
+        }
+      )
+      mockAnalyzeUsagePatterns.mockReturnValue([mockPattern])
+      mockCreateRuleFromPattern.mockReturnValue({ ...mockRule, id: 'rule-2' })
+
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />
+      )
+
+      // Trigger createRule via pattern → dialog → confirm (covers line 125 callback)
+      await user.click(screen.getByRole('button', { name: /analyze patterns/i }))
+      await waitFor(
+        () => expect(screen.getByText(mockPattern.description)).toBeInTheDocument(),
+        { timeout: 2000 }
+      )
+      await user.click(screen.getAllByRole('button', { name: /create rule/i })[0])
+      const dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: /create rule/i }))
+
+      // Switch to rules tab and toggle (covers line 138 callback)
+      await user.click(screen.getByRole('tab', { name: /rules/i }))
+      const switches = screen.getAllByRole('switch')
+      const ruleSwitch = switches.find((s) => s.getAttribute('aria-checked') === 'true')
+      await user.click(ruleSwitch!)
+
+      // Delete (covers line 148 callback)
+      const ruleCard = screen.getByText('Morning Analysis').closest('div')!
+        .parentElement!.parentElement!.parentElement!
+      const buttons = within(ruleCard).getAllByRole('button')
+      await user.click(buttons[1])
+
+      expect(setRulesImpl).toHaveBeenCalled()
+      expect(setRulesImpl.mock.calls.length).toBeGreaterThanOrEqual(3)
+    })
+
+    it('priority Select onValueChange and autoEnable Switch update form (covers 602, 632)', async () => {
+      const user = userEvent.setup()
+      mockAnalyzeUsagePatterns.mockReturnValue([mockPattern])
+      mockCreateRuleFromPattern.mockReturnValue(mockRule)
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />
+      )
+      await user.click(screen.getByRole('button', { name: /analyze patterns/i }))
+      await waitFor(
+        () => expect(screen.getByText(mockPattern.description)).toBeInTheDocument(),
+        { timeout: 2000 }
+      )
+      await user.click(screen.getAllByRole('button', { name: /create rule/i })[0])
+      const dialog = await screen.findByRole('dialog')
+
+      // Priority Select: open and pick "Critical"
+      const priorityTrigger = within(dialog).getByRole('combobox')
+      await user.click(priorityTrigger)
+      await user.click(await screen.findByRole('option', { name: /critical/i }))
+
+      // autoEnable Switch toggle (only switch in dialog)
+      const dialogSwitch = within(dialog).getByRole('switch')
+      await user.click(dialogSwitch)
+
+      await user.click(within(dialog).getByRole('button', { name: /create rule/i }))
+      expect(mockCreateRuleFromPattern).toHaveBeenCalledWith(
+        mockPattern,
+        mockHarnesses,
+        expect.objectContaining({ priority: 'critical', autoEnable: false })
+      )
+    })
+
+    it('renders default priority badge style for unknown priority values (covers line 228)', async () => {
+      const user = userEvent.setup()
+      const weirdRule = { ...mockRule, priority: 'weird' as unknown as AutoExecutionRule['priority'] }
+      ;(useKV as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'auto-execute-enabled') return [false, mockSetAutoExecute]
+          if (key === 'automation-rules') return [[weirdRule], mockSetRules]
+          return [defaultValue, vi.fn()]
+        }
+      )
+      render(
+        <BundleAutomationPanel
+          messages={mockMessages}
+          agents={mockAgents}
+          agentRuns={mockAgentRuns}
+          harnesses={mockHarnesses}
+        />
+      )
+      await user.click(screen.getByRole('tab', { name: /rules/i }))
+      const badge = screen.getByText('weird')
+      expect(badge.className).toMatch(/bg-secondary/)
+    })
+  })
 })
