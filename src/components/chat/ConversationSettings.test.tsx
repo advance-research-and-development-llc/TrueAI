@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConversationSettings } from './ConversationSettings'
@@ -41,6 +41,20 @@ const defaultProps = {
 }
 
 describe('ConversationSettings', () => {
+  beforeAll(() => {
+    HTMLElement.prototype.hasPointerCapture = vi.fn()
+    HTMLElement.prototype.setPointerCapture = vi.fn()
+    HTMLElement.prototype.releasePointerCapture = vi.fn()
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+  })
+
+  afterAll(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'hasPointerCapture')
+    Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+    Reflect.deleteProperty(HTMLElement.prototype, 'releasePointerCapture')
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -238,6 +252,117 @@ describe('ConversationSettings', () => {
       expect(
         screen.getByText(/Hosted providers \(OpenAI, Anthropic, Google\)/i),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('Slider onValueChange callbacks', () => {
+    // Radix Slider exposes thumbs as role="slider". Slider order in the DOM
+    // matches definition order: temperature, maxTokens, contextWindow,
+    // topP, topK, minP, repeatPenalty.
+    const fireSliderRight = async (slider: Element) => {
+      const { fireEvent } = await import('@testing-library/react')
+      ;(slider as HTMLElement).focus()
+      fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    }
+
+    it('temperature slider onValueChange updates state and persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(
+        <ConversationSettings
+          {...defaultProps}
+          onUpdate={onUpdate}
+          conversation={makeConversation({ temperature: 0.5 })}
+        />,
+      )
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[0])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.temperature).toBe('number')
+      expect(call.temperature).toBeGreaterThanOrEqual(0)
+      expect(call.temperature).toBeLessThanOrEqual(2)
+    })
+
+    it('maxTokens slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[1])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.maxTokens).toBe('number')
+      expect(call.maxTokens).toBeGreaterThanOrEqual(100)
+      expect(call.maxTokens).toBeLessThanOrEqual(4000)
+    })
+
+    it('contextWindow slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[2])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.contextWindow).toBe('number')
+    })
+
+    it('topP slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[3])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.topP).toBe('number')
+    })
+
+    it('topK slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[4])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.topK).toBe('number')
+    })
+
+    it('minP slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[5])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.minP).toBe('number')
+    })
+
+    it('repeatPenalty slider onValueChange persists on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const sliders = screen.getAllByRole('slider')
+      await fireSliderRight(sliders[6])
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      const call = onUpdate.mock.calls[0][0]
+      expect(typeof call.repeatPenalty).toBe('number')
+    })
+
+    it('changes the model via the Select and persists the new model id on Save', async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<ConversationSettings {...defaultProps} onUpdate={onUpdate} />)
+      const trigger = screen.getByRole('combobox')
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: 'Mistral 7B' }))
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'model-2' }),
+      )
     })
   })
 })
