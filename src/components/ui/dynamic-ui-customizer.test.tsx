@@ -174,6 +174,166 @@ describe('DynamicUICustomizer', () => {
     }
   })
 
+  it('changes Layout Density via the Select and calls updatePreference', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    // Default tab is "layout". Find the first Select trigger (Layout Density).
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[0])
+    await user.click(await screen.findByRole('option', { name: 'Spacious' }))
+    expect(updatePreference).toHaveBeenCalledWith('layoutDensity', 'spacious')
+  })
+
+  it('changes Sidebar Position via the Select', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[1])
+    await user.click(await screen.findByRole('option', { name: 'Right' }))
+    expect(updatePreference).toHaveBeenCalledWith('sidebarPosition', 'right')
+  })
+
+  it('changes Color Scheme via the Select on the Style tab', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Style/ }))
+    const triggers = screen.getAllByRole('combobox')
+    // First combobox on the appearance tab is Color Scheme
+    await user.click(triggers[0])
+    await user.click(await screen.findByRole('option', { name: 'Minimal' }))
+    expect(updatePreference).toHaveBeenCalledWith('colorScheme', 'minimal')
+  })
+
+  it('changes Card Style via the Select on the Style tab', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Style/ }))
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[1])
+    await user.click(await screen.findByRole('option', { name: 'Bordered' }))
+    expect(updatePreference).toHaveBeenCalledWith('cardStyle', 'bordered')
+  })
+
+  it('changes Background Pattern via the Select', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Style/ }))
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[2])
+    await user.click(await screen.findByRole('option', { name: 'Waves' }))
+    expect(updatePreference).toHaveBeenCalledWith('backgroundPattern', 'waves')
+  })
+
+  it('changes Chat Bubble Style via the Select', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Style/ }))
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[3])
+    await user.click(await screen.findByRole('option', { name: 'Sharp' }))
+    expect(updatePreference).toHaveBeenCalledWith('chatBubbleStyle', 'sharp')
+  })
+
+  it('toggles Contextual Colors switch on the Style tab', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Style/ }))
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[0])
+    expect(updatePreference).toHaveBeenCalledWith('contextualColors', false)
+  })
+
+  it('changes Font Size via the Select on the Text tab', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Text/ }))
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[0])
+    await user.click(await screen.findByRole('option', { name: 'Large' }))
+    expect(updatePreference).toHaveBeenCalledWith('fontSize', 'large')
+  })
+
+  it('changes Animation Intensity via the Select on the Effects tab', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('tab', { name: /Effects/ }))
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[0])
+    await user.click(await screen.findByRole('option', { name: 'Enhanced' }))
+    expect(updatePreference).toHaveBeenCalledWith('animationIntensity', 'enhanced')
+  })
+
+  it('renders enhanced animation preview with rotate transform', async () => {
+    mockUseDynamicUI.mockReturnValue({
+      preferences: { ...defaultPreferences, animationIntensity: 'enhanced' as const },
+      updatePreference,
+      setPreferences,
+    })
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+    await user.click(screen.getByRole('tab', { name: /Effects/ }))
+    expect(screen.getByText('Animation Preview')).toBeInTheDocument()
+  })
+
+  it('renders subtle animation preview', async () => {
+    mockUseDynamicUI.mockReturnValue({
+      preferences: { ...defaultPreferences, animationIntensity: 'subtle' as const },
+      updatePreference,
+      setPreferences,
+    })
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+    await user.click(screen.getByRole('tab', { name: /Effects/ }))
+    expect(screen.getByText('Animation Preview')).toBeInTheDocument()
+  })
+
+  it('applies the Minimal preset', async () => {
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('button', { name: 'Minimal' }))
+    expect(setPreferences).toHaveBeenCalledTimes(1)
+    const updater = setPreferences.mock.calls[0][0] as (
+      p: typeof defaultPreferences,
+    ) => typeof defaultPreferences
+    const next = updater(defaultPreferences)
+    expect(next.colorScheme).toBe('minimal')
+    expect(toast.success).toHaveBeenCalledWith('Applied Minimal theme')
+  })
+
+  it('applies the High Contrast preset', async () => {
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('button', { name: 'High Contrast' }))
+    expect(setPreferences).toHaveBeenCalledTimes(1)
+    const updater = setPreferences.mock.calls[0][0] as (
+      p: typeof defaultPreferences,
+    ) => typeof defaultPreferences
+    const next = updater(defaultPreferences)
+    expect(next.colorScheme).toBe('high-contrast')
+    expect(toast.success).toHaveBeenCalledWith('Applied High Contrast theme')
+  })
+
+  it('applies the Default preset', async () => {
+    const user = userEvent.setup()
+    render(<DynamicUICustomizer />)
+
+    await user.click(screen.getByRole('button', { name: 'Default' }))
+    expect(setPreferences).toHaveBeenCalledTimes(1)
+  })
+
   it('reset-to-defaults calls setPreferences with the full default object and toasts', async () => {
     const { toast } = await import('sonner')
     const user = userEvent.setup()
