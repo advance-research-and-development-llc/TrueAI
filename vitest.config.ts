@@ -159,19 +159,17 @@ export default defineConfig({
         // `dismissSuggestion`, and the `if (!behavior)` early returns
         // in `generateSuggestions` / `getPredictedNextAction` /
         // `getRecommendedFeatures`).
-        // **Threshold ratchet (post-PR #98):** all-files coverage now
-        // sits at 83.78 lines · 75.66 branch · 78.25 funcs · 85.97 stmts
-        // (218/218 files, 3075/3075 tests). Bumped from 83/73/73/81 to
-        // lock in the gains from PRs #81, #83, #84, #86, #88, #90, #93,
-        // #95, #96, #98 (mid-band coverage push: usePerformanceMonitor,
-        // ModelConfigPanel, DynamicUICustomizer, BenchmarkComparison,
-        // ConversationSettings, BundleAutomationPanel, HarnessCreator,
-        // AnalyticsDashboard, ThemeSwitcher, WorkflowBuilder,
-        // LLMRuntimeSettings) so future regressions trip CI.
-        lines: 85,
-        functions: 77,
-        branches: 75,
-        statements: 83.5,
+        // **Threshold ratchet (post-PRs #102/#104/#105/#106):** all-files
+        // now sits at 84.21 stmts · 76.15 branch · 78.71 funcs · 86.38
+        // lines (218/218 files, 3107/3107 tests). Bumped from
+        // 83.5 / 75 / 77 / 85 to 84 / 76 / 78 / 86 to lock in the gains
+        // from PRs #102 (PerfProfile/QuickActions/useAgent), #104
+        // (agent-tools error paths), #105 (diagnostics edge branches),
+        // and #106 (analytics rollups + day bucketing).
+        lines: 86,
+        functions: 78,
+        branches: 76,
+        statements: 84,
       },
     },
   },
