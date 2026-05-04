@@ -389,4 +389,85 @@ describe('AnalyticsDashboard', () => {
     // When getMetrics is absent, metrics state is never populated so loading screen persists
     expect(screen.getByText(/loading analytics/i)).toBeInTheDocument()
   })
+
+  describe('refresh interval + time range + auto-refresh timers', () => {
+    it('changes the time range Select to "Last 7 days" and re-fetches metrics with a startDate', async () => {
+      const getMetrics = vi.fn().mockResolvedValue(noopMetrics)
+      mockUseAnalytics.mockReturnValue(makeHookValue({ getMetrics }))
+      const user = userEvent.setup()
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^overview$/i }))
+      const triggers = screen.getAllByRole('combobox')
+      // combobox[0] = refresh-interval (disabled when paused), [1] = timeRange.
+      await user.click(triggers[1])
+      await user.click(await screen.findByRole('option', { name: /last 7 days/i }))
+      await waitFor(() => {
+        const sevenDayCall = getMetrics.mock.calls.find(([f]) =>
+          f && typeof f.startDate === 'number',
+        )
+        expect(sevenDayCall).toBeTruthy()
+      })
+    })
+
+    it('changes the time range Select to "Last 30 days" and re-fetches metrics', async () => {
+      const getMetrics = vi.fn().mockResolvedValue(noopMetrics)
+      mockUseAnalytics.mockReturnValue(makeHookValue({ getMetrics }))
+      const user = userEvent.setup()
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^overview$/i }))
+      const triggers = screen.getAllByRole('combobox')
+      await user.click(triggers[1])
+      await user.click(await screen.findByRole('option', { name: /last 30 days/i }))
+      await waitFor(() => expect(getMetrics).toHaveBeenCalledTimes(2))
+    })
+
+    it('clicking Resume then Pause toggles the auto-refresh badge', async () => {
+      mockUseAnalytics.mockReturnValue(makeHookValue())
+      const user = userEvent.setup()
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^overview$/i }))
+      expect(screen.getByText(/updates paused/i)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /resume/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/next refresh in/i)).toBeInTheDocument(),
+      )
+      await user.click(screen.getByRole('button', { name: /pause/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/updates paused/i)).toBeInTheDocument(),
+      )
+    })
+
+    it('changes the refresh-interval Select after enabling auto-refresh', async () => {
+      mockUseAnalytics.mockReturnValue(makeHookValue())
+      const user = userEvent.setup()
+      render(<AnalyticsDashboard />)
+      await waitFor(() => screen.getByRole('tab', { name: /^overview$/i }))
+      // Enable auto-refresh so the refresh-interval Select becomes enabled
+      await user.click(screen.getByRole('button', { name: /resume/i }))
+      const triggers = screen.getAllByRole('combobox')
+      await user.click(triggers[0])
+      await user.click(await screen.findByRole('option', { name: /^10s$/i }))
+      // Verify badge updates with the new countdown value (initial 10 then ticks)
+      await waitFor(() =>
+        expect(screen.getByText(/next refresh in 10s|next refresh in 9s/i)).toBeInTheDocument(),
+      )
+    })
+
+    it('mounts cleanly when initial events array contains a future-timestamped event (no crash from event-tracking effect)', async () => {
+      const getMetrics = vi.fn().mockResolvedValue(noopMetrics)
+      const futureEvent = {
+        id: 'evt-new',
+        action: 'noop',
+        category: 'noop',
+        timestamp: Date.now() + 10_000_000,
+      }
+      mockUseAnalytics.mockReturnValue(
+        makeHookValue({ getMetrics, events: [futureEvent] }),
+      )
+      render(<AnalyticsDashboard />)
+      await waitFor(() => expect(getMetrics).toHaveBeenCalled())
+      // Both effects ran; component reached the data view.
+      expect(screen.getByRole('tab', { name: /^overview$/i })).toBeInTheDocument()
+    })
+  })
 })
