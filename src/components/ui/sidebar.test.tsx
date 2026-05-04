@@ -178,7 +178,7 @@ describe('sidebar primitive', () => {
     it('toggles via the Ctrl+B / Meta+B keyboard shortcut and unsubscribes on unmount', () => {
       const removeSpy = vi.spyOn(window, 'removeEventListener')
       const onOpenChange = vi.fn()
-      const { container, unmount } = render(
+      const { unmount } = render(
         <SidebarProvider open onOpenChange={onOpenChange}>
           <Sidebar />
         </SidebarProvider>,
@@ -208,8 +208,6 @@ describe('sidebar primitive', () => {
       // them is the keydown handler we attached.
       expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
       removeSpy.mockRestore()
-      // Suppress unused-variable lint complaint about `container`.
-      void container
     })
   })
 
