@@ -128,7 +128,7 @@ describe('huggingface — error / edge branches', () => {
         'fetch',
         vi.fn(async () => new Response('x', { status: 404, statusText: 'Not Found' })),
       )
-      await expect(getModelFiles('a/b')).rejects.toThrow(/Failed to fetch model files/)
+      await expect(getModelFiles('a/b')).rejects.toThrow(/HuggingFace API error|Failed to fetch model files/)
       expect(errSpy).toHaveBeenCalledWith('Error fetching model files:', expect.any(Error))
     })
 

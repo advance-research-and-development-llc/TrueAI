@@ -15,8 +15,24 @@
  */
 
 export type { HFSearchResult, HFFile, HFModelCard } from './types'
-export { HF_API_BASE, GGUF_EXTENSIONS, searchHuggingFaceModels, getModelFiles } from './api'
+export {
+  HF_API_BASE,
+  DEFAULT_HF_ENDPOINT,
+  GGUF_EXTENSIONS,
+  apiUrl,
+  resolveFileUrl,
+  hfRequest,
+  searchHuggingFaceModels,
+  getModelFiles,
+} from './api'
+export type { HFRequestOptions } from './api'
 export { downloadModel } from './download'
+export {
+  HFNetworkError,
+  HFGatedError,
+  HFRateLimitError,
+  parseRetryAfter,
+} from './errors'
 
 /**
  * Pretty-print a byte count.
@@ -35,20 +51,30 @@ export function formatBytes(bytes: number): string {
 
 /**
  * Curated seed list used to populate the browser before the user
- * types a search term. Phase 2 refreshes this with non-`TheBloke`
- * publishers (`bartowski`, `lmstudio-community`, `unsloth`, `Qwen`,
- * `microsoft/Phi-3`); for Phase 1 the original list is preserved
- * verbatim so the existing branch-coverage tests stay green.
+ * types a search term.
+ *
+ * Phase 2 of PR 6 refreshed this list to reflect the post-2024
+ * GGUF publisher landscape. `TheBloke` (the previous monoculture)
+ * has been largely inactive since mid-2024; the new list keeps a
+ * couple of TheBloke entries for back-compat with existing tests
+ * but leads with the publishers users actually browse to today:
+ *   - `bartowski`        — fastest-moving GGUF mirror, full quant range
+ *   - `lmstudio-community` — official LM Studio mirrors with imatrix quants
+ *   - `unsloth`          — fine-tuned + GGUF in one repo, popular for Llama-3
+ *   - `Qwen`             — first-party Qwen GGUFs
+ *   - `microsoft`        — first-party Phi-3/Phi-4 GGUFs
  */
 export function getPopularGGUFModels(): string[] {
   return [
-    'TheBloke/Llama-2-7B-Chat-GGUF',
-    'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
-    'TheBloke/Phi-3-mini-4k-instruct-GGUF',
+    'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',
+    'bartowski/Mistral-7B-Instruct-v0.3-GGUF',
+    'bartowski/Qwen2.5-7B-Instruct-GGUF',
+    'lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF',
+    'lmstudio-community/Phi-3.5-mini-instruct-GGUF',
+    'unsloth/Llama-3.2-3B-Instruct-GGUF',
+    'Qwen/Qwen2.5-7B-Instruct-GGUF',
+    'microsoft/Phi-3-mini-4k-instruct-gguf',
     'TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF',
     'TheBloke/CodeLlama-7B-Instruct-GGUF',
-    'TheBloke/neural-chat-7B-v3-3-GGUF',
-    'TheBloke/zephyr-7B-beta-GGUF',
-    'bartowski/Meta-Llama-3-8B-Instruct-GGUF',
   ]
 }

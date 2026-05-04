@@ -18,10 +18,11 @@
 
 export async function downloadModel(
   url: string,
-  onProgress?: (progress: number, downloaded: number, total: number) => void
+  onProgress?: (progress: number, downloaded: number, total: number) => void,
+  opts?: { signal?: AbortSignal },
 ): Promise<Blob> {
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: opts?.signal })
 
     if (!response.ok) {
       throw new Error(`Download failed: ${response.statusText}`)

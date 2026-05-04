@@ -334,6 +334,35 @@ describe('llm-runtime/config', () => {
       const cached = getLLMRuntimeConfig()
       expect(cached.defaultModel).toBe('updated-model')
     })
+
+    it('accepts huggingFaceEndpoint and strips trailing slashes', async () => {
+      clearFetch()
+      const next = await updateLLMRuntimeConfig({
+        huggingFaceEndpoint: 'https://hf-mirror.com//',
+      })
+      expect(next.huggingFaceEndpoint).toBe('https://hf-mirror.com')
+    })
+
+    it('rejects empty huggingFaceEndpoint and keeps the existing value', async () => {
+      clearFetch()
+      const a = await updateLLMRuntimeConfig({ huggingFaceEndpoint: 'https://example.test' })
+      expect(a.huggingFaceEndpoint).toBe('https://example.test')
+      const b = await updateLLMRuntimeConfig({ huggingFaceEndpoint: '' })
+      expect(b.huggingFaceEndpoint).toBe('https://example.test')
+    })
+
+    it('clamps huggingFaceParallelChunks into [1, 8] and floors fractional values', async () => {
+      clearFetch()
+      const a = await updateLLMRuntimeConfig({ huggingFaceParallelChunks: 6.7 })
+      expect(a.huggingFaceParallelChunks).toBe(6)
+      const b = await updateLLMRuntimeConfig({ huggingFaceParallelChunks: 99 })
+      expect(b.huggingFaceParallelChunks).toBe(8)
+      const c = await updateLLMRuntimeConfig({ huggingFaceParallelChunks: 0 })
+      // 0 is invalid (< 1) — keep the previous value.
+      expect(c.huggingFaceParallelChunks).toBe(8)
+      const d = await updateLLMRuntimeConfig({ huggingFaceParallelChunks: 1 })
+      expect(d.huggingFaceParallelChunks).toBe(1)
+    })
   })
 
   describe('subscribeToLLMRuntimeConfig', () => {
