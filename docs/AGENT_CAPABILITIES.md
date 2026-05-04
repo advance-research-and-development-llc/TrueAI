@@ -62,7 +62,11 @@
 All dispatchers route through the
 [`dispatch-fix-issue`](../.github/actions/dispatch-fix-issue/action.yml)
 composite action, which embeds the named prompt fragment, deduplicates
-by title-substring search, and respects a 25-issue throttle cap.
+by title-substring search, respects a 25-issue throttle cap, gathers
+**prior failed attempts** from the issue's PR-cross-reference timeline
+(embedded in the body so Copilot doesn't repeat what already failed),
+and **escalates to `human-only`** after 3 failed attempts (configurable
+via `escalate-after`). See `AGENT_OPERATIONS.md` §7b.
 
 ## Self-improvement loop
 

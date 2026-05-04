@@ -81,7 +81,7 @@ jobs:
           # Treat the boilerplate "no lessons recorded" stub as empty.
           # Older versions of this workflow appended that stub to every
           # bot PR, polluting the log; we now skip them entirely.
-          if re.fullmatch(r'-?\s*\(No explicit lessons recorded\.\)[^\n]*', section, flags=re.I):
+          if re.fullmatch(r'-?\s*\(No explicit lessons recorded\.\)', section, flags=re.I):
               section = ''
 
           # Detect SUPERSEDES markers to record explicitly. Note the
@@ -103,6 +103,11 @@ jobs:
           # byte heuristic shrank the effective window when entries
           # were verbose.
           import hashlib
+          # 16 hex chars = 64 bits of SHA-256 = ~1 in 2^32 collision
+          # probability after 4 billion entries (birthday bound). At
+          # the realistic rate of <1000 lessons/year over the project's
+          # lifetime, collision is effectively impossible while keeping
+          # the hash short enough to read in `git log` output.
           lesson_hash = hashlib.sha256(section.encode('utf-8')).hexdigest()[:16]
 
           existing = target.read_text(encoding='utf-8')
