@@ -41,3 +41,4 @@ Admin-Virtual-team-enhanced/packages/ui/dist/
 Admin-Virtual-team-enhanced/packages/*/*.tsbuildinfo
 
 .spark-workbench-id
+**/*.tsbuildinfo
