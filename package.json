@@ -24,6 +24,8 @@
         "docs:tools": "node scripts/gen-tool-docs.mjs",
         "mcp:server": "node scripts/mcp-server.mjs",
         "mcp:smoke": "node scripts/mcp-server.smoke.mjs",
+        "mcp:client": "node scripts/mcp-client.mjs",
+        "mcp:client-smoke": "node scripts/mcp-client.smoke.mjs",
         "compact:learnings": "node scripts/compact-learnings.mjs",
         "agent:replay": "node scripts/agent-replay.mjs",
         "optimize": "vite optimize",
