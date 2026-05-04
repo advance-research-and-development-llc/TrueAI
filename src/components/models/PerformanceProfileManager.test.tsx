@@ -153,4 +153,55 @@ describe('PerformanceProfileManager', () => {
     await user.click(screen.getByRole('button', { name: /^apply profile$/i }))
     expect(onApplyProfile).toHaveBeenCalledWith(mockProfile)
   })
+
+  it('changing the main Task Type Select updates the visible Task Type label', async () => {
+    const user = userEvent.setup()
+    render(<PerformanceProfileManager {...defaultProps} />)
+    // Main view Select is the first combobox.
+    await user.click(screen.getAllByRole('combobox')[0])
+    await user.click(await screen.findByRole('option', { name: /code generation/i }))
+    // Visible state of the trigger reflects the new selection.
+    const triggers = screen.getAllByRole('combobox')
+    expect(triggers[0]).toHaveTextContent(/code generation/i)
+  })
+
+  it('changing the Create-dialog Task Type Select feeds onCreateProfile with the new taskType', async () => {
+    const user = userEvent.setup()
+    const onCreateProfile = vi.fn()
+    render(<PerformanceProfileManager {...defaultProps} onCreateProfile={onCreateProfile} />)
+    await user.click(screen.getByRole('button', { name: /create profile/i }))
+    // The dialog's Select is the second visible combobox.
+    const triggers = screen.getAllByRole('combobox')
+    await user.click(triggers[triggers.length - 1])
+    await user.click(await screen.findByRole('option', { name: /code generation/i }))
+    const buttons = screen.getAllByRole('button', { name: /create profile/i })
+    await user.click(buttons[buttons.length - 1])
+    expect(onCreateProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ taskType: 'code_generation' }),
+    )
+  })
+
+  it('Cancel button in Create Profile dialog closes the dialog without invoking onCreateProfile', async () => {
+    const user = userEvent.setup()
+    const onCreateProfile = vi.fn()
+    render(<PerformanceProfileManager {...defaultProps} onCreateProfile={onCreateProfile} />)
+    await user.click(screen.getByRole('button', { name: /create profile/i }))
+    expect(screen.getByText('Create Performance Profile')).toBeInTheDocument()
+    // Cancel — the second cancel button (recommendations dialog isn't open here).
+    const cancels = screen.getAllByRole('button', { name: /^cancel$/i })
+    await user.click(cancels[cancels.length - 1])
+    expect(screen.queryByText('Create Performance Profile')).not.toBeInTheDocument()
+    expect(onCreateProfile).not.toHaveBeenCalled()
+  })
+
+  it('viewingProfile dialog closes via onOpenChange (Escape)', async () => {
+    const user = userEvent.setup()
+    render(<PerformanceProfileManager {...defaultProps} profiles={[mockProfile]} />)
+    await user.click(screen.getByText('My Profile'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Close via Escape — Radix Dialog routes this through onOpenChange,
+    // which in turn calls setViewingProfile(null).
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 })

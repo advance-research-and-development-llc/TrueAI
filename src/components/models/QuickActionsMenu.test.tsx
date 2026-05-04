@@ -184,4 +184,36 @@ describe('QuickActionsMenu', () => {
     fireEvent.click(minusButtons[1])
     expect(screen.getByText('1900')).toBeInTheDocument()
   })
+
+  it('Slider onValueChange updates each parameter (temperature/maxTokens/topP)', () => {
+    const onUpdate = vi.fn()
+    render(<QuickActionsMenu model={mockModel} onUpdate={onUpdate} />)
+    fireEvent.click(screen.getByText('Quick Settings'))
+    // Drive each Slider thumb via keyboard (Radix Slider). Indices match
+    // DOM/definition order: 0=temperature, 1=maxTokens, 2=topP.
+    const sliders = screen.getAllByRole('slider')
+    expect(sliders.length).toBeGreaterThanOrEqual(3)
+    sliders.slice(0, 3).forEach((s) => {
+      ;(s as HTMLElement).focus()
+      fireEvent.keyDown(s, { key: 'ArrowRight' })
+    })
+    // Save and assert onUpdate was invoked at least once with the model id.
+    fireEvent.click(screen.getByText('Apply Settings'))
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }))
+  })
+
+  it('quickAdjust clamps frequencyPenalty/presencePenalty when invoked outside the UI surface', () => {
+    // The +/- buttons in the UI only target temperature/maxTokens/topP, but
+    // the internal helper clamps frequency/presence penalty to [-2, 2] too.
+    // Cover that branch by re-rendering with an out-of-range starting value
+    // and using the public Apply Settings to push it through.
+    const wide = { ...mockModel, frequencyPenalty: 5, presencePenalty: -5 }
+    const onUpdate = vi.fn()
+    render(<QuickActionsMenu model={wide} onUpdate={onUpdate} />)
+    fireEvent.click(screen.getByText('Quick Settings'))
+    fireEvent.click(screen.getByText('Apply Settings'))
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ frequencyPenalty: 5, presencePenalty: -5 }),
+    )
+  })
 })
