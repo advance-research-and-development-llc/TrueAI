@@ -147,6 +147,97 @@ describe('usePerformanceMonitor hook', () => {
     expect(result.current.getAverageRenderTime).toBeDefined()
   })
 
+  it('should record a metric when render time exceeds 16ms (without warn)', () => {
+    // Strict-mode + no-deps useEffect causes ~19 performance.now() calls
+    // between the final setup and the unmount cleanup. Calibrated so the
+    // delta lands in the (16, 50) band.
+    let n = 0
+    const perfNowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      const v = n
+      n += 1.5
+      return v
+    })
+    try {
+      const { result, unmount } = renderHook(() =>
+        usePerformanceMonitor('SlowComponent', true),
+      )
+      unmount()
+      const metrics = result.current.getMetrics()
+      expect(metrics.length).toBeGreaterThanOrEqual(1)
+      expect(metrics[0].componentName).toBe('SlowComponent')
+      expect(metrics[0].renderTime).toBeGreaterThan(16)
+      expect(metrics[0].renderTime).toBeLessThan(50)
+      expect(consoleWarnSpy).not.toHaveBeenCalled()
+    } finally {
+      perfNowSpy.mockRestore()
+    }
+  })
+
+  it('should warn when render time exceeds 50ms', () => {
+    let n = 0
+    const perfNowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      const v = n
+      n += 5
+      return v
+    })
+    try {
+      const { result, unmount } = renderHook(() =>
+        usePerformanceMonitor('VerySlowComponent', true),
+      )
+      unmount()
+      const metrics = result.current.getMetrics()
+      expect(metrics.length).toBeGreaterThanOrEqual(1)
+      expect(metrics[0].renderTime).toBeGreaterThan(50)
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/Slow render detected.*VerySlowComponent/),
+      )
+    } finally {
+      perfNowSpy.mockRestore()
+    }
+  })
+
+  it('should NOT record a metric when render time is below the 16ms threshold', () => {
+    let n = 0
+    const perfNowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      const v = n
+      n += 0.1
+      return v
+    })
+    try {
+      const { result, unmount } = renderHook(() =>
+        usePerformanceMonitor('FastComponent', true),
+      )
+      unmount()
+      expect(result.current.getMetrics()).toEqual([])
+      expect(consoleWarnSpy).not.toHaveBeenCalled()
+    } finally {
+      perfNowSpy.mockRestore()
+    }
+  })
+
+  it('getAverageRenderTime returns the mean of recorded metrics', () => {
+    let n = 0
+    const perfNowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      const v = n
+      n += 1.5
+      return v
+    })
+    try {
+      const { result, rerender, unmount } = renderHook(() =>
+        usePerformanceMonitor('AvgComponent', true),
+      )
+      rerender()
+      unmount()
+      const metrics = result.current.getMetrics()
+      expect(metrics.length).toBeGreaterThanOrEqual(1)
+      const expectedAvg = metrics.reduce((s, m) => s + m.renderTime, 0) / metrics.length
+      expect(result.current.getAverageRenderTime()).toBeCloseTo(expectedAvg, 5)
+      expect(result.current.getAverageRenderTime()).toBeGreaterThan(16)
+    } finally {
+      perfNowSpy.mockRestore()
+    }
+  })
+
   it('should clear metrics correctly', () => {
     const { result } = renderHook(() => usePerformanceMonitor('TestComponent', true))
 
