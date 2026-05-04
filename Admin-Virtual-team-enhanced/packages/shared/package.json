@@ -1,0 +1,17 @@
+{
+  "name": "@trueai/shared",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": "true"
+}
