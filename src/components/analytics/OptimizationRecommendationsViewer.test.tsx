@@ -279,4 +279,69 @@ describe('OptimizationRecommendationsViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: /Apply Auto-Tune/i }))
     expect(onApplyAutoTune).toHaveBeenCalledWith(rec, 'm1')
   })
+
+  it('exercises every severity filter badge (Critical/High/Medium/Low)', async () => {
+    const user = userEvent.setup()
+    const insights = [
+      baseInsight({ id: 'a', title: 'Crit', severity: 'critical' }),
+      baseInsight({ id: 'b', title: 'Hi', severity: 'high' }),
+      baseInsight({ id: 'c', title: 'Med', severity: 'medium' }),
+      baseInsight({ id: 'd', title: 'Lo', severity: 'low' }),
+    ]
+    renderViewer({ insights })
+    const filterBadge = (label: string | RegExp) =>
+      screen
+        .getAllByText(label)
+        .find((el) => el.tagName === 'SPAN' && el.className.includes('cursor-pointer'))!
+    await user.click(filterBadge('High'))
+    expect(screen.getByText('Hi')).toBeInTheDocument()
+    expect(screen.queryByText('Med')).toBeNull()
+    await user.click(filterBadge('Medium'))
+    expect(screen.getByText('Med')).toBeInTheDocument()
+    expect(screen.queryByText('Hi')).toBeNull()
+    await user.click(filterBadge('Low'))
+    expect(screen.getByText('Lo')).toBeInTheDocument()
+    expect(screen.queryByText('Med')).toBeNull()
+  })
+
+  it('exercises every type filter badge (All Types/Performance/Efficiency)', async () => {
+    const user = userEvent.setup()
+    const insights = [
+      baseInsight({ id: 'a', title: 'PerfItem', type: 'performance' }),
+      baseInsight({ id: 'b', title: 'EffItem', type: 'efficiency' }),
+    ]
+    renderViewer({ insights })
+    const filterBadge = (label: string | RegExp) =>
+      screen
+        .getAllByText(label)
+        .find((el) => el.tagName === 'SPAN' && el.className.includes('cursor-pointer'))!
+    await user.click(filterBadge(/^Performance$/))
+    expect(screen.getByText('PerfItem')).toBeInTheDocument()
+    expect(screen.queryByText('EffItem')).toBeNull()
+    await user.click(filterBadge(/^Efficiency$/))
+    expect(screen.getByText('EffItem')).toBeInTheDocument()
+    expect(screen.queryByText('PerfItem')).toBeNull()
+    await user.click(filterBadge(/^All Types$/))
+    expect(screen.getByText('PerfItem')).toBeInTheDocument()
+    expect(screen.getByText('EffItem')).toBeInTheDocument()
+  })
+
+  it('renders cost-type insight (covers getTypeIcon cost branch)', () => {
+    renderViewer({
+      insights: [baseInsight({ id: 'cost-1', title: 'CostItem', type: 'cost' })],
+    })
+    expect(screen.getByText('CostItem')).toBeInTheDocument()
+  })
+
+  it('list view View button selects the insight (covers onView callback)', async () => {
+    const user = userEvent.setup()
+    renderViewer({
+      insights: [baseInsight({ id: 'a', title: 'Viewable', recommendation: 'do thing' })],
+    })
+    const card = screen.getByText('Viewable').closest('.flex.items-start')!.parentElement!
+    await user.click(within(card).getByRole('button', { name: /^View$/i }))
+    // Switching to detailed view shows the recommendation text from the now-selected insight.
+    await user.click(screen.getByRole('tab', { name: /Detailed View/i }))
+    expect(screen.getByText(/do thing/i)).toBeInTheDocument()
+  })
 })
