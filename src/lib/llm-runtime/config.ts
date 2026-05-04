@@ -179,7 +179,7 @@ function mergeConfig(
     topP: typeof patch.topP === 'number' && patch.topP >= 0 ? patch.topP : base.topP,
     topK:
       typeof patch.topK === 'number' && patch.topK >= 0 && Number.isFinite(patch.topK)
-        ? patch.topK
+        ? Math.floor(patch.topK)
         : base.topK,
     minP:
       typeof patch.minP === 'number' && patch.minP >= 0 && patch.minP <= 1
@@ -187,7 +187,7 @@ function mergeConfig(
         : base.minP,
     repeatPenalty:
       typeof patch.repeatPenalty === 'number' &&
-      patch.repeatPenalty >= 0 &&
+      patch.repeatPenalty >= 1 &&
       Number.isFinite(patch.repeatPenalty)
         ? patch.repeatPenalty
         : base.repeatPenalty,
