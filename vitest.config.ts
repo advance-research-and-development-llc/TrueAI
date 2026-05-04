@@ -159,17 +159,18 @@ export default defineConfig({
         // `dismissSuggestion`, and the `if (!behavior)` early returns
         // in `generateSuggestions` / `getPredictedNextAction` /
         // `getRecommendedFeatures`).
-        // **Threshold ratchet (post-PRs #108/#109/#110/#111):** all-files
-        // now sits at 84.8 stmts · 77.2 branch · 79.09 funcs · 86.91
-        // lines after the auto-optimizer (#108), performance-scanner
-        // (#109), workflow-runtime (#110), and use-data-prefetcher
-        // (#111) coverage chunks. Bumped from 84 / 76 / 78 / 86 to
-        // 84.5 / 77 / 79 / 86.5 to lock in the gains while leaving
-        // ~0.3-0.4pp room for the next mid-band push.
-        lines: 86.5,
-        functions: 79,
-        branches: 77,
-        statements: 84.5,
+        // **Threshold ratchet #2 (post-PRs #112-#121):** after a sustained
+        // mid-band push (#113 LearningRateBenchmark, #114 BenchmarkRunner,
+        // #115 BulkOptimizationPanel, #117 AnalyticsDashboard, #118
+        // use-tab-preloader, #119 GGUFPicker, #120 OptRecommendationsViewer,
+        // #121 HuggingFaceModelBrowser), all-files now sits at
+        // **85.38 stmts · 77.72 branch · 79.95 funcs · 87.49 lines**.
+        // Bumped from 84.5 / 77 / 79 / 86.5 to 85 / 77.5 / 79.5 / 87
+        // to lock in the gains while leaving ~0.4pp room for the next push.
+        lines: 87,
+        functions: 79.5,
+        branches: 77.5,
+        statements: 85,
       },
     },
   },
