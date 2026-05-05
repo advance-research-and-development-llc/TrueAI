@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "test": "npm --workspaces run test",
-    "dev": "npm -w @trueai/teamd run dev",
+    "dev": "npm -w @trueai/ui run dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint"
   },

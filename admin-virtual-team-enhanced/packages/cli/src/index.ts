@@ -3,7 +3,7 @@
 import { createInterface } from 'node:readline'
 import type { BootstrapAdminInput, BootstrapStatus } from '@trueai/shared'
 
-const DEFAULT_HOST = process.env.TRUEAI_TEAMD_HOST ?? 'http://127.0.0.1:3210'
+const DEFAULT_HOST = process.env.TRUEAI_API_HOST ?? 'http://127.0.0.1:3210'
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2)
