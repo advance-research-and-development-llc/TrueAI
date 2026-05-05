@@ -13,5 +13,11 @@
   "author": "",
   "license": "ISC",
   "type": "module",
-  "private": "true"
+  "private": "true",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
 }
