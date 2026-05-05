@@ -10,6 +10,7 @@ export default [
       '**/dist/**',
       '**/node_modules/**',
       '**/packages/**',
+      'admin-virtual-team-enhanced/**',
       '**/*.config.js',
       '**/*.config.ts',
       '**/*.config.mjs',
@@ -23,7 +24,16 @@ export default [
     ]
   },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    languageOptions: {
+      ...config.languageOptions,
+      parserOptions: {
+        ...config.languageOptions?.parserOptions,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  })),
   {
     files: ['scripts/**/*.{js,mjs,cjs}'],
     languageOptions: {
@@ -80,4 +90,3 @@ export default [
     },
   },
 ]
-
