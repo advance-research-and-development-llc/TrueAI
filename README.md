@@ -104,6 +104,118 @@ The future of AI should not be something we rent forever.
 
 **It should be something we own, understand, improve, and use to build better lives.**
 
+## 📸 Screenshots
+
+A quick visual tour of the features described below. All screenshots are
+captured from a production build of the app running locally — no
+hosted services and no third-party telemetry.
+
+<details open>
+<summary><strong>Core experience</strong></summary>
+
+### 💬 Multi-Model Chat
+
+<img src="docs/screenshots/chat.png" alt="Conversations list with the cached/offline indicator and 'New Chat' affordance" width="900" />
+
+### 🤖 Autonomous Agents
+
+<img src="docs/screenshots/agents.png" alt="Agents tab showing the My Agents and Execution History panels" width="900" />
+
+### 🧪 Agent Templates
+
+Pre-configured agents (Research Assistant, Data Analyst, Code Reviewer,
+Content Creator, Multi-Language Translator, Sentiment Analyzer, API
+Orchestrator, General Assistant) that drop in with their toolsets:
+
+<img src="docs/screenshots/agents-templates.png" alt="Agent template gallery with eight pre-configured agents" width="900" />
+
+### 🔀 Visual Workflow Builder
+
+Drag-and-drop multi-agent orchestration with node palette, save controls,
+mini-map and React Flow canvas:
+
+<img src="docs/screenshots/workflow-builder.png" alt="Visual Workflow Builder with node palette, name/save controls, and a React Flow canvas with mini-map" width="900" />
+
+### 💰 Cost Tracking &amp; Budgets
+
+Real-time spend monitoring, per-model and per-resource breakdowns, and
+budget management:
+
+<img src="docs/screenshots/cost-tracking.png" alt="Cost Tracking dashboard with Total Cost, Avg per Call and Trend KPIs plus per-model and per-resource breakdowns" width="900" />
+
+### ⚡ Models — Hardware Optimization
+
+Auto-tuned settings (max tokens, chunk size, agent concurrency, cache
+size, image quality) keyed off a device-tier scan, plus an in-app
+benchmark runner:
+
+<img src="docs/screenshots/models.png" alt="Models tab Optimize panel showing device tier, performance score, CPU/RAM, and recommended settings" width="900" />
+
+### 📊 Analytics Dashboard
+
+KPI cards, time-series + breakdown charts, and exportable activity
+history:
+
+<img src="docs/screenshots/analytics.png" alt="Analytics Dashboard with Total Events, Active Sessions, Avg Session Time, Error Rate KPIs and an Events Over Time / Events by Type pair of charts" width="900" />
+
+### 🛠️ AI App Builder
+
+Generate complete web apps from natural language with a curated
+template library across productivity, utility, games, dashboards,
+portfolio, and e-commerce:
+
+<img src="docs/screenshots/app-builder.png" alt="App Builder with category filter and a grid of Quick Start templates including Todo List, Calculator, Notes, Snake Game, and more" width="900" />
+
+### 🧑‍💻 Local IDE
+
+Full code editor with project/file panel, theme picker (Tomorrow Night
+shown), live preview, and a JS console — all client-side:
+
+<img src="docs/screenshots/local-ide.png" alt="Local IDE with Projects, Files, editor, Preview / Console panels and theme picker" width="900" />
+
+</details>
+
+<details>
+<summary><strong>LLM Runtime &amp; Settings</strong></summary>
+
+### 🧠 LLM Runtime
+
+Pick a provider preset (Ollama, llama.cpp `llama-server`, LM Studio,
+OpenAI, or local on-device WASM), set the base URL, and optionally a
+key. Everything is stored locally:
+
+<img src="docs/screenshots/settings-llm-runtime.png" alt="Settings → LLM Runtime panel with Provider, Base URL, API key (optional), and Default model fields" width="900" />
+
+### 🎚️ Sampling Defaults
+
+Temperature, Top-P, Max Tokens, plus the local-runtime-only knobs
+Top-K, Min-P and Repeat Penalty (omitted from outgoing requests when
+left at their neutral defaults so hosted providers keep working):
+
+<img src="docs/screenshots/settings-sampling.png" alt="Sampling defaults section with Temperature/Top-P/Max-tokens and Top-K, Min-P, Repeat-penalty sliders" width="900" />
+
+</details>
+
+<details>
+<summary><strong>Mobile</strong></summary>
+
+### 📱 Mobile-Optimised UI
+
+The web app is fully responsive: at phone widths the top tab bar
+collapses into a thumb-reachable bottom navigation, an FAB appears for
+the primary action, and pull-to-refresh is wired up across list views.
+The same layout ships in the Capacitor 8 Android APK:
+
+<img src="docs/screenshots/mobile.png" alt="TrueAI LocalAI on a 390×844 phone viewport showing the conversations list, bottom navigation (Chat / Agents / Flow / Models / Stats / Build), and a floating action button" width="380" />
+
+</details>
+
+> **Native-only features** such as the Capacitor share sheet, secure
+> credential storage, haptic feedback, and the Android back-button
+> handler stack only render meaningfully inside the APK. They are
+> documented in the [Native Capabilities table](#native-capabilities-android-apk)
+> below and not screenshot here, since web fakes would be misleading.
+
 ## 🚀 Key Features
 
 ### Core Functionality
