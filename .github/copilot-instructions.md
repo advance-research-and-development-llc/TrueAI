@@ -12,6 +12,9 @@ land cleanly through the protected-branch + auto-merge flow without churn.
   (`android/`).
 - Local LLM runtime under `src/lib/llm-runtime/`; mobile/native abstractions
   under `src/lib/native/`.
+- Monorepo: `packages/shared` (`@avt/shared`), `packages/teamd` (`@avt/teamd`,
+  Fastify HTTP daemon on port 5174), `packages/cli` (`@avt/cli`, commander CLI
+  that talks to teamd). The Vite UI proxies `/teamd/*` → `http://127.0.0.1:5174`.
 - License: MIT, with mandatory attribution preservation — see
   [`NOTICE`](../NOTICE) and [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
@@ -37,20 +40,63 @@ JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 ./android/gradlew ...
 | Install deps | `npm ci` |
 | **Dev build** (`__APP_DEBUG__=true`) | `npm run build:dev` |
 | Production build (`__APP_DEBUG__=false`) | `npm run build` |
+| Type check (no emit) | `npm run typecheck` |
 | Lint | `npm run lint` |
-| Unit tests | `npm test` (if defined in `package.json`) |
+| Lint with auto-fix | `npm run lint:fix` |
+| Unit tests (all) | `npm test` |
+| **Run a single test file** | `npx vitest run src/path/to/file.test.ts` |
+| Coverage report + threshold check | `npm run test:coverage:check` |
 | Android debug APK | `npm run android:build` |
 | Android release APK | `npm run android:build:release` |
+| Build workspace packages | `npm run build:packages` |
+| Start teamd daemon (watch) | `npm run dev:teamd` |
+| teamd CLI | `npm run dev:cli -- <subcommand>` |
 
 Debug Android workflows (`.github/workflows/android.yml`) use `build:dev`;
 release workflows (`build-android.yml`, `release.yml`) use `build`.
+
+## Architecture
+
+### `@github/spark` shims
+
+`vite.config.ts` and `vitest.config.ts` both alias:
+
+- `@github/spark/hooks` → `src/lib/llm-runtime/spark-hooks-shim.ts`
+- `@github/spark/spark` → `src/lib/llm-runtime/install.ts`
+
+This replaces the hosted Spark runtime with local IndexedDB-backed
+implementations so the Android APK and tests work without Spark's KV/LLM
+HTTP endpoints. **Never import from `@github/spark/hooks` expecting the
+upstream package** — you always get the local shim.
+
+### Vite globals
+
+`__APP_DEBUG__` (`boolean`) and `__APP_VERSION__` (`string`) are injected
+by Vite. Use them instead of `import.meta.env.DEV` where you need to gate
+debug-only paths.
+
+### Monorepo workspace packages
+
+`packages/` is an npm workspaces monorepo:
+
+- **`@avt/shared`** — shared TypeScript types, constants, utilities used by
+  teamd and cli.
+- **`@avt/teamd`** — Fastify HTTP daemon (port 5174). Endpoints: `/health`,
+  `/api/v1/tasks`. Start with `npm run dev:teamd`.
+- **`@avt/cli`** — `team` CLI (commander) that talks to a running teamd.
+  Env vars: `TEAMD_HOST` (default `127.0.0.1`), `TEAMD_PORT` (default
+  `5174`). Also accepts `--host` / `--port` flags.
+
+Workspace packages have their own `vitest.config.ts` (node environment).
+`npm test` at the root **excludes** `packages/**`; run
+`npm run test:packages` to test teamd in isolation.
 
 ## Conventions you MUST follow
 
 ### Dependency overrides
 `package.json` `overrides` block pins transitive deps past CVE-fixed
 versions: `path-to-regexp ^8.4.0`, `postcss ^8.5.10`, `lodash ^4.17.24`,
-`brace-expansion@1 ^1.1.13`. **Do not weaken these pins.**
+`brace-expansion@1 ^1.1.13`, `protobufjs ^7.5.5`. **Do not weaken these pins.**
 
 ### Credential storage
 - LLM API key is persisted under `__llm_runtime_api_key__` via
@@ -96,6 +142,66 @@ Hard-coded defaults < `public/runtime.config.json` `llm` block < KV key
   the bypass list of `protect-default-branch.json` and
   `protect-release-tags.json` (see `.github/rulesets/README.md`).
 
+## Testing conventions
+
+### Coverage thresholds (CI-enforced)
+`vitest.config.ts` enforces coverage floors. **Every PR must leave these
+passing** (`npm run test:coverage:check`). Current floors:
+
+| Metric | Floor |
+|---|---|
+| Lines | 87.75 % |
+| Functions | 80.5 % |
+| Branches | 78.25 % |
+| Statements | 85.75 % |
+
+When your task requires adding behaviour, add tests to keep these passing.
+The coverage-gap dispatch workflow will automatically open issues if floors
+slip.
+
+### Critical testing gotchas (from LEARNINGS.md)
+
+Read the full [`LEARNINGS.md`](.github/copilot/LEARNINGS.md) before starting
+any non-trivial task. The entries below are the highest-impact patterns:
+
+- **`framer-motion` in jsdom**: `AnimatePresence` defers DOM removal until
+  exit animations complete; in jsdom there is no animation engine so elements
+  stay in the DOM after `setShow(false)`. Don't assert element absence after
+  state-driven exit — verify side effects instead. Use a Proxy-based
+  passthrough + Fragment `AnimatePresence` mock for animation-heavy components.
+
+- **Radix UI portals**: Dialog/Select/Popover content renders outside the
+  `container` returned by `render()`. Always use `document.body.querySelector()`
+  or `screen.*` helpers when asserting on portal content — `container.querySelector()`
+  returns `null`. Radix Select options aren't in the DOM until the trigger is
+  clicked; test selected-item display text via `SelectValue` in the trigger.
+
+- **Icon-only buttons**: Wrap in a Tooltip and add `aria-label` explicitly —
+  Radix `TooltipContent` provides `aria-describedby` (not `aria-labelledby`)
+  so the button's accessible name is empty without it.
+
+- **Module-level state + `vi.resetModules()`**: For modules that self-install
+  at import (e.g. `src/lib/native/install.ts`, `preMountErrorCapture.ts`),
+  use top-level `vi.mock` + `vi.hoisted`, then per-test `vi.resetModules()` +
+  dynamic `await import(...)` to reset flags. Side effects gated by `setTimeout`
+  require `vi.waitFor(...)`.
+
+- **Stateful `useKV` mock**: Use `React.useState` inside the mock factory
+  rather than `vi.fn(() => [def, vi.fn()])` when a test needs to drive
+  multi-step state.
+
+- **`useThrottle` with fake timers**: The hook initialises `lastRun =
+  Date.now()` at mount. Always `vi.advanceTimersByTime(delay + 1)` before
+  the first call in fake-timer throttle tests.
+
+- **`window.location.reload`**: Not configurable in jsdom. Use
+  `vi.stubGlobal('location', { reload: vi.fn() })` and clean up with
+  `vi.unstubAllGlobals()`.
+
+- **`navigator.serviceWorker` in jsdom 29**: `'serviceWorker' in navigator`
+  is always `true` but `getRegistrations()` may hang; always stub with a
+  full mock including `getRegistrations: vi.fn().mockResolvedValue([])`.
+
 ## Governance — what your PR must NOT do
 
 The default branch and `v*` tags are protected by GitHub Rulesets. PRs that
@@ -112,16 +218,27 @@ violate these rules will be auto-rejected (see
 - ❌ Disable or bypass CodeQL, Android CI, or any required status check.
 - ❌ Use `git push --force` against `main` (blocked by ruleset anyway).
 
+### Risk classification
+
+The `pr-risk-label.yml` workflow auto-attaches `risk:trivial | risk:low |
+risk:medium | risk:high`. `risk:high` **blocks auto-merge** and fires when
+you touch `.github/**`, `LICENSE`, `NOTICE`, `package.json`,
+`src/lib/llm-runtime/kv-store.ts`, or `src/lib/native/secure-storage.ts`.
+Keep your fix away from those paths unless the issue explicitly authorises
+it. Full logic: `scripts/classify-pr-risk.mjs`.
+
 ## Definition of done for an agent PR
 
 1. `npm ci` succeeds.
-2. `npm run build:dev` succeeds.
-3. Any related unit tests pass.
-4. `Analyze (javascript-typescript)`, `Analyze (java-kotlin)`, and
+2. `npm run lint` exits 0 — no new errors.
+3. `npm run build:dev` succeeds.
+4. `npm test` passes — no newly failing tests.
+5. Coverage thresholds in `vitest.config.ts` still pass.
+6. `Analyze (javascript-typescript)`, `Analyze (java-kotlin)`, and
    `Android CI` status checks pass on the PR.
-5. CODEOWNERS reviewer (`@smackypants`) approves.
-6. All review threads resolved.
-7. Auto-merge (squash) takes it from there.
+7. CODEOWNERS reviewer (`@smackypants`) approves.
+8. All review threads resolved.
+9. Auto-merge (squash) takes it from there.
 
 ## Continuous learning — read this on every task
 
@@ -198,26 +315,6 @@ Use **exactly** this pattern — do not invent a different name:
 | `android-lint` | `copilot/fix-android-lint-{rule-slug}-{YYYY-MM-DD}` |
 | `other` | `copilot/fix-{issue-number}-{short-slug}` |
 
-### Risk classification (assigned to your PR automatically)
-
-After you open the PR, the [`pr-risk-label.yml`](./workflows/pr-risk-label.yml)
-workflow attaches one of `risk:trivial | risk:low | risk:medium | risk:high`
-based on the paths you touched and the diff size. The label affects
-auto-merge eligibility:
-
-- `risk:high` → auto-merge is **refused**; manual approval required.
-  This fires automatically if you touch `.github/**`, `LICENSE`,
-  `NOTICE`, `package.json`, `src/lib/llm-runtime/kv-store.ts`, or
-  `src/lib/native/secure-storage.ts` — i.e. governance / credential
-  surface area. Keep your fix away from those paths unless the issue
-  explicitly authorises it.
-- `risk:medium` / `risk:low` / `risk:trivial` → auto-merge is enabled
-  the moment all required status checks are green AND CODEOWNERS
-  approval lands.
-
-The full classification logic lives in
-[`scripts/classify-pr-risk.mjs`](../scripts/classify-pr-risk.mjs).
-
 ### Required checks before opening the PR
 
 Run these in order and verify each passes before pushing or marking the PR
@@ -229,9 +326,6 @@ npm run lint          # must exit 0 — zero errors
 npm run build:dev     # must succeed (tsc + vite)
 npm test              # must pass — no newly failing tests
 ```
-
-If any command fails, fix the failure before proceeding. Do not open a PR
-that you know fails CI — it wastes a CI slot and creates noise.
 
 ### PR description requirements
 
@@ -251,7 +345,7 @@ counts as a regression even if CodeQL doesn't fail the PR build outright.
 ### Hard constraints (never violate these)
 
 - **Do not weaken `package.json` overrides pins** — `path-to-regexp`,
-  `postcss`, `lodash`, `brace-expansion@1`. For dependency vulns, either
+  `postcss`, `lodash`, `brace-expansion@1`, `protobufjs`. For dependency vulns, either
   tighten the pin or upgrade the direct dependency; never remove a pin.
 - **Do not add telemetry, analytics, or third-party network calls.**
 - **Do not modify `LICENSE` or `NOTICE`.**
