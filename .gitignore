@@ -30,9 +30,15 @@ coverage
 
 .env
 **/agent-eval-report*
-packages
 pids
 .file-manifest
 .devcontainer/
 
+# admin-virtual-team-enhanced scaffold artifacts
+admin-virtual-team-enhanced/node_modules/
+admin-virtual-team-enhanced/packages/*/dist/
+admin-virtual-team-enhanced/packages/ui/dist/
+admin-virtual-team-enhanced/packages/*/*.tsbuildinfo
+
 .spark-workbench-id
+**/*.tsbuildinfo
